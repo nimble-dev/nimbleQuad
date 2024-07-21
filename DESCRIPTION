@@ -1,0 +1,20 @@
+Package: nimbleQuad
+Title: Laplace approximation, quadrature and nested deterministic approximation methods for 'nimble'
+Version: 0.1.0
+Date: 2024-09-01
+    person("Paul", "van Dam-Bates", role = "aut"),
+    person("Perry", "de Valpine", role = "aut"),
+    person("Wei", "Zhang", role = "aut"),
+    person("Christopher", "Paciorek", , "paciorek@stat.berkeley.edu", role = c("aut", "cre")),
+    person("Daniel", "Turek", role = "aut")
+    )
+Maintainer: Christopher Paciorek <paciorek@stat.berkeley.edu>
+Description: Provides deterministic approximation methods for use with the 'nimble' package. These include Laplace approximation and higher-order extension of Laplace approximation using adaptive Gauss-Hermite quadrature (AGHQ), plus nested approximation methods related to the INLA approach.
+Depends: R (>= 3.5.0), nimble (>= 1.0.0)
+Imports: methods
+Suggests: testthat
+License: BSD_3_clause + file LICENSE | GPL (>= 2)
+Copyright: See COPYRIGHTS file.
+Encoding: UTF-8
+LazyData: false
+RoxygenNote: 7.3.1
