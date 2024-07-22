@@ -7,7 +7,7 @@ requirements <- c(
     'nimble',
     'testthat',
     'pracma',     ## for AD
-    'numDeriv',   ## for AD
+    'numDeriv'    ## for AD
     ## 'lme4'     ## for test-ADlaplace.R
     )
 
