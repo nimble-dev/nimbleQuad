@@ -28,3 +28,4 @@ library(devtools)
 devtools::install_github('nimble-dev/nimble', ref = 'remove-quad', subdir = 'packages/nimble')
 ## remove until here
 
+
