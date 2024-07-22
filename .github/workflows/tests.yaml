@@ -67,11 +67,11 @@ jobs:
 
       - name: Install nimbleQuad (Windows)
         if: runner.os == 'Windows'
-        run: RCMD INSTALL --install-tests .
+        run: RCMD INSTALL --install-tests nimbleQuad
 
       - name: Install nimbleQuad
         if: runner.os != 'Windows'
-        run: R CMD INSTALL --install-tests .
+        run: R CMD INSTALL --install-tests nimbleQuad
 
       - name: Run tests
         run: source('run_tests.R')
