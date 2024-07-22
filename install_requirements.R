@@ -4,7 +4,7 @@ requirements <- c(
     'igraph',
     'coda',
     'R6',
-    'nimble',
+    ##'nimble',      ## add back in later
     'testthat',
     'pracma',     ## for AD
     'numDeriv'    ## for AD
@@ -22,5 +22,9 @@ install.packages('lme4', type = 'source')
 
 
 
-
+## later, remove below:
+install.packages('devtools')
+library(devtools)
+devtools::install_github('nimble-dev/nimble', ref = 'remove-quad', subdir = 'packages/nimble')
+## remove until here
 
