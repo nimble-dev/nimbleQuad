@@ -2060,6 +2060,8 @@ buildAGHQ <- nimbleFunction(
                     if(nQuad * log(lenInternalRENodeSets[i]) > threshold) {
                         print("Choice of nQuad would yield >50000 nodes for ",lenInternalRENodeSets[i],
                               " integration dimensions in conditionally independent set ", i)
+                        print(nQuad)
+                        print(lenInternalRENodeSet)
                         stop("That is too many nodes.")
                     }
                 }
