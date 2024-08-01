@@ -1886,8 +1886,9 @@ test_that("Laplace with nested random effects works", {
     cmLaplace <- compileNimble(mLaplace, project = m)
     ## It seems that default start values (0, 1, 1, 1) for this example do not work well 
     ## for optimisation; use c(2, 2, 2, 2) instead
+    ## 2024-08-01: c(2,2,2,2) causes bad optimization on GHA runner and Chris' Mac M2
     #expect_output(
-    opt <- cmLaplace$findMLE(pStart = c(2,2,2,2))
+    opt <- cmLaplace$findMLE(pStart = c(2.01,2,2,2))
     #, "optim does not converge for the inner optimization")
     nimres <- cmLaplace$summary(opt, randomEffectsStdError = TRUE)
     
