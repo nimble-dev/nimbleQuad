@@ -3,8 +3,9 @@
 ## as discussed with Chris P.
 ## Note that we will separate fixed effects that are normally distributed from the hyperparameters.
 ## * diff from Laplace.
-buildApproxPosterior <- nimbleFunction(
-  name = 'ApproxPost',
+#' @export
+buildNestedApprox <- nimbleFunction(
+  name = 'NestedApprox',
   setup = function(model, hyperParamNodes, latentNodes, calcNodes,  ## *** Figure out latent nodes.
                    calcNodesOther, control = list()) {
     split <- extractControlElement(control, 'split', TRUE)

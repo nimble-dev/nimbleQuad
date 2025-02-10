@@ -1,7 +1,7 @@
 Package: nimbleQuad
-Title: Laplace approximation, quadrature and nested deterministic approximation methods for 'nimble'
-Version: 0.1.0
-Date: 2024-09-01
+Title: Laplace approximation, quadrature, and nested deterministic approximation methods for 'nimble'. A full User Manual is available at <https://r-nimble.org>.
+Version: 1.4.0
+Date: 2025-03-15
     person("Paul", "van Dam-Bates", role = "aut"),
     person("Perry", "de Valpine", role = "aut"),
     person("Wei", "Zhang", role = "aut"),

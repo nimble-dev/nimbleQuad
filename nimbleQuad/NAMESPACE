@@ -2,6 +2,7 @@
 
 export(buildAGHQ)
 export(buildLaplace)
+export(buildNestedApprox)
 export(runAGHQ)
 export(runLaplace)
 export(setupMargNodes)
