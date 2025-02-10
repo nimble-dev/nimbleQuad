@@ -46,6 +46,9 @@ quadGridListDef <- nimbleList(modeIndex = integer(0),
 ## Note this is for convenience due to
 ## Needing this for sparse grids too.
 ## AGHQ for multivariate as we do now is the "product rule" version.
+## If don't export, not found during compilation of nestedApprox object.
+## Need to investigate further.
+#' @export 
 AGHQ1D <- nimbleFunction(
   run = function(nQuad = integer(0, default = 1)){
       odd <- TRUE

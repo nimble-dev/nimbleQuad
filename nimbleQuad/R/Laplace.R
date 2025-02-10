@@ -2094,6 +2094,7 @@ buildAGHQ <- nimbleFunction(
                                nQuad = integer(0, default=-1),
                                quadTransform = character(0, default="NULL"),
                                innerOptimControl = optimControlNimbleList(default=nimOptimDefaultControl()),
+                               outerOptimMethod = character(0, default="NULL"),
                                replace_innerOptimControl = logical(0, default=FALSE),
                                outerOptimControl = optimControlNimbleList(default=nimOptimDefaultControl()),
                                replace_outerOptimControl = logical(0, default=FALSE),

@@ -8,3 +8,6 @@ export(runLaplace)
 export(setupMargNodes)
 export(summaryAGHQ)
 export(summaryLaplace)
+export(quadGridListDef)
+
+export(AGHQ1D)
