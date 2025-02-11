@@ -2438,7 +2438,6 @@ buildAGHQ <- nimbleFunction(
       mleRes <- optimize(pStart  = pStart,
                        prior = FALSE,
                        jacobian = FALSE,
-                       method  = method,
                        hessian = hessian,
                        parscale = "real") 
       return(mleRes)
@@ -2446,12 +2445,10 @@ buildAGHQ <- nimbleFunction(
     },
     ## Calculate posterior mode of parameters    
     findMAP = function(pStart  = double(1, default = Inf),
-                       method  = character(0, default = "BFGS"),  ##***nlminb change as default.
                        hessian = logical(0, default = TRUE) ){
       mapRes <- optimize(pStart  = pStart,
                        prior = TRUE,
                        jacobian = TRUE,
-                       method  = method,
                        hessian = hessian,
                        parscale = "real")
       return(mapRes)
@@ -2461,7 +2458,6 @@ buildAGHQ <- nimbleFunction(
     optimize = function(pStart = double(1, default = Inf),
                        prior = logical(0, default = FALSE),
                        jacobian = logical(0, default = TRUE),
-                       method  = character(0, default = "BFGS"),
                        hessian = logical(0, default = TRUE),
                        parscale = character(0, default = "transformed")) {
       if(!one_time_fixes_done) one_time_fixes() ## Otherwise summary will look bad.
@@ -2483,12 +2479,12 @@ buildAGHQ <- nimbleFunction(
       if(any_na(pStartTransform) | any_nan(pStartTransform) | any(abs(pStartTransform)==Inf)) pStartTransform <- rep(0, pTransform_length)
       ## Choose the MLE, or the MAP, or a penalized MLE (:= no Jacobian MAP).
       if(!prior){
-        optRes <- optim(pStartTransform, calcLogLik_pTransformed, gr_logLik_pTransformed, method = method, control = outerOptimControl_, hessian = hessian)
+        optRes <- optim(pStartTransform, calcLogLik_pTransformed, gr_logLik_pTransformed, method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
       }else{
         if(jacobian) 
-          optRes <- optim(pStartTransform, calcPostLogDens_pTransformed, gr_postLogDens_pTransformed, method = method, control = outerOptimControl_, hessian = hessian)
+          optRes <- optim(pStartTransform, calcPostLogDens_pTransformed, gr_postLogDens_pTransformed, method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
         else 
-          optRes <- optim(pStartTransform, calcPenalLogDens_pTransformed, gr_penalLogDens_pTransformed, method = method, control = outerOptimControl_, hessian = hessian)      
+          optRes <- optim(pStartTransform, calcPenalLogDens_pTransformed, gr_penalLogDens_pTransformed, method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)      
       }
       
       if(optRes$convergence != 0) 

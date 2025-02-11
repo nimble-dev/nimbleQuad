@@ -176,11 +176,10 @@ buildNestedApprox <- nimbleFunction(
     }, 
     ## *** Posterior mode for hyperparameters. findMAP
     posteriorMode = function(pStart = double(1, default = Inf),
-                       method  = character(0, default = "nlminb"),
                        hessian = logical(0, default = TRUE),
                        parscale = character(0, default = "transformed")){
       optRes <- innerMethods$optimize(pStart = pStart, prior = TRUE, jacobian = TRUE, 
-          method  = method, hessian = TRUE, parscale = parscale)
+          hessian = TRUE, parscale = parscale)
       calcMode <<- TRUE
       thetaMode <<- optRes$par
       thetaNegHess <<- -optRes$hessian
@@ -215,7 +214,7 @@ buildNestedApprox <- nimbleFunction(
       nGrid <- theta_grid$gridSize()
       inner_grid_cache_nfl[[I_GRID]]$buildCache(nGridUpdate = nGrid, nLatentNodes = nre)
       if(calcMode)
-        posteriorMode(rep(Inf, npar), method = "nlminb", hessian = TRUE, parscale = "transformed") ## *** default is now nlminb
+        posteriorMode(rep(Inf, npar), hessian = TRUE, parscale = "transformed") ## *** default is now nlminb
 		},
 		changeHyperGrid = function(quadRule = character(0, default = "AGHQ"), 
                                nQuadUpdate = integer(0, default = 3)){
@@ -404,7 +403,7 @@ buildNestedApprox <- nimbleFunction(
       nQuadGrid <- theta_marg_grid$gridSize()
 
       if(calcMode)
-        posteriorMode(rep(Inf, npar), method = "nlminb", hessian = TRUE, parscale = "transformed") ## *** default is now nlminb
+        posteriorMode(rep(Inf, npar), hessian = TRUE, parscale = "transformed") ## *** default is now nlminb
       
       ## 1D quadrature to evaluate the theta on.
       stdDev <- sqrt(covTheta[pIndex, pIndex])
