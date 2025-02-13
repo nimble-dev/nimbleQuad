@@ -2079,7 +2079,8 @@ buildAGHQ <- nimbleFunction(
     pTransform_fixed <- 0
     pTransform_index_fixed <- 1
     pTransform_indices_other <- numeric(2)
-    
+    test_ptrans_values <- numeric(2)
+
     ## The nimbleList definitions AGHQuad_params and AGHQuad_summary
     ## have moved to predefined nimbleLists.
   },## End of setup
@@ -2398,6 +2399,7 @@ buildAGHQ <- nimbleFunction(
     },
     calcLogDens_pTransformedFix1 = function(pTransform = double(1)){
       pTransform_star <- replaceOneVec(pTransform)
+      test_ptrans_values <<- pTransform_star
 
       ans <- calcLogDens(pTransform_star, trans = TRUE, 
                          includeJacobian = includeJacobian_, 
@@ -2454,7 +2456,7 @@ buildAGHQ <- nimbleFunction(
     },
     gr_LogDens_pTransformedFix1 = function(pTransform = double(1)){
       pTransform_star <- replaceOneVec(pTransform)
-      
+      test_ptrans_values <<- pTransform_star
       ans <- gr_LogDens(pTransform_star, trans = TRUE, 
                            includeJacobian = includeJacobian_, 
                            includePrior = includePrior_)
@@ -2500,7 +2502,7 @@ buildAGHQ <- nimbleFunction(
       pTransform_star[pTransform_index_fixed] <- pTransform_fixed
       pTransform_star[pTransform_indices_other] <- pTransform[1:(pTransform_length-1)]
       returnType(double(1))
-      return(pTransform)
+      return(pTransform_star)
     },
     findMax_fixedp = function(pStartTransform = double(1, default = Inf),
                        pTransformIndex = integer(),
@@ -2552,6 +2554,9 @@ buildAGHQ <- nimbleFunction(
       ## Reset log likelihood internally for cache.
       reset_outer_inner_logLik()
       
+      if(includeJacobian & !includePrior)
+        stop("Should not include a Jacobian transformation when not including the prior distribution in the log density calculation.")
+      
       ## In case parameter nodes are not properly initialized
       if(any_na(pStart) | any_nan(pStart) | any(abs(pStart)==Inf)) pStartTransform <- rep(0, pTransform_length)
       else pStartTransform <- paramsTransform$transform(pStart)
@@ -2559,19 +2564,17 @@ buildAGHQ <- nimbleFunction(
       if(any_na(pStartTransform) | any_nan(pStartTransform) | any(abs(pStartTransform)==Inf)) pStartTransform <- rep(0, pTransform_length)
       ## Choose the MLE, or the MAP, or a penalized MLE (:= no Jacobian MAP).
       # optRes <- optim(pStartTransform, calcLogLik_pTransformed, gr_logLik_pTransformed, method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
+
       setLogDensType(includeJacobian = includeJacobian, includePrior = includePrior)
-      optRes <- optim(pStartTransform, calcLogDens_pTransformed, gr_LogDens_pTransformed, 
-                      method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
-      # setLogDensType()  ## Reset it to default to posterior.
-      
-      # setLogDensType(includeJacobian = jacobian, includePrior = prior)
-      # if( !keepOneFixed_ ){
-        # optRes <- optim(pStartTransform, calcLogDens_pTransformed, gr_LogDens_pTransformed, method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)        
-      # }else{
-        # optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, gr_LogDens_pTransformedFix1, method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)                
-      # }
-      # setLogDensType()  ## Reset it to default to posterior.
-      keepOneFixed_ <<- FALSE
+      if( !keepOneFixed_ ){
+        optRes <- optim(pStartTransform, calcLogDens_pTransformed, gr_LogDens_pTransformed, 
+                        method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)      
+      }else{
+        optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, gr_LogDens_pTransformedFix1, 
+                        method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)                
+      }
+      setLogDensType()  ## Reset it to default to posterior.
+      keepOneFixed_ <<- FALSE ## Can only be switched on by calling findMax_fixedp.
 
       if(optRes$convergence != 0) 
         print("  [Warning] `optim` has a non-zero convergence code: ", optRes$convergence, ".\n",
