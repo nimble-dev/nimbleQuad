@@ -323,11 +323,11 @@ buildNestedApprox <- nimbleFunction(
 		## This is the meat and potatoes for being able to make inference on the latent nodes.
     ## Calculate theta on the quadrature grid points. AGHQ or CCD.
 		## Stores all values we need for simulation inference on the latent nodes.
-		calcHyperGrid = function(skew = logical(0, default = TRUE)){
+    calcHyperGrid = function(skew = logical(0, default = TRUE)){
       buildHyperGrid()
       setTransformations(transformMethod)
       nGrid <- theta_grid$gridSize()
-      
+
       if(!skewedSDCached & skew)
         calcSkewedSD()
 

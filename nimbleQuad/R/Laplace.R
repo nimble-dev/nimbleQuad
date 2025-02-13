@@ -2070,6 +2070,16 @@ buildAGHQ <- nimbleFunction(
 
     useInnerCache_ <- extractControlElement(control, "useInnerCache", TRUE)
 
+    ## Set cached values for calculating prior and posterior in log density.
+    includePrior_ <- TRUE
+    includeJacobian_ <- TRUE
+    keepOneFixed_ <- FALSE
+
+    ## Set up cached values for doing profile likelihood construction:
+    pTransform_fixed <- 0
+    pTransform_index_fixed <- 1
+    pTransform_indices_other <- numeric(2)
+    
     ## The nimbleList definitions AGHQuad_params and AGHQuad_summary
     ## have moved to predefined nimbleLists.
   },## End of setup
@@ -2355,37 +2365,48 @@ buildAGHQ <- nimbleFunction(
       returnType(double())
     },
     ## Calculate posterior density at p log likelihood + log prior.
-    calcPostLogDens = function(p = double(1), trans = logical(0, default = FALSE)) {
+    calcLogDens = function(p = double(1), trans = logical(0, default = FALSE), 
+                           includeJacobian = logical(0, default = TRUE), 
+                           includePrior = logical(0, default = TRUE)) {
       ans <- 0
       if(trans) {
         pstar <- paramsTransform$inverseTransform(p)  ## Just want to do this once.
-        ans <- ans + logDetJacobian(p)  ## p is transformed, add Jacobian here.
+        if(includeJacobian)
+          ans <- ans + logDetJacobian(p)  ## p is transformed, add Jacobian here.
       }else{
         pstar <- p
       }
-      ## Error checking when calling calcLogLik.
-      ans <- ans + calcLogLik(pstar, FALSE) + calcPrior_p(pstar)
+      
+      ans <- ans + calcLogLik(pstar, FALSE)
+
+      if(includePrior)
+        ans <- ans + calcPrior_p(pstar)
+      
       returnType(double())
       return(ans)
     },
     ## Calculate posterior density at p transformed, log likelihood + log prior (transformed).
-    calcPostLogDens_pTransformed = function(pTransform = double(1)) {
-      ans <- calcPostLogDens(pTransform, TRUE)
+    calcLogDens_pTransformed = function(pTransform = double(1)) {
+      ans <- calcLogDens(pTransform, trans = TRUE, 
+                         includeJacobian = includeJacobian_, 
+                         includePrior = includePrior_)
       cache_outer_logLik(ans) ## Update internal cache w/ prior.
 
       if(is.nan(ans) | is.na(ans)) ans <- -Inf			
       returnType(double())
 			return(ans)
     },
-    ## Penalized by priors log-likelihood (no jacobian)
-    calcPenalLogDens_pTransformed = function(pTransform = double(1)) {  ## *** maybe make one with an argument.
-      p <- paramsTransform$inverseTransform(pTransform)
-      ans <- calcPostLogDens(pTransform, FALSE)
+    calcLogDens_pTransformedFix1 = function(pTransform = double(1)){
+      pTransform_star <- replaceOneVec(pTransform)
+
+      ans <- calcLogDens(pTransform_star, trans = TRUE, 
+                         includeJacobian = includeJacobian_, 
+                         includePrior = includePrior_)
       cache_outer_logLik(ans) ## Update internal cache w/ prior.
 
-      if(is.nan(ans) | is.na(ans)) ans <- -Inf
+      if(is.nan(ans) | is.na(ans)) ans <- -Inf			
       returnType(double())
-      return(ans)
+			return(ans)
     },
     ## Gradient of log det jacobian for parameter transformations.
     gr_logDetJacobian = function(pTransform = double(1)){
@@ -2400,31 +2421,51 @@ buildAGHQ <- nimbleFunction(
       returnType(double(1))
     },
     ## Gradient of posterior density on the transformed scale.
-    gr_postLogDens_pTransformed = function(pTransform = double(1)){
-      pDerivs <- derivs_pInverseTransform(pTransform, c(0, 1))
-      grLogDetJacobian <- gr_logDetJacobian(pTransform)
-      grLogLikTrans <- gr_logLik(pTransform, TRUE)
+    gr_LogDens = function(p = double(1), trans = logical(0, default = FALSE), 
+                           includeJacobian = logical(0, default = TRUE), 
+                           includePrior = logical(0, default = TRUE)){
+      if(trans) {
+        pDerivs <- derivs_pInverseTransform(p, c(0, 1))
+        pstar <- pDerivs$value
+      }else{
+        pstar <- p
+      }
+      ## Gradient of log likelihood:
+      ans <- gr_logLik(pstar, FALSE)
 
-      p <- pDerivs$value
-      grPrior <- gr_prior(p)
-      grPriorTrans <- (grPrior %*% pDerivs$jacobian)[1,]
+      if(includePrior)
+        ans <- ans + gr_prior(pstar)
+
+      if(trans){
+        ans <- (ans %*% pDerivs$jacobian)[1,]
+        if(includeJacobian)
+          ans <- ans + gr_logDetJacobian(p)
+      }
       
-      ans <- grLogLikTrans + grPriorTrans + grLogDetJacobian
       return(ans)
       returnType(double(1))
     },
-    ## Gradient of prior penalized log likelihood on the transformed scale (no jacobians)
-    gr_penalLogDens_pTransformed = function(pTransform = double(1)) {
-        pDerivs <- derivs_pInverseTransform(pTransform, c(0, 1))
-        grLogLikTrans <- gr_logLik(pTransform, TRUE)
-        
-        p <- pDerivs$value
-        grPrior <- gr_prior(p)
-        grPriorTrans <- (grPrior %*% pDerivs$jacobian)[1,]
-        
-        ans <- grLogLikTrans + grPriorTrans
-        return(ans)
-        returnType(double(1))
+    gr_LogDens_pTransformed = function(pTransform = double(1)){
+      ans <- gr_LogDens(pTransform, trans = TRUE, 
+                           includeJacobian = includeJacobian_, 
+                           includePrior = includePrior_)
+      return(ans)
+      returnType(double(1))
+    },
+    gr_LogDens_pTransformedFix1 = function(pTransform = double(1)){
+      pTransform_star <- replaceOneVec(pTransform)
+      
+      ans <- gr_LogDens(pTransform_star, trans = TRUE, 
+                           includeJacobian = includeJacobian_, 
+                           includePrior = includePrior_)
+
+      return(ans[pTransform_indices_other])
+      returnType(double(1))
+    },
+    setLogDensType = function(includeJacobian = logical(0, default = TRUE), 
+                              includePrior = logical(0, default = TRUE)){
+      includeJacobian_ <<- includeJacobian
+      includePrior_ <<- includePrior
     },
     ## For internal purposes of building the gradient
     logDetJacobian = function(pTransform = double(1)){
@@ -2436,8 +2477,8 @@ buildAGHQ <- nimbleFunction(
     findMLE = function(pStart  = double(1, default = Inf),
                        hessian = logical(0, default = TRUE) ){
       mleRes <- optimize(pStart  = pStart,
-                       prior = FALSE,
-                       jacobian = FALSE,
+                       includePrior = FALSE,
+                       includeJacobian = FALSE,
                        hessian = hessian,
                        parscale = "real") 
       return(mleRes)
@@ -2447,17 +2488,56 @@ buildAGHQ <- nimbleFunction(
     findMAP = function(pStart  = double(1, default = Inf),
                        hessian = logical(0, default = TRUE) ){
       mapRes <- optimize(pStart  = pStart,
-                       prior = TRUE,
-                       jacobian = TRUE,
+                       includePrior = TRUE,
+                       includeJacobian = TRUE,
                        hessian = hessian,
                        parscale = "real")
       return(mapRes)
       returnType(optimResultNimbleList())
     },
+    replaceOneVec = function(pTransform = double(1)){
+      pTransform_star <- numeric(value = 0, length = pTransform_length)
+      pTransform_star[pTransform_index_fixed] <- pTransform_fixed
+      pTransform_star[pTransform_indices_other] <- pTransform[1:(pTransform_length-1)]
+      returnType(double(1))
+      return(pTransform)
+    },
+    findMax_fixedp = function(pStartTransform = double(1, default = Inf),
+                       pTransformIndex = integer(),
+                       pTransformValue = double(), 
+                       includePrior = logical(0, default = FALSE),
+                       includeJacobian = logical(0, default = FALSE),
+                       hessian = logical(0, default = TRUE)){
+
+      pTransform_index_fixed <<- pTransformIndex
+      pTransform_fixed <<- pTransformValue
+      pTransform_indices_other <<- pTransform_indices[pTransform_indices != pTransform_index_fixed]
+
+      if(length(pStartTransform) == (pTransform_length-1)) {
+        pStartTransform_star <- replaceOneVec(pStartTransform)
+        pStart <- paramsTransform$inverseTransform(pStartTransform_star)
+      }else{
+        if(length(pStartTransform) == pTransform_length)
+          pStart <- paramsTransform$inverseTransform(pStartTransform)
+        else
+          pStart <- numeric(value = Inf, length = 1)
+      }
+
+      keepOneFixed_ <<- TRUE
+
+      maxRes <- optimize(pStart  = pStart,
+                       includePrior = includePrior,
+                       includeJacobian = includeJacobian,
+                       hessian = hessian,
+                       parscale = "transform")
+
+      return(maxRes)
+      returnType(optimResultNimbleList())                       
+    },
     ## General Maximization Function
     optimize = function(pStart = double(1, default = Inf),
-                       prior = logical(0, default = FALSE),
-                       jacobian = logical(0, default = TRUE),
+                       includePrior = logical(0, default = FALSE),
+                       includeJacobian = logical(0, default = FALSE),
                        hessian = logical(0, default = TRUE),
                        parscale = character(0, default = "transformed")) {
       if(!one_time_fixes_done) one_time_fixes() ## Otherwise summary will look bad.
@@ -2471,22 +2551,28 @@ buildAGHQ <- nimbleFunction(
       }
       ## Reset log likelihood internally for cache.
       reset_outer_inner_logLik()
-            
+      
       ## In case parameter nodes are not properly initialized
       if(any_na(pStart) | any_nan(pStart) | any(abs(pStart)==Inf)) pStartTransform <- rep(0, pTransform_length)
       else pStartTransform <- paramsTransform$transform(pStart)
       ## In case bad start values are provided
       if(any_na(pStartTransform) | any_nan(pStartTransform) | any(abs(pStartTransform)==Inf)) pStartTransform <- rep(0, pTransform_length)
       ## Choose the MLE, or the MAP, or a penalized MLE (:= no Jacobian MAP).
-      if(!prior){
-        optRes <- optim(pStartTransform, calcLogLik_pTransformed, gr_logLik_pTransformed, method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
-      }else{
-        if(jacobian) 
-          optRes <- optim(pStartTransform, calcPostLogDens_pTransformed, gr_postLogDens_pTransformed, method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
-        else 
-          optRes <- optim(pStartTransform, calcPenalLogDens_pTransformed, gr_penalLogDens_pTransformed, method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)      
-      }
+      # optRes <- optim(pStartTransform, calcLogLik_pTransformed, gr_logLik_pTransformed, method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
+      setLogDensType(includeJacobian = includeJacobian, includePrior = includePrior)
+      optRes <- optim(pStartTransform, calcLogDens_pTransformed, gr_LogDens_pTransformed, 
+                      method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
+      # setLogDensType()  ## Reset it to default to posterior.
       
+      # setLogDensType(includeJacobian = jacobian, includePrior = prior)
+      # if( !keepOneFixed_ ){
+        # optRes <- optim(pStartTransform, calcLogDens_pTransformed, gr_LogDens_pTransformed, method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)        
+      # }else{
+        # optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, gr_LogDens_pTransformedFix1, method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)                
+      # }
+      # setLogDensType()  ## Reset it to default to posterior.
+      keepOneFixed_ <<- FALSE
+
       if(optRes$convergence != 0) 
         print("  [Warning] `optim` has a non-zero convergence code: ", optRes$convergence, ".\n",
               "            The control parameters of `optim` can be adjusted in the control argument of\n",
