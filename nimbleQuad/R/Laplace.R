@@ -2595,6 +2595,34 @@ buildAGHQ <- nimbleFunction(
       return(optRes)
       returnType(optimResultNimbleList())
     },
+    profileLogDens = function(pTransformValue = double(),
+                              pTransformIndex = integer(), 
+                              MLEoutput = optimResultNimbleList(),
+                              parscale = character(0, default = "transformed"),
+                              limit = double()){
+      if(parscale == "real")
+        ptrans <- paramsTransform$transform(MLEoutput$par)
+      else
+        ptrans <- MLEoutput$par
+
+      pTransform_index_fixed <<- pTransformIndex
+      pTransform_fixed <<- pTransformValue
+      pTransform_indices_other <<- pTransform_indices[pTransform_indices != pTransform_index_fixed]
+      ptrans[pTransform_index_fixed] <- pTransformValue
+
+      pStart <- paramsTransform$transform(ptrans)
+      keepOneFixed_ <<- TRUE
+
+      maxRes <- optimize(pStart  = pStart,
+                       includePrior = FALSE,
+                       includeJacobian = FALSE,
+                       hessian = FALSE,
+                       parscale = "transform")
+
+      ans <- maxRes$value - MLEoutput$value - limit/2
+      return(ans)
+      returnType(double())
+    },
     ## User can update whether or not a warning is set for inner optimization.
     ## setInnerOptimWarning = function(warn = logical(0, default = FALSE)){
     ##   for(i in seq_along(AGHQuad_nfl)){
