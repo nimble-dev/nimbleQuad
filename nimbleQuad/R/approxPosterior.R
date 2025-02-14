@@ -145,11 +145,6 @@ buildNestedApprox <- nimbleFunction(
     logPostProbMode <- 0
     logDetNegHessTheta <- 0
 		
-    ## Fixed values for AGHQ marginals:
-    theta_fixed <- 0
-    theta_fixed_index <- 0
-    other_theta_indices <- theta_indices    
-
     ## Other cached values:
     skewedSDCached <- FALSE
     ## Must be cached for each grid: Up to 3 currently.
@@ -164,7 +159,6 @@ buildNestedApprox <- nimbleFunction(
       if(one_time_fixes_done) return()
       if(theta_length == 1){
         theta_indices <<- numeric(length = 1, value = 1)
-        other_theta_indices <<- numeric(length = 1, value = 1)
         thetaMode <<- numeric(length = 1, value = 0)
       }
       if(npar == 1){
@@ -178,7 +172,7 @@ buildNestedApprox <- nimbleFunction(
     posteriorMode = function(pStart = double(1, default = Inf),
                        hessian = logical(0, default = TRUE),
                        parscale = character(0, default = "transformed")){
-      optRes <- innerMethods$optimize(pStart = pStart, prior = TRUE, jacobian = TRUE, 
+      optRes <- innerMethods$optimize(pStart = pStart, includePrior = TRUE, includeJacobian = TRUE, 
           hessian = TRUE, parscale = parscale)
       calcMode <<- TRUE
       thetaMode <<- optRes$par
@@ -187,25 +181,6 @@ buildNestedApprox <- nimbleFunction(
       covTheta <<- inverse(thetaNegHess)
       return(optRes)
       returnType(optimResultNimbleList())
-    },
-    calcPostLogProb_thetaj = function(theta = double(1)) {
-      theta_star <- numeric(value = 0, length = theta_length)
-      theta_star[theta_fixed_index] <- theta_fixed
-      theta_star[other_theta_indices] <- theta
-
-      ans <- innerMethods$calcPostLogDens(theta_star, TRUE)
-      returnType(double())
-      return(ans)
-    },
-    gr_postLogProb_pTransformedj = function(theta = double(1)) {
-      theta_star <- numeric(value = 0, length = theta_length)
-      theta_star[theta_fixed_index] <- theta_fixed
-      theta_star[other_theta_indices] <- theta
-
-      ans <- innerMethods$gr_postLogDens_pTransformed(theta_star)
-      ansj <- ans[other_theta_indices]
-      return(ansj)
-      returnType(double(1))
     },
     ## Build hyper quad grid and cache system.
     buildHyperGrid = function(quadRule = character(0, default = "AGHQ")) {
@@ -286,17 +261,18 @@ buildNestedApprox <- nimbleFunction(
     calcSkewedSD = function() {
       ## Require the grid to have been built and the mode found.
       buildHyperGrid()
+
       setTransformations(transformMethod)
       logSkewedWgt <<- 0
       for( i in 1:theta_length){
         z <- numeric(value = 0, length = theta_length)
         z[i] <- -sqrt(2)
         theta <- z_to_theta(z, thetaMode, Atransform, transformMethod)
-        logDens2Neg <- innerMethods$calcPostLogDens_pTransformed(pTransform = theta)
+        logDens2Neg <- innerMethods$calcLogDens_pTransformed(pTransform = theta)
         skewedStdDev[i, 1] <<- sqrt(2 / (2.0 * (logPostProbMode-logDens2Neg))) 	## numerator (-sqrt(2)) ^2
         z[i] <- sqrt(2)
         theta <- z_to_theta(z, thetaMode, Atransform, transformMethod)
-        logDens2Pos <- innerMethods$calcPostLogDens_pTransformed(pTransform = theta)
+        logDens2Pos <- innerMethods$calcLogDens_pTransformed(pTransform = theta)
         skewedStdDev[i, 2] <<- sqrt(2 / (2.0 * (logPostProbMode-logDens2Pos))) 	## numerator (-sqrt(2)) ^2
         logSkewedWgt <<- logSkewedWgt + log(sum(skewedStdDev[i, ]/2))
       }
@@ -327,10 +303,9 @@ buildNestedApprox <- nimbleFunction(
       buildHyperGrid()
       setTransformations(transformMethod)
       nGrid <- theta_grid$gridSize()
-
+      
       if(!skewedSDCached & skew)
         calcSkewedSD()
-
       ans <- 0
       ## Now fill in the grid values.
       for( i in 1:nGrid ){
@@ -353,7 +328,7 @@ buildNestedApprox <- nimbleFunction(
           }
           ## Transform to theta scale:
           node <- z_to_theta(node, thetaMode, Atransform, transformMethod)
-          thetaLogPostDens <- innerMethods$calcPostLogDens_pTransformed(node)
+          thetaLogPostDens <- innerMethods$calcLogDens_pTransformed(node)
           wgt_dens <- wgt*exp(thetaLogPostDens - logPostProbMode)
           ## Marginal sum:
           ans <- ans + wgt_dens
@@ -411,29 +386,27 @@ buildNestedApprox <- nimbleFunction(
       # Initialize optimization at theta mode.
       Atransform_i <- matrix(0, nrow = theta_length-1, ncol = theta_length-1)
 
-      ## Set this as fixed for optimization.
-      theta_fixed_index <<- pIndex
-      other_theta_indices <<- theta_indices[theta_indices != pIndex]
-      initTheta  <- thetaMode[other_theta_indices]
-
       ## Column 1 is chosen theta values, Column 2 is marginalized values, Column 3 is normalized marginal posterior.
       ## This matches AGHQ output from Stringer paper.
       res <- matrix(0, nrow = nPts, ncol = 3)
+      thetaj <- thetaMode
+      other_theta_indices <- theta_indices[theta_indices != pIndex]
+
       ## For each value of thetai, we need to do AGHQ which means 
       ## finding the mode of the other parameters, transforming and computing.
       ## *** More efficient but less accurate if we just use global mode...?
       for( i in 1:nPts ){
         res[i,1] <- theta1_nodes[i,2]*stdDev + thetaMode[pIndex]
-        theta_fixed <<- res[i,1]
+        thetaj[pIndex] <- res[i,1]
 
         ## If this is the mode then we know optim already:
         if(theta1_nodes[i,2] == 0){
-          theta_iMode <- initTheta
+          theta_iMode <- thetaMode[other_theta_indices]
           subsetNegHess <- thetaNegHess[other_theta_indices,other_theta_indices]
           maxPostDensi <- logPostProbMode
         }else{
-          optRes <- optim(initTheta, calcPostLogProb_thetaj, gr_postLogProb_pTransformedj, 
-                          method = "nlminb", control = outerOptimControl_, hessian = TRUE)
+          optRes <- innerMethods$findMax_fixedp(pStartTransform = thetaMode, pTransformIndex = pIndex, pTransformValue = res[i,1],
+                                                includePrior = TRUE, includeJacobian = TRUE, hessian = TRUE)
           subsetNegHess <- -optRes$hessian
           theta_iMode <- optRes$par
           maxPostDensi <- optRes$value
@@ -454,8 +427,10 @@ buildNestedApprox <- nimbleFunction(
         for( j in 1:nQuadGrid ){
           if( j != theta_marg_grid$modeI()) {
             nodej <- theta_marg_grid$nodes(indx = j)[1,]
-            otherTheta <- z_to_theta(z = nodej, postMode = theta_iMode, A = Atransform_i, method = gridTransformMethod)
-            postLogDensij <- calcPostLogProb_thetaj(otherTheta)
+            theta_tmp <- z_to_theta(z = nodej, postMode = theta_iMode, A = Atransform_i, method = gridTransformMethod)
+            thetaj[other_theta_indices] <- theta_tmp
+            postLogDensij <- innerMethods$calcLogDens_pTransformed(pTransform = thetaj)
+
             logDensi <- logDensi + exp(postLogDensij - maxPostDensi)*theta_marg_grid$weights(indx = j)[1]
           }else{
             logDensi <- logDensi + theta_marg_grid$weights(indx = j)[1]

@@ -2312,6 +2312,10 @@ buildAGHQ <- nimbleFunction(
       return(ans)
       returnType(double())
     },
+    pTransform_internal = function(p = double(1)){
+      returnType(double(1))
+      return(paramsTransform$transform(p))
+    },
     ## Inverse transform parameters to original scale
     pInverseTransform = function(pTransform = double(1)) {
       p <- paramsTransform$inverseTransform(pTransform)
@@ -2596,30 +2600,25 @@ buildAGHQ <- nimbleFunction(
       returnType(optimResultNimbleList())
     },
     profileLogDens = function(pTransformValue = double(),
-                              pTransformIndex = integer(), 
-                              MLEoutput = optimResultNimbleList(),
-                              parscale = character(0, default = "transformed"),
-                              limit = double()){
-      if(parscale == "real")
-        ptrans <- paramsTransform$transform(MLEoutput$par)
-      else
-        ptrans <- MLEoutput$par
-
-      pTransform_index_fixed <<- pTransformIndex
+                              pTransformIndex = integer(),
+                              pStart = double(1, default = Inf),
+                              maxLogDens = double(),
+                              limit = double(),
+                              includePrior = logical(0, default = FALSE),
+                              includeJacobian = logical(0, default = FALSE)){
+      pTransform_index_fixed <<- pTransformIndex ## Assuming no dimension changes so that pIndex =: pTransformIndex!
       pTransform_fixed <<- pTransformValue
       pTransform_indices_other <<- pTransform_indices[pTransform_indices != pTransform_index_fixed]
-      ptrans[pTransform_index_fixed] <- pTransformValue
 
-      pStart <- paramsTransform$transform(ptrans)
       keepOneFixed_ <<- TRUE
 
-      maxRes <- optimize(pStart  = pStart,
-                       includePrior = FALSE,
-                       includeJacobian = FALSE,
+      maxRes <- optimize(pStart = pStart,
+                       includePrior = includePrior,
+                       includeJacobian = includeJacobian,
                        hessian = FALSE,
-                       parscale = "transform")
+                       parscale = "transformed")
 
-      ans <- maxRes$value - MLEoutput$value - limit/2
+      ans <- maxRes$value - maxLogDens + limit/2
       return(ans)
       returnType(double())
     },
