@@ -25,7 +25,7 @@ buildNestedApprox <- nimbleFunction(
 
     ## Configure all grids before calling AGHQ to make sure it builds correctly.
     ## DO NOT MOVE WHEN THIS IS CALLED
-    allGridRules <- c("CCD", "AGHQ", "USER")
+    allGridRules <- c("CCD", "AGHQ", "AGHQSPRSE", "USER")
 
     ## Default to CCD
     theta_grid <- configureQuadGrid(d = 1, nQuad_ = nQuadOuter, quadRule = hyperGridRule, 
@@ -92,6 +92,8 @@ buildNestedApprox <- nimbleFunction(
     inner_grid_cache_nfl[[I_CCD]] <- inner_cache_methods(nre = 0, nGrid = 1, condIndptSets = lenInternalRENodeSets, nCondIndptSets = nInternalRESets)
     I_AGHQ <- theta_grid$I_AGHQ
     inner_grid_cache_nfl[[I_AGHQ]] <- inner_cache_methods(nre = 0, nGrid = 1, condIndptSets = lenInternalRENodeSets, nCondIndptSets = nInternalRESets)
+    I_AGHQSPRSE <- theta_grid$I_AGHQSPRSE
+    inner_grid_cache_nfl[[I_AGHQSPRSE]] <- inner_cache_methods(nre = 0, nGrid = 1, condIndptSets = lenInternalRENodeSets, nCondIndptSets = nInternalRESets)
 
     I_USER <- 1
     if(any(allGridRules == "USER")) {
@@ -194,10 +196,12 @@ buildNestedApprox <- nimbleFunction(
 		changeHyperGrid = function(quadRule = character(0, default = "AGHQ"), 
                                nQuadUpdate = integer(0, default = 3)){
       hyperGridRule <<- quadRule
+      I_GRID <<- I_AGHQ     ## Default to AGHQ and change if requested.
       if(quadRule == "CCD")
         I_GRID <<- I_CCD
-      else 
-        I_GRID <<- I_AGHQ
+      if(quadRule == "AGHQSPRSE")
+        I_GRID <<- I_AGHQSPRSE
+
       nQuadOuter <<- nQuadUpdate
 			buildHyperGrid(quadRule = quadRule)
     },
