@@ -397,7 +397,7 @@ inner_cache_methods = nimbleFunction(
     wgtsDens <- c(1,-1)
     cacheBuilt <- FALSE
     if(is.null(condIndptSets)) {
-      condInptSets <- nre ## Assuming all one set.
+      condIndptSets <- nre ## Assuming all one set.
       nCondIndptSets <- 1 ## If NULL then this is not relevant.
     }
     if(length(condIndptSets) == 1){
@@ -413,13 +413,13 @@ inner_cache_methods = nimbleFunction(
         print("  Warning: Not able to simulate latent effects from conditionally independent sets.")
         condIndptSets <<- numeric(value = nre, length = 1)
         nCondIndptSets <<- 1
-      }      
+      }
     
       if( nGridUpdate > 0 & nGridUpdate != nGrid){
         nGrid <<- nGridUpdate
         cacheBuilt <<- FALSE
       }
-      if(cacheBuilt){
+      if(!cacheBuilt){
         nGrid <<- nGridUpdate
         wgtsDens <<- numeric(value = 0, length = nGrid)
         innerMode <<- matrix(0, nrow = nGrid, ncol = nre)

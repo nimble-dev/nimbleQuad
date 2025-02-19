@@ -37,12 +37,10 @@ buildNestedApprox <- nimbleFunction(
     ## Need to check this as it's is now computed in the "buildAGHQ" function:
     nre <- innerMethods$nre
 
-   ## Simulate from conditionally independent sets.
-   ## Do this via number of sets and the length of each.
-   nInternalRESets <- length(innerMethods$AGHQuad_nfl)
-   lenInternalRENodeSets <- innerMethods$lenInternalRENodeSets
-   
-   ##*** Simulate from blockwise cholesky for latent effects.
+    ## Simulate from conditionally independent sets.
+    ## Do this via number of sets and the length of each.
+    nInternalRESets <- length(innerMethods$AGHQuad_nfl)
+    lenInternalRENodeSets <- innerMethods$lenInternalRENodeSets
 
     ## Outer optimization settings
     outerOptimControl_   <- nimOptimDefaultControl()
@@ -185,25 +183,25 @@ buildNestedApprox <- nimbleFunction(
       returnType(optimResultNimbleList())
     },
     ## Build hyper quad grid and cache system.
-    buildHyperGrid = function(quadRule = character(0, default = "AGHQ")) {
+    buildHyperGrid = function(quadRule = character(0, default = "AGHQ"), nQuadUpdate = integer(0, default = 3)) {
       one_time_fixes()
-			theta_grid$buildGrid(method = quadRule, nQuad = nQuadOuter)
+      nQuadOuter <<- nQuadUpdate
+      setHyperGridRule(quadRule)
+			theta_grid$buildGrid(method = hyperGridRule, nQuad = nQuadOuter)
       nGrid <- theta_grid$gridSize()
       inner_grid_cache_nfl[[I_GRID]]$buildCache(nGridUpdate = nGrid, nLatentNodes = nre)
-      if(calcMode)
-        posteriorMode(rep(Inf, npar), hessian = TRUE, parscale = "transformed") ## *** default is now nlminb
+      if(!calcMode)
+        posteriorMode(rep(Inf, npar), hessian = TRUE, parscale = "transformed")
 		},
-		changeHyperGrid = function(quadRule = character(0, default = "AGHQ"), 
-                               nQuadUpdate = integer(0, default = 3)){
+    setHyperGridRule = function(quadRule = character(0, default = "AGHQ")){
+      ## Add a rule check here to make sure it's valid.
       hyperGridRule <<- quadRule
-      I_GRID <<- I_AGHQ     ## Default to AGHQ and change if requested.
+      ## Default to AGHQ and change if requested.
+      I_GRID <<- I_AGHQ     
       if(quadRule == "CCD")
         I_GRID <<- I_CCD
       if(quadRule == "AGHQSPRSE")
         I_GRID <<- I_AGHQSPRSE
-
-      nQuadOuter <<- nQuadUpdate
-			buildHyperGrid(quadRule = quadRule)
     },
     calcEigen = function(){
       E <- eigen(thetaNegHess, symmetric = TRUE) ## Should be symmetric...
@@ -381,7 +379,7 @@ buildNestedApprox <- nimbleFunction(
 
       nQuadGrid <- theta_marg_grid$gridSize()
 
-      if(calcMode)
+      if(!calcMode)
         posteriorMode(rep(Inf, npar), hessian = TRUE, parscale = "transformed") ## *** default is now nlminb
       
       ## 1D quadrature to evaluate the theta on.
@@ -398,7 +396,6 @@ buildNestedApprox <- nimbleFunction(
 
       ## For each value of thetai, we need to do AGHQ which means 
       ## finding the mode of the other parameters, transforming and computing.
-      ## *** More efficient but less accurate if we just use global mode...?
       for( i in 1:nPts ){
         res[i,1] <- theta1_nodes[i,2]*stdDev + thetaMode[pIndex]
         thetaj[pIndex] <- res[i,1]
@@ -440,7 +437,7 @@ buildNestedApprox <- nimbleFunction(
             logDensi <- logDensi + theta_marg_grid$weights(indx = j)[1]
           }
         }
-        res[i,2] <- log(logDensi) + maxPostDensi - 0.5 * 0.5*logDetNegHessThetai 
+        res[i,2] <- log(logDensi) + maxPostDensi - 0.5*logDetNegHessThetai
       }
       ## Because thetai values are AGHQ, we can normalize to get the proper posterior prob.
       ## This let's us get the marginal posterior via spline without any more normalizing.
