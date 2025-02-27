@@ -328,7 +328,7 @@ updateMarginalSummaries <- function(summary, quantiles = c(.025,.25,.5,.75,.975)
             cnt <- cnt+1
             summary$quantiles[[cnt]] <- estimateQuantiles(summary$marginalsApprox[[i]], summary$indivParamTransforms[[i]], quantiles)
             expectations[[cnt]] <- estimateExpectations(marginalsApprox[[i]], paramTransforms[[i]], 
-                                                        functionals = functionals, functionalsAargs = functionalsArgs, scale = functionalsScale)
+                                                        functionals = functionals, functionalsArgs = functionalsArgs, scale = functionalsScale)
         }
     }
     return(summary)    
