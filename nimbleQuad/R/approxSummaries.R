@@ -3,12 +3,14 @@ marginalSplineR <- nimbleRcall(function(theta = double(1), logdens = double(1)){
   returnType = double(2)
 )
 
-marginalSpline = function(theta, logdens){
+fitMarginalSpline <- function(gridded, normalize = TRUE){
+    theta <- gridded[ , 1]
+    logdens <- gridded[ , 2]
     n <- length(theta)
     rn <- range(theta)
     rnl <- diff(rn)
-    thetarange <- c(min(rn) - rnl/2,max(rn) + rnl/2)
-    finegrid <- c(seq(thetarange[1],thetarange[2],length.out=1000)) ## This is based off of Stringer for a fine grid.
+    thetarange <- c(min(rn) - rnl/2, max(rn) + rnl/2)
+    finegrid <- seq(thetarange[1], thetarange[2], length.out = 1000) ## This is based off of Stringer for a fine grid.
     if (n <= 3) {
         log_pdf <- as.function(polynom::poly.calc(x = theta, y = logdens))
         logPDF <- log_pdf(finegrid)             
@@ -20,24 +22,101 @@ marginalSpline = function(theta, logdens){
     ## Normalize the PDF:
     pdf <- exp(logPDF)
     trapezoids <- diff(finegrid)*(pdf[-n]+pdf[-1])/2  # trapezoidal rule (could use Simpson as (2M+T)/3
-    norm <- sum(trapezoids)
+    if(normalize)
+        norm <- sum(trapezoids) else norm <- 1
     pdf <- pdf/norm
     cdf <- c(0, cumsum(trapezoids)/norm)
     ## Return the gridded distribution information.
     return(cbind(finegrid, pdf, cdf))
 }
+## TODO: should we refine the grid based on excluding portions with negligible mass?
+
+
+
+estimateQuantiles <- function(marginalApprox, transform = NULL, quantiles = c(.025,.25,.5,.75,.975)) {
+    finegridTrans <- marginalApprox[,'finegrid'] 
+    cdf <- marginalApprox[,'cdf']  
+    
+    ## For now use smoothing spline on quantile function on transformed (theta) scale.
+    used <- cdf > .001 & cdf < .999  # Need to avoid cdf values too close together or spline fit will fail.
+    ss <- splines::interpSpline(cdf[used], finegridTrans[used],
+                                bSpline = TRUE, sparse = FALSE)
+    quantsTrans <- stats::predict(ss, quantiles)$y
+    if(!is.null(transform))
+        quants <- transform$inverseTransform(quantsTrans) else quants <- quantsTrans
+    names(quants) <- paste0("q", quantiles)
+
+    return(quants)
+}
 
 ## Trapezoidal rule for estimating expectation.
-estimateExpectation <- function(grid, pdf, functional, n = length(grid)) {
+runTrapezRule <- function(grid, pdf, functional) {
+    n <- length(grid)
     return(sum(diff(grid)*(pdf[-n]*functional[-n]+pdf[-1]*functional[-1])/2))
 }
 
-## Works only for transformations that are 1:1 between theta and p.
-## For non-1:1 report on theta scale probably and probably provide a simulation method like inla.hyperpar.sample.
-## See also what Stringer does. 
-## Need to wire in the reTrans transformation and logDetJacobian.
 
-summarizeMarginal <- function(marginalApprox, transform = inverseTransform, logDetJacobian = logDetJacobian,
+## functionals should be a named list of functions.
+## if user wants any of their functionals to take additional args, all of them must take ...
+estimateExpectations <- function(marginalApprox, transform = NULL,
+                                 functionals = NULL, functionalsArgs = NULL, scale = "original") { 
+
+    finegridTrans <- marginalApprox[,'finegrid'] 
+    pdfTrans <- marginalApprox[,'pdf']          
+    if(!is.null(transform)) {
+        finegrid <- transform$inverseTransform(finegridTrans)
+    } else {
+        finegrid <- finegridTrans
+    }
+
+    ## Posterior expectations: defaults
+    ## Use pdf on transformed (theta) scale.
+    ## If user set `originalScale = FALSE` then there will be no transform
+    ## and this will give mean and sd on transformed scale.
+    functionalVals <- finegrid
+    postMean <- runTrapezRule(finegridTrans, pdfTrans, functionalVals)
+    functionalVals <- (finegrid - postMean)^2
+    postVar <- runTrapezRule(finegridTrans, pdfTrans, functionalVals)
+    postSD <- sqrt(postVar)
+
+    expectations <- c('mean' = postMean, 'sd' = postSD)
+
+    ## Expectations calculated directly on original scale.
+    ## postMean <- sum(diff(finegrid)*(pdf[-n]*finegrid[-n]+pdf[-1]*finegrid[-1])/2)
+    ## functional <- (finegrid - postMean)^2
+    ## postVar <- sum(diff(finegrid)*(pdf[-n]*functional[-n]+pdf[-1]*functional[-1])/2)
+
+    ## User-defined expectations.
+    ## if `scale = "original"` then `functionals[[i]]` is assumed to be a function of
+    ## parameters on original scale.
+    ## If `originalScale=FALSE` then `transform` will be NULL, so
+    ## this will take functionals to operate on transformed values, regardless
+    ## of `functionalsScale`.
+    if(length(functionals)) {
+        userExps <- rep(0, length(functionals))
+        names(userExps) <- names(functionals)
+        for(i in seq_along(functionals)) {
+            if(scale == "original") input <- finegrid else input <- finegridTrans
+            if(is.null(functionalsArgs)) {
+                functionalVals <- functionals[[i]](input)
+            } else {
+                argList <- list(); length(argList) <- length(functionalArgs[[i]])+1
+                argList[[1]] <- input
+                argList[2:length(argList)] <- functionalArgs[[i]]
+                functionalVals <- do.call(functionals[[i]], argList)
+            }
+            userExps[i] <- runTrapezRule(finegridTrans, pdfTrans, functionalVals) 
+        }
+        expectations <- c(expectations, userExps)
+    }
+
+    return(expectations)
+}
+
+
+
+## Original version. May not be used.
+summarizeMarginalOriginal <- function(marginalApprox, transform = inverseTransform, logDetJacobian = logDetJacobian,
                               quantiles = c(.025,.25,.5,.75,.975), functionals = NULL, ...) {
     n <- nrow(marginalApprox)
 

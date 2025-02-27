@@ -9,5 +9,7 @@ export(setupMargNodes)
 export(summaryAGHQ)
 export(summaryLaplace)
 export(quadGridListDef)
-
+export(tensor_product)
+export(smolyak_aghq)
+export(drop_algorithm)
 export(AGHQ1D)
