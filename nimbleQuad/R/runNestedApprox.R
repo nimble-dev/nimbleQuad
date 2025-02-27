@@ -1,5 +1,8 @@
 ## Code for main user interface for NIMBLE's nested approximation.
 
+## NOTE: none of this code has yet been run on any examples and
+## there will be various bugs.
+
 ## Uses core algorithm code in `approxPosterior.R` and code
 ## for marginal summaries in `approxSummaries.R`.
 
@@ -18,6 +21,7 @@
 
 ## Class for holding nestedApprox object and various outputs/summaries computed from it
 ## when running `runNestedApprox` or individual functions that manipulate the approximation.
+#' @importFrom R6 R6Class
 approxSummary <- R6Class("approxSummary",
    public = list(
        initialize = function(approx, quantiles, expectations,
@@ -54,11 +58,11 @@ approxSummary <- R6Class("approxSummary",
            ## (or could be a matrix as with INLA output),
            ## which should print nicely.
            params <- data.frame()
-           for(i in seq_along(exps)) {
+           for(i in seq_along(exps)) 
                params[[names(exps)[i]]] <- sapply(private$expectations, `[`, i)
-            # params <- data.frame(mean = sapply(private$marginalsSummary, `[[`, 'mean'),
-            #                     sd = sapply(private$marginalsSummary, `[[`, 'sd'),
-            #                     row.names = paramNames)
+                                        # params <- data.frame(mean = sapply(private$marginalsSummary, `[[`, 'mean'),
+                                        #                     sd = sapply(private$marginalsSummary, `[[`, 'sd'),
+                                        #                     row.names = paramNames)
             for(i in seq_along(qs)) 
                 params[[names(qs)[i]]] <- sapply(private$quantiles, `[`, i)
             row.names(params) <- paramNames
@@ -76,7 +80,7 @@ approxSummary <- R6Class("approxSummary",
                 
             invisible(self)
         }
-    )
+    ),
 
     ## private methods and functions not accessible externally
     private = list(
@@ -95,7 +99,7 @@ approxSummary <- R6Class("approxSummary",
 ## This contains initial steps not in Paul's version to handle node determination
 ## and mapping of node element names to indices for 1:1 marginalization work.
 ## Need to integrate this into his full function.
-buildNestedApprox_v2 <- function(model = NULLparamNodes, latentNodes, control = list()) {
+buildNestedApprox_v2 <- function(model, paramNodes, latentNodes, control = list()) {
 
     hyperGridRule <- extractControlElement(control, 'hyperGridRule', 'CCD')     ## Default rule for outer grid.
 
@@ -194,25 +198,35 @@ runNestedApprox <- function(approx, quantiles = c(.025,.25,.5,.75,.975), origina
     }
 
     marginalLogLik <- approx$calcMarginalLogLikApprox()
-    marginalLogLik_improved <- NA
+
+    summary <- approxSummary$new(approx, quantiles, expectations, marginalsApprox, marginalsRaw,
+                indivParamTransforms, originalScale,
+                marginalLogLik, NA, NULL, NULL)
+
+    ## With only one parameter, computations should not be so slow, so
+    ## go ahead and use better marginal and logLik estimates.
+    if(length(Rapprox$paramNodesComponents) == 1) {
+        improveMarginals(summary, Rapprox$paramNodesComponents[1], nMarginalGrid = 3, 
+                         functionals = functionals, functionalsArgs = functionalsArgs,
+                         functionalsScale = functionalsScale)
+        ## TODO: make sure that `calcMarginalLogLikQuad()` works if
+        ## `calcHyperGrid` has not yet been called.
+        summary$marginalLogLik_improved <-calcMarginalLogLikQuad()   
+    }
 
     ## This is expensive. Avoid if user only needs parameter inference.
     ## How do we have user tell us whether to `includeParams`?
     ## Perhaps tell them to use more manual workflow if they need that.
     if(nSamplesLatents) {
-        samples <- sampleLatentNodes(approx, n = nSamplesLatents, includeParams = FALSE)
+        summary$samples <- sampleLatentNodes(approx, n = nSamplesLatents, includeParams = FALSE)
         if(Rapprox$hyperGridRule == 'AGHQ')
             marginalLogLik_improved <- approx$calcMarginalLogLikQuad()  ## TODO: should be named "get"?
-    } else samples <- NULL
+    } 
 
     if(nSamplesParams) {
-        paramSamples <- sampleParamNodes(approx, n = nSamplesParams)
-    } else paramSamples <- NULL
-    
-    summary <- approxSummary$new(approx, quantiles, expectations, marginalsApprox, marginalsRaw,
-                indivParamTransforms, originalScale,
-                marginalLogLik, marginalLogLik_improved,
-                samples, paramSamples)
+        summary$paramSamples <- sampleParamNodes(approx, n = nSamplesParams)
+    } 
+        
     return(summary)
 }
 

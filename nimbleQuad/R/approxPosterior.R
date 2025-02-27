@@ -141,6 +141,10 @@ buildNestedApprox <- nimbleFunction(
     ## Optim info:
     calcMode <- FALSE
     thetaMode <- numeric(theta_length)
+    if(theta_length == 1) {
+        thetaMode <- c(thetaMode, -1)
+        theta_indices <- c(theta_indices, -1)
+    }
     thetaNegHess <- matrix(0, nrow = theta_length, ncol = theta_length)
     logPostProbMode <- 0
     logDetNegHessTheta <- 0
@@ -412,32 +416,34 @@ buildNestedApprox <- nimbleFunction(
           theta_iMode <- optRes$par
           maxPostDensi <- optRes$value
         }
+        res[i,2] <- maxPostDensi
+        if(theta_length > 1) {   ## Only need d-1 dim. AGHQ if d>1.
+            if(gridTransformMethod == "spectral"){
+                E <- eigen(subsetNegHess, symmetric = TRUE)
+                for( d in 1:theta_length ){
+                    Atransform_i[,d] <- E$vectors[,d]/sqrt(E$values[d])
+                }
+                logDetNegHessThetai <- sum(log(E$values))
+            }else{
+                Atransform_i <- chol(subsetNegHess)
+                logDetNegHessThetai <-  2 * sum(log(diag(Atransform_i)))
+            }
+            
+            logDensi <- 0
+            for( j in 1:nQuadGrid ){
+                if( j != theta_marg_grid$modeI()) {
+                    nodej <- theta_marg_grid$nodes(indx = j)[1,]
+                    theta_tmp <- z_to_theta(z = nodej, postMode = theta_iMode, A = Atransform_i, method = gridTransformMethod)
+                    thetaj[other_theta_indices] <- theta_tmp
+                    postLogDensij <- innerMethods$calcLogDens_pTransformed(pTransform = thetaj)
 
-        if(gridTransformMethod == "spectral"){
-          E <- eigen(subsetNegHess, symmetric = TRUE)
-          for( d in 1:theta_length ){
-            Atransform_i[,d] <- E$vectors[,d]/sqrt(E$values[d])
-          }
-          logDetNegHessThetai <- sum(log(E$values))
-        }else{
-          Atransform_i <- chol(subsetNegHess)
-          logDetNegHessThetai <-  2 * sum(log(diag(Atransform_i)))
+                    logDensi <- logDensi + exp(postLogDensij - maxPostDensi)*theta_marg_grid$weights(indx = j)[1]
+                }else{
+                    logDensi <- logDensi + theta_marg_grid$weights(indx = j)[1]
+                }
+            }
         }
-        
-        logDensi <- 0
-        for( j in 1:nQuadGrid ){
-          if( j != theta_marg_grid$modeI()) {
-            nodej <- theta_marg_grid$nodes(indx = j)[1,]
-            theta_tmp <- z_to_theta(z = nodej, postMode = theta_iMode, A = Atransform_i, method = gridTransformMethod)
-            thetaj[other_theta_indices] <- theta_tmp
-            postLogDensij <- innerMethods$calcLogDens_pTransformed(pTransform = thetaj)
-
-            logDensi <- logDensi + exp(postLogDensij - maxPostDensi)*theta_marg_grid$weights(indx = j)[1]
-          }else{
-            logDensi <- logDensi + theta_marg_grid$weights(indx = j)[1]
-          }
-        }
-        res[i,2] <- log(logDensi) + maxPostDensi - 0.5*logDetNegHessThetai
+        res[i,2] <- res[i,2] + log(logDensi) - 0.5*logDetNegHessThetai
       }
       ## Because thetai values are AGHQ, we can normalize to get the proper posterior prob.
       ## This let's us get the marginal posterior via spline without any more normalizing.
