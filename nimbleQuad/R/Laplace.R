@@ -982,6 +982,8 @@ buildOneAGHQuad <- nimbleFunction(
     npar  <-  S$npar
     p_indices  <-  S$p_indices
     quadRule_ <- S$quadRule
+
+    useNormality <- extractControlElement(control, 'useNormality', TRUE)
     
     ## paramDeps <- model$getDependencies(paramNodes, determOnly = TRUE, self=FALSE)
     ## if(length(paramDeps) > 0) {
@@ -1074,6 +1076,40 @@ buildOneAGHQuad <- nimbleFunction(
     outer_mode_inner_negHess_chol <- matrix(0, nrow = nre, ncol = nre)
     outer_mode_max_inner_logLik_last_argmax <- if(nreTrans > 1) numeric(nreTrans) else as.numeric(c(0, -1))
     outer_param_max <- if(npar > 1) rep(Inf, npar) else as.numeric(c(Inf, -1))
+
+    ## Configure nodes so that can avoid AD calculations on prior for normal nodes.
+    randomEffectsNodes <- model$expandNodeNames(randomEffectsNodes, returnScalarComponents = FALSE)
+    nreNodes <- length(randomEffectsNodes)
+    distrRE <- model$getDistribution(randomEffectsNodes)
+    nREElements <- reTrans$transformData[, 4] - reTrans$transformData[, 3] + 1
+    ## Indexing we need for block updates of gradient and precision.
+    firstRE <- c(1, 1+cumsum(nREElements[-nreNodes]))
+    lastRE <- firstRE + nREElements - 1
+
+    gaussNodes1 <- distrRE == "dnorm"
+    gaussNodesM <- distrRE == "dmnorm"
+    ndnorm <- sum(gaussNodes1)
+    ndmnorm <- sum(gaussNodesM)
+    gaussNodes <- gaussNodesM + gaussNodes1
+    gaussNode_nfl <- nimbleFunctionList(getParam_BASE)
+
+    ## Build nimble function list for each case of normal.
+    if(ndnorm > 0) {
+        gaussNode_nfl[[1]] <- gaussParam(model, randomEffectsNodes[gaussNodes1 == 1], gaussNodes1)
+    }else{
+        gaussNode_nfl[[1]] <- emptyParam()
+    }
+    if(ndmnorm > 0) {
+        gaussNode_nfl[[2]] <- multiGaussParam(model, randomEffectsNodes[gaussNodesM == 1], gaussNodesM)
+    }else{ 
+        gaussNode_nfl[[2]] <- emptyParam()
+    }
+
+    nGNodes <- ndnorm + ndmnorm
+    gaussRandomEffectsNodes <- randomEffectsNodes[gaussNodes == 1]
+
+    ## Remove Gaussian priors from the inner likelihood.
+    innerCalcNodesNoNorm <- innerCalcNodes[!innerCalcNodes %in% gaussRandomEffectsNodes]
 
     ## Build Quadrature grid for any dimension:
     ## This is set up to add other quad grids in the future. quadRule := "AGHQ" to start.
@@ -1204,38 +1240,103 @@ buildOneAGHQuad <- nimbleFunction(
       gr_inner_update_once <<- TRUE
       negHess_inner_update_once <<- TRUE
     },
+
+    ## These next two are called depending on whether want the normal pieces done via AD.
+    ## Data log likelihood log f(y|re)
+    inner_logLik_noself = function(reTransform = double(1)) {
+        re <- reTrans$inverseTransform(reTransform)
+        values(model, randomEffectsNodes) <<- re
+        ans <- model$calculate(innerCalcNodesNoNorm) + reTrans$logDetJacobian(reTransform)
+        return(ans)
+        returnType(double())
+    },
+    inner_logLik_self = function(reTransform = double(1)) {
+        re <- reTrans$inverseTransform(reTransform)
+        values(model, randomEffectsNodes) <<- re
+        ans <- model$calculate(innerCalcNodes) + reTrans$logDetJacobian(reTransform)
+        return(ans)
+        returnType(double())
+    },
+    
     ## Joint log-likelihood with values of parameters fixed: used only for inner optimization
     inner_logLik = function(reTransform = double(1)) {
-      re <- reTrans$inverseTransform(reTransform)
-      values(model, randomEffectsNodes) <<- re
-      ans <- model$calculate(innerCalcNodes) + reTrans$logDetJacobian(reTransform)
+      if(useNormality) {
+          ans <- inner_logLik_noself(reTransform)
+          ## Add on normal priors. Values were assigned by inner_logLik_noself.
+          if (nGNodes > 0 ) ans <- ans + model$calculate(gaussRandomEffectsNodes)
+      } else {
+          ans <- innerLogLik_self(reTransform)
+      }
       return(ans)
       returnType(double())
     },
+
+    ## These next two are called depending on whether want the normal pieces done via AD
+    ## when calculating Hessian as gradient of gradient.
+    ## Gradient of the joint log-likelihood (p fixed) w.r.t. transformed random effects: used only for inner optimization
+    ## Only for f(y|re)
+    gr_inner_logLik_noself_internal = function(reTransform = double(1)) {
+        ans <- derivs(inner_logLik_noself(reTransform), wrt = reTrans_indices_inner, order = 1, model = model,
+                      updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
+        return(ans$jacobian[1,])
+        returnType(double(1))
+    },
+
+    gr_inner_logLik_self_internal = function(reTransform = double(1)) {
+        ans <- derivs(inner_logLik_self(reTransform), wrt = reTrans_indices_inner, order = 1, model = model,
+                      updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
+        return(ans$jacobian[1,])
+        returnType(double(1))
+    },
     # Gradient of the joint log-likelihood (p fixed) w.r.t. transformed random effects: used only for inner optimization
     gr_inner_logLik_internal = function(reTransform = double(1)) {
-      ans <- derivs(inner_logLik(reTransform), wrt = reTrans_indices_inner, order = 1, model = model,
-                    updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
-      return(ans$jacobian[1,])
+      if(useNormality) {
+        ans <- gr_inner_logLik_noself_internal(reTransform)
+        if(nGNodes > 0) {
+            for(i in 1:nreNodes) {
+                if (gaussNodes[i] == 1) {
+                    normType <- gaussNodes1[i] + gaussNodesM[i]*2	## 1 is dnorm, 2 is dmnorm.
+                    blockIndices <- firstRE[i]:lastRE[i]	## Just one value.
+                    ans[blockIndices] <- ans[blockIndices] + gaussNode_nfl[[normType]]$calcGradient(reTransform, i, firstRE[i], lastRE[i])
+                }
+            }
+        }
+      } else gr_inner_logLik_self_internal(reTransform)
+      return(ans)
       returnType(double(1))
     },
+
     ## Double taping for efficiency
     gr_inner_logLik = function(reTransform = double(1)) {
       ans <- derivs(gr_inner_logLik_internal(reTransform), wrt = reTrans_indices_inner, order = 0, model = model,
-                    updateNodes = inner_updateNodes, constantNodes = inner_constantNodes,
-                    do_update = gr_inner_logLik_force_update | gr_inner_update_once)
+                           updateNodes = inner_updateNodes, constantNodes = inner_constantNodes,
+                           do_update = gr_inner_logLik_force_update | gr_inner_update_once)
       gr_inner_update_once <<- FALSE
       return(ans$value)
       returnType(double(1))
     },
+
+   
     # Hessian of the joint log-likelihood (p fixed) w.r.t. transformed random effects: used only for inner optimization
     # This is being added to experiment with Newton's methods for inner optimization. If this approach provides good
     # numerical behavior, we can revisit the efficiency of how to get derivatives, such as getting gradient and hessian together
     # or whether it is better to keep them separate, as both may not always be jointly requested.
     he_inner_logLik_internal = function(reTransform = double(1)) {
-      ans <- derivs(inner_logLik(reTransform), wrt = reTrans_indices_inner, order = 2, model = model,
-                    updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
-      res <- ans$hessian[,,1]
+      if(useNormality) {
+          res <- derivs(inner_logLik_noself(reTransform), wrt = reTrans_indices_inner, order = 2, model = model,
+                        updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)$hessian[,,1]
+          if(nGNodes > 0) {
+              for(i in 1:nreNodes) {
+                  if(gaussNodes[i] == 1){
+                      normType <- gaussNodes1[i] + gaussNodesM[i]*2	## 1 is dnorm, 2 is dmnorm.
+                      Q <- gaussNode_nfl[[normType]]$getPrecision(i)
+                      blockIndices <- firstRE[i]:lastRE[i]
+                      res[blockIndices, blockIndices] <- res[blockIndices, blockIndices] - Q
+                  }
+              }
+          }
+      } else res <- derivs(inner_logLik_self(reTransform), wrt = reTrans_indices_inner, order = 2, model = model,
+                    updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)$hessian[,,1]
       return(res)
       returnType(double(2))
     },
@@ -1253,10 +1354,26 @@ buildOneAGHQuad <- nimbleFunction(
       return(res)
       returnType(double(2))
     },
+    
     negHess_inner_logLik_internal = function(reTransform = double(1)) {
-      ans <- derivs(gr_inner_logLik_internal(reTransform), wrt = reTrans_indices_inner, order = 1, model = model,
-                    updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
-      return(-ans$jacobian)
+      if(useNormality) {
+        ans <- derivs(gr_inner_logLik_noself_internal(reTransform), wrt = reTrans_indices_inner, 
+                      order = 1, model = model, updateNodes = inner_updateNodes, 
+                      constantNodes = inner_constantNodes)$jacobian
+        if(nGNodes > 0) {
+            for(i in 1:nreNodes) {
+                if(gaussNodes[i] == 1){
+                    normType <- gaussNodes1[i] + gaussNodesM[i]*2	## 1 is dnorm, 2 is dmnorm.
+                    Q <- gaussNode_nfl[[normType]]$getPrecision(i)
+                    blockIndices <- firstRE[i]:lastRE[i]
+                    ans[blockIndices, blockIndices] <- ans[blockIndices, blockIndices] - Q
+                }
+            }
+        }
+      }
+      ans <- derivs(gr_inner_logLik_self_internal(reTransform), wrt = reTrans_indices_inner, order = 1, model = model,
+                    updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)$jacobian
+      return(-ans)
       returnType(double(2))
     },
     # We also tried double-taping straight to second order. That was a bit slower.
@@ -1275,6 +1392,7 @@ buildOneAGHQuad <- nimbleFunction(
       negHess_inner_logLik_first <<- FALSE
       negHess_inner_logLik_force_update <<- FALSE
     },
+    
     ## Solve the inner optimization for Laplace approximation
     max_inner_logLik = function(p = double(1)) {
       set_params(p)
@@ -1815,6 +1933,7 @@ buildAGHQ <- nimbleFunction(
                    calcNodesOther, control = list()) {
     split <- extractControlElement(control, 'split', TRUE)
     check <- extractControlElement(control, 'check', TRUE)
+    useNormality <- extractControlElement(control, 'useNormality', TRUE)
     innerOptimWarning <- extractControlElement(control, 'innerOptimWarning', FALSE)
 
     if(nQuad > 35) {
@@ -1925,7 +2044,8 @@ buildAGHQ <- nimbleFunction(
                              optimStart=innerOptimStart,
                              optimStartValues=innerOptimStartValues,
                              optimWarning=innerOptimWarning,
-                             quadTransform=quadTransform)
+                             quadTransform=quadTransform,
+                             useNormality = useNormality)
     if(nre > 0){
       ## Record the order of random effects processed internally
       internalRandomEffectsNodes <- NULL
