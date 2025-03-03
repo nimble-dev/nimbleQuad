@@ -1265,7 +1265,7 @@ buildOneAGHQuad <- nimbleFunction(
           ## Add on normal priors. Values were assigned by inner_logLik_noself.
           if (nGNodes > 0 ) ans <- ans + model$calculate(gaussRandomEffectsNodes)
       } else {
-          ans <- innerLogLik_self(reTransform)
+          ans <- inner_logLik_self(reTransform)
       }
       return(ans)
       returnType(double())
