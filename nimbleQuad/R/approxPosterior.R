@@ -14,8 +14,7 @@ buildNestedApprox <- nimbleFunction(
         hyperGridRule <- extractControlElement(control, "hyperGridRule", "CCD")  ## Default rule for outer grid.
         nQuadOuter <- extractControlElement(control, "nQuadOuter", 3)
         nQuadInner <- extractControlElement(control, "nQuadInner", 1)
-        nQuadMarginal <- extractControlElement(control, "nQuadOuterMarginalHyperparams",
-                                               3)
+
         quadRuleMarginal <- extractControlElement(control, "outerMarginalQuadRule", "AGHQ")
         transformMethod <- extractControlElement(control, "quadTransform", "spectral")
 
@@ -111,7 +110,7 @@ buildNestedApprox <- nimbleFunction(
 
         ## Build marginal AGHQ grid to compute the hyperparameter marginals
         ## (integrate over pT-1 theta values).
-        theta_marg_grid <- configureQuadGrid(d = theta_length - 1, nQuad_ = nQuadMarginal,
+        theta_marg_grid <- configureQuadGrid(d = theta_length - 1, nQuad_ = 3,
                                              quadRule = quadRuleMarginal)
         theta1_nodes <- matrix(0, nrow = 1, ncol = 2)
 
