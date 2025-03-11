@@ -1110,6 +1110,7 @@ buildOneAGHQuad <- nimbleFunction(
 
     ## Remove Gaussian priors from the inner likelihood.
     innerCalcNodesNoNorm <- innerCalcNodes[!innerCalcNodes %in% gaussRandomEffectsNodes]
+    calcNodesNoNorm <- calcNodes[!calcNodes %in% gaussRandomEffectsNodes]
 
     ## Build Quadrature grid for any dimension:
     ## This is set up to add other quad grids in the future. quadRule := "AGHQ" to start.
@@ -1241,95 +1242,78 @@ buildOneAGHQuad <- nimbleFunction(
       negHess_inner_update_once <<- TRUE
     },
 
-    ## These next two are called depending on whether want the normal pieces done via AD.
-    ## Data log likelihood log f(y|re)
-    inner_logLik_noself = function(reTransform = double(1)) {
-        re <- reTrans$inverseTransform(reTransform)
-        values(model, randomEffectsNodes) <<- re
-        ans <- model$calculate(innerCalcNodesNoNorm) + reTrans$logDetJacobian(reTransform)
-        return(ans)
-        returnType(double())
-    },
-    inner_logLik_self = function(reTransform = double(1)) {
-        re <- reTrans$inverseTransform(reTransform)
-        values(model, randomEffectsNodes) <<- re
-        ans <- model$calculate(innerCalcNodes) + reTrans$logDetJacobian(reTransform)
-        return(ans)
-        returnType(double())
-    },
-    
     ## Joint log-likelihood with values of parameters fixed: used only for inner optimization
+    inner_logLik_noNorm = function(reTransform = double(1)) {
+      re <- reTrans$inverseTransform(reTransform)
+      values(model, randomEffectsNodes) <<- re
+      ans <- model$calculate(innerCalcNodesNoNorm) + reTrans$logDetJacobian(reTransform)
+      return(ans)
+      returnType(double())
+    },
     inner_logLik = function(reTransform = double(1)) {
-        if(useNormality) {
-            print('using')
-          ans <- inner_logLik_noself(reTransform)
-          ## Add on normal priors. Values were assigned by inner_logLik_noself.
-          if (nGNodes > 0 ) ans <- ans + model$calculate(gaussRandomEffectsNodes)
-      } else {
-          ans <- inner_logLik_self(reTransform)
-      }
+      re <- reTrans$inverseTransform(reTransform)
+      values(model, randomEffectsNodes) <<- re
+      ans <- model$calculate(innerCalcNodes) + reTrans$logDetJacobian(reTransform)
       return(ans)
       returnType(double())
     },
 
-    ## These next two are called depending on whether want the normal pieces done via AD
-    ## when calculating Hessian as gradient of gradient.
-    ## Gradient of the joint log-likelihood (p fixed) w.r.t. transformed random effects: used only for inner optimization
-    ## Only for f(y|re)
-    gr_inner_logLik_noself_internal = function(reTransform = double(1)) {
-        ans <- derivs(inner_logLik_noself(reTransform), wrt = reTrans_indices_inner, order = 1, model = model,
-                      updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
-        return(ans$jacobian[1,])
-        returnType(double(1))
-    },
-
-    gr_inner_logLik_self_internal = function(reTransform = double(1)) {
-        ans <- derivs(inner_logLik_self(reTransform), wrt = reTrans_indices_inner, order = 1, model = model,
-                      updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
-        return(ans$jacobian[1,])
-        returnType(double(1))
-    },
     # Gradient of the joint log-likelihood (p fixed) w.r.t. transformed random effects: used only for inner optimization
     # This cannot be used for double taping.
-    gr_inner_logLik_internal = function(reTransform = double(1)) {
-      if(useNormality) {
-        ans <- gr_inner_logLik_noself_internal(reTransform)
-        if(nGNodes > 0) {
+    gr_inner_logLik = function(reTransform = double(1)) {
+        if(useNormality) {
+          ans <- derivs(inner_logLik_noNorm(reTransform), wrt = reTrans_indices_inner, order = 1, model = model,
+                        updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
+          res <- ans$jacobian[1,]
+          if(nGNodes > 0) {
             for(i in 1:nreNodes) {
                 if (gaussNodes[i] == 1) {
                     normType <- gaussNodes1[i] + gaussNodesM[i]*2	## 1 is dnorm, 2 is dmnorm.
                     blockIndices <- firstRE[i]:lastRE[i]	## Just one value.
-                    ans[blockIndices] <- ans[blockIndices] + gaussNode_nfl[[normType]]$calcGradient(reTransform, i, firstRE[i], lastRE[i])
+                    res[blockIndices] <- res[blockIndices] + gaussNode_nfl[[normType]]$calcGradient(reTransform, i, firstRE[i], lastRE[i])
                 }
             }
         }
-      } else gr_inner_logLik_self_internal(reTransform)
-      return(ans)
+      } else {
+        ans <- derivs(inner_logLik(reTransform), wrt = reTrans_indices_inner, order = 1, model = model,
+                      updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
+        res <- ans$jacobian[1,]
+      }
+      return(res)
+      returnType(double(1))
+    },
+
+    ## This does not contain the normality pieces when `useNormality=TRUE`, so is
+    ## only used for double taping.
+    gr_inner_logLik_internal = function(reTransform = double(1)) {
+      if(useNormality) {
+        ans <- derivs(inner_logLik_noNorm(reTransform), wrt = reTrans_indices_inner, order = 1, model = model,
+                      updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
+      } else ans <- derivs(inner_logLik(reTransform), wrt = reTrans_indices_inner, order = 1, model = model,
+                      updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
+      return(ans$jacobian[1,])
       returnType(double(1))
     },
 
     ## Double taping for efficiency
-    gr_inner_logLik = function(reTransform = double(1)) {
+    gr_inner_logLik_doubletape = function(reTransform = double(1)) {
+      ans <- derivs(gr_inner_logLik_internal(reTransform), wrt = reTrans_indices_inner, order = 0, model = model,
+                    updateNodes = inner_updateNodes, constantNodes = inner_constantNodes,
+                    do_update = gr_inner_logLik_force_update | gr_inner_update_once)
+      res <- ans$value
       if(useNormality) {
-        ans <- derivs(gr_inner_logLik_noself_internal(reTransform), wrt = reTrans_indices_inner, order = 0, model = model,
-                      updateNodes = inner_updateNodes, constantNodes = inner_constantNodes,
-                      do_update = gr_inner_logLik_force_update | gr_inner_update_once)$value
         if(nGNodes > 0) {
             for(i in 1:nreNodes) {
                 if (gaussNodes[i] == 1) {
                     normType <- gaussNodes1[i] + gaussNodesM[i]*2	## 1 is dnorm, 2 is dmnorm.
                     blockIndices <- firstRE[i]:lastRE[i]	## Just one value.
-                    ans[blockIndices] <- ans[blockIndices] + gaussNode_nfl[[normType]]$calcGradient(reTransform, i, firstRE[i], lastRE[i])
+                    res[blockIndices] <- res[blockIndices] + gaussNode_nfl[[normType]]$calcGradient(reTransform, i, firstRE[i], lastRE[i])
                 }
             }
         }
-      } else { 
-          ans <- derivs(gr_inner_logLik_self_internal(reTransform), wrt = reTrans_indices_inner, order = 0, model = model,
-                           updateNodes = inner_updateNodes, constantNodes = inner_constantNodes,
-                        do_update = gr_inner_logLik_force_update | gr_inner_update_once)$value
-      }
+      } 
       gr_inner_update_once <<- FALSE
-      return(ans)
+      return(res)
       returnType(double(1))
     },
 
@@ -1339,10 +1323,48 @@ buildOneAGHQuad <- nimbleFunction(
     # numerical behavior, we can revisit the efficiency of how to get derivatives, such as getting gradient and hessian together
     # or whether it is better to keep them separate, as both may not always be jointly requested.
     # Derivs of this cannot be taken (and therefore this can't be used for double taping).
-    he_inner_logLik_internal = function(reTransform = double(1)) {
+    he_inner_logLik = function(reTransform = double(1)) {
       if(useNormality) {
-          res <- derivs(inner_logLik_noself(reTransform), wrt = reTrans_indices_inner, order = 2, model = model,
-                        updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)$hessian[,,1]
+        ans <- derivs(inner_logLik_noNorm(reTransform), wrt = reTrans_indices_inner, order = 2, model = model,
+                      updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
+        res <- ans$hessian[,,1]  # Doing `derivs()$hessian[,,1]` gives compilation error.
+        if(useNormality) {
+            if(nGNodes > 0) {
+                for(i in 1:nreNodes) {
+                    if(gaussNodes[i] == 1){
+                        normType <- gaussNodes1[i] + gaussNodesM[i]*2	## 1 is dnorm, 2 is dmnorm.
+                        Q <- gaussNode_nfl[[normType]]$getPrecision(i)
+                        blockIndices <- firstRE[i]:lastRE[i]
+                        res[blockIndices, blockIndices] <- res[blockIndices, blockIndices] - Q
+                    }
+                }
+            }
+        }
+      } else {
+        ans <- derivs(inner_logLik(reTransform), wrt = reTrans_indices_inner, order = 2, model = model,
+                      updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
+        res <- ans$hessian[,,1]  # Doing `derivs()$hessian[,,1]` gives compilation error.
+      }
+      return(res)
+      returnType(double(2))
+    },
+    he_inner_logLik_internal_as_vec = function(reTransform = double(1)) {
+      if(useNormality) {
+          ans <- derivs(inner_logLik_noNorm(reTransform), wrt = reTrans_indices_inner, order = 2, model = model,
+                        updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
+      } else ans <- derivs(inner_logLik(reTransform), wrt = reTrans_indices_inner, order = 2, model = model,
+                        updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
+      hess <- ans$hessian[,,1]  # Avoid compilation error when use `value = ans$hessian[,,1]`.
+      res <- nimNumeric(value = hess, length = nreTrans * nreTrans)
+      return(res)
+      returnType(double(1))
+    },
+    # Double taping for possible efficiency
+    he_inner_logLik_doubletape = function(reTransform = double(1)) {
+      ans <- derivs(he_inner_logLik_internal_as_vec(reTransform), wrt = reTrans_indices_inner, order = 0, model = model,
+                    updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
+      res <- matrix(value = ans$value, nrow = length(reTransform), ncol = length(reTransform))
+      if(useNormality) {
           if(nGNodes > 0) {
               for(i in 1:nreNodes) {
                   if(gaussNodes[i] == 1){
@@ -1353,37 +1375,6 @@ buildOneAGHQuad <- nimbleFunction(
                   }
               }
           }
-      } else res <- derivs(inner_logLik_self(reTransform), wrt = reTrans_indices_inner, order = 2, model = model,
-                    updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)$hessian[,,1]
-      return(res)
-      returnType(double(2))
-    },
-    he_inner_logLik_internal_as_vec = function(reTransform = double(1)) {
-      if(useNormality) {
-            ans <- derivs(inner_logLik_noself(reTransform), wrt = reTrans_indices_inner, order = 2, model = model,
-                          updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)$hessian[,,1]
-      } else ans <- derivs(inner_logLik_self(reTransform), wrt = reTrans_indices_inner, order = 2, model = model,
-                          updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)$hessian[,,1]
-      res <- nimNumeric(value = ans, length = nreTrans * nreTrans)
-      return(res)
-      returnType(double(1))
-    },
-    # Double taping for possible efficiency
-    he_inner_logLik = function(reTransform = double(1)) {
-      ans <- derivs(he_inner_logLik_internal_as_vec(reTransform), wrt = reTrans_indices_inner, order = 0, model = model,
-                    updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
-      res <- matrix(value = ans$value, nrow = length(reTransform), ncol = length(reTransform))
-      if(useNormality) {
-        if(nGNodes > 0) {
-          for(i in 1:nreNodes) {
-            if(gaussNodes[i] == 1){
-              normType <- gaussNodes1[i] + gaussNodesM[i]*2	## 1 is dnorm, 2 is dmnorm.
-              Q <- gaussNode_nfl[[normType]]$getPrecision(i)
-              blockIndices <- firstRE[i]:lastRE[i]
-              res[blockIndices, blockIndices] <- res[blockIndices, blockIndices] - Q
-            }
-          }
-        }
       }
       return(res)
       returnType(double(2))
@@ -1393,12 +1384,9 @@ buildOneAGHQuad <- nimbleFunction(
     ## This does not contain the normality pieces when `useNormality=TRUE`, so is
     ## only used for double taping.
     negHess_inner_logLik_internal = function(reTransform = double(1)) {
-      if(useNormality) {
-        ans <- derivs(gr_inner_logLik_noself_internal(reTransform), wrt = reTrans_indices_inner, 
-                      order = 1, model = model, updateNodes = inner_updateNodes, 
-                      constantNodes = inner_constantNodes)
-      } else ans <- derivs(gr_inner_logLik_self_internal(reTransform), wrt = reTrans_indices_inner, order = 1, model = model,
-                           updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
+      ans <- derivs(gr_inner_logLik_internal(reTransform), wrt = reTrans_indices_inner, 
+                    order = 1, model = model, updateNodes = inner_updateNodes, 
+                    constantNodes = inner_constantNodes)
       return(-ans$jacobian)
       returnType(double(2))
     },
@@ -1449,7 +1437,7 @@ buildOneAGHQuad <- nimbleFunction(
         gr_inner_logLik_first <<- FALSE
         gr_inner_logLik_force_update <<- FALSE
       }
-      optRes <- optim(reInitTrans, inner_logLik, gr = gr_inner_logLik, he = he_inner_logLik, method = optimMethod_, control = optimControl_)
+      optRes <- optim(reInitTrans, inner_logLik, gr = gr_inner_logLik_doubletape, he = he_inner_logLik_doubletape, method = optimMethod_, control = optimControl_)
       if(optRes$convergence != 0 & warn_optim){
         print("  [Warning] `optim` did not converge for the inner optimization of AGHQ or Laplace approximation.")
       }
@@ -1468,7 +1456,7 @@ buildOneAGHQuad <- nimbleFunction(
         optRes$convergence <- -1
         return(optRes)
       }
-      optRes <- optim(reInitTrans, inner_logLik, gr = gr_inner_logLik_internal, he = he_inner_logLik_internal, method = optimMethod_, control = optimControl_)
+      optRes <- optim(reInitTrans, inner_logLik, gr = gr_inner_logLik, he = he_inner_logLik, method = optimMethod_, control = optimControl_)
       if(optRes$convergence != 0 & warn_optim){
         print("  [Warning] `optim` did not converge for the inner optimization of AGHQ or Laplace approximation.")
       }
@@ -1499,6 +1487,14 @@ buildOneAGHQuad <- nimbleFunction(
       returnType(double(1))
     },
     ## Joint log-likelihood in terms of parameters and transformed random effects
+    joint_logLik_noNorm = function(p = double(1), reTransform = double(1)) {
+      re <- reTrans$inverseTransform(reTransform)
+      values(model, paramNodes) <<- p
+      values(model, randomEffectsNodes) <<- re
+      ans <- model$calculate(calcNodesNoNorm) +  reTrans$logDetJacobian(reTransform)
+      return(ans)
+      returnType(double())
+    },
     joint_logLik = function(p = double(1), reTransform = double(1)) {
       re <- reTrans$inverseTransform(reTransform)
       values(model, paramNodes) <<- p
@@ -1521,20 +1517,62 @@ buildOneAGHQuad <- nimbleFunction(
       return(ans$value)
       returnType(double(1))
     },
+
     ## 1st order partial derivative w.r.t. transformed random effects
-    gr_joint_logLik_wrt_re_internal = function(p = double(1), reTransform = double(1)) {
-      ans <- derivs(joint_logLik(p, reTransform), wrt = reTrans_indices, order = 1, model = model,
+    # Derivs of this cannot be taken (and therefore this can't be used for double taping).
+    gr_joint_logLik_wrt_re = function(p = double(1), reTransform = double(1)) {
+      if(useNormality) {
+        ans <- derivs(joint_logLik_noNorm(p, reTransform), wrt = reTrans_indices, order = 1, model = model,
+                      updateNodes = joint_updateNodes, constantNodes = joint_constantNodes)
+        res <- ans$jacobian[1,]
+        if(nGNodes > 0) {
+            for(i in 1:nreNodes) {
+                if (gaussNodes[i] == 1) {
+                    normType <- gaussNodes1[i] + gaussNodesM[i]*2	## 1 is dnorm, 2 is dmnorm.
+                    blockIndices <- firstRE[i]:lastRE[i]	## Just one value.
+                    res[blockIndices] <- res[blockIndices] + gaussNode_nfl[[normType]]$calcGradient(reTransform, i, firstRE[i], lastRE[i])
+                }
+            }
+        }          
+      } else {
+        ans <- derivs(joint_logLik(p, reTransform), wrt = reTrans_indices, order = 1, model = model,
+                      updateNodes = joint_updateNodes, constantNodes = joint_constantNodes)
+        res <- ans$jacobian[1,]
+      }
+      return(res)
+      returnType(double(1))
+    },
+    ## This does not contain the normality pieces when `useNormality=TRUE`, so is
+    ## only used for double taping.
+    gr_joint_logLik_wrt_re_internal = function(p = double(1), reTransform = double(1), onlyAD = logical(default = FALSE)) {
+      if(useNormality & !onlyAD) {
+        ans <- derivs(joint_logLik_noNorm(p, reTransform), wrt = reTrans_indices, order = 1, model = model,
+                    updateNodes = joint_updateNodes, constantNodes = joint_constantNodes)
+      } else ans <- derivs(joint_logLik(p, reTransform), wrt = reTrans_indices, order = 1, model = model,
                     updateNodes = joint_updateNodes, constantNodes = joint_constantNodes)
       return(ans$jacobian[1,])
       returnType(double(1))
     },
-    ## Double taping
-    gr_joint_logLik_wrt_re = function(p = double(1), reTransform = double(1)) {
+    ## Double taping; this is never used.
+    gr_joint_logLik_wrt_re_doubletape = function(p = double(1), reTransform = double(1)) {
       ans <- derivs(gr_joint_logLik_wrt_re_internal(p, reTransform), wrt = reTrans_indices, order = 0, model = model,
                     updateNodes = joint_updateNodes, constantNodes = joint_constantNodes)
-      return(ans$value)
+      res <- ans$value
+      if(useNormality) {  
+        if(nGNodes > 0) {
+          for(i in 1:nreNodes) {
+            if (gaussNodes[i] == 1) {
+              normType <- gaussNodes1[i] + gaussNodesM[i]*2	## 1 is dnorm, 2 is dmnorm.
+              blockIndices <- firstRE[i]:lastRE[i]	## Just one value.
+              res[blockIndices] <- res[blockIndices] + gaussNode_nfl[[normType]]$calcGradient(reTransform, i, firstRE[i], lastRE[i])
+            }
+          }
+        }
+      }
+      return(res)
       returnType(double(1))
     },
+
     ## 2nd order mixed partial derivative w.r.t. parameters and transformed random effects
     hess_joint_logLik_wrt_p_wrt_re_internal = function(p = double(1), reTransform = double(1)) {
       ans <- derivs(gr_joint_logLik_wrt_p_internal(p, reTransform), wrt = reTrans_indices, order = 1, model = model,
@@ -1550,18 +1588,42 @@ buildOneAGHQuad <- nimbleFunction(
       return(derivmat)
       returnType(double(2))
     },
+
     ## Negative Hessian: 2nd order unmixed partial derivative w.r.t. transformed random effects
-    negHess_internal = function(p = double(1), reTransform = double(1)) {
-      ans <- derivs(gr_joint_logLik_wrt_re_internal(p, reTransform), wrt = reTrans_indices, order = 1, model = model,
-                    updateNodes = joint_updateNodes, constantNodes = joint_constantNodes)
+    ## This does not contain the normality pieces when `useNormality=TRUE`, so is
+    ## only used for double taping.
+    negHess_internal = function(p = double(1), reTransform = double(1), onlyAD = logical(default=FALSE)) {
+      ans <- derivs(gr_joint_logLik_wrt_re_internal(p, reTransform, onlyAD), wrt = reTrans_indices, order = 1, model = model,
+                      updateNodes = joint_updateNodes, constantNodes = joint_constantNodes)
       return(-ans$jacobian)
       returnType(double(2))
     },
     ## Double taping
     negHess = function(p = double(1), reTransform = double(1)) {
-      ans <- derivs(negHess_internal(p, reTransform), wrt = reTrans_indices, order = 0, model = model,
+      ans <- derivs(negHess_internal(p, reTransform, onlyAD = FALSE), wrt = reTrans_indices, order = 0, model = model,
                     updateNodes = joint_updateNodes, constantNodes = joint_constantNodes, do_update = update_once)
-      # update_once <<- FALSE
+      neghess <- matrix(ans$value, nrow = nreTrans)
+      if(useNormality) {
+        if(nGNodes > 0) {
+          for(i in 1:nreNodes) {
+            if(gaussNodes[i] == 1){
+              normType <- gaussNodes1[i] + gaussNodesM[i]*2	## 1 is dnorm, 2 is dmnorm.
+              Q <- gaussNode_nfl[[normType]]$getPrecision(i)
+              blockIndices <- firstRE[i]:lastRE[i]
+              neghess[blockIndices, blockIndices] <- neghess[blockIndices, blockIndices] + Q
+            }
+          }
+        }
+      }
+      return(neghess)
+      returnType(double(2))
+    },
+    ## Double taping. Used only for 3rd derivatives.
+    ## Here we need to ensure negHess_internal -> gr_joint_logLik_wrt_re_internal fully uses AD since
+    ## we need the gradient of the full negative Hessian.
+    negHess_onlyAD = function(p = double(1), reTransform = double(1)) {
+      ans <- derivs(negHess_internal(p, reTransform, onlyAD = TRUE), wrt = reTrans_indices, order = 0, model = model,
+                    updateNodes = joint_updateNodes, constantNodes = joint_constantNodes, do_update = update_once)
       neghess <- matrix(ans$value, nrow = nreTrans)
       return(neghess)
       returnType(double(2))
@@ -1576,15 +1638,27 @@ buildOneAGHQuad <- nimbleFunction(
       return(ans)
       returnType(double(2))
     },
+    cholNegHessian_onlyAD = function(p = double(1), reTransform = double(1)) {
+      negHessian <- negHess_onlyAD(p, reTransform) 
+      ans <- chol(negHessian)
+      return(ans)
+      returnType(double(2))
+    },
     ## Logdet negative Hessian
     logdetNegHess = function(p = double(1), reTransform = double(1)) {
       ans <- 2 * sum(log(diag(cholNegHessian(p, reTransform))))
       return(ans)
       returnType(double())
     },
+    logdetNegHess_onlyAD = function(p = double(1), reTransform = double(1)) {
+      ans <- 2 * sum(log(diag(cholNegHessian_onlyAD(p, reTransform))))
+      return(ans)
+      returnType(double())
+    },
+
     ## Gradient of logdet (negative) Hessian w.r.t. parameters
     gr_logdetNegHess_wrt_p_internal = function(p = double(1), reTransform = double(1)) {
-      ans <- derivs(logdetNegHess(p, reTransform), wrt = p_indices, order = 1, model = model,
+      ans <- derivs(logdetNegHess_onlyAD(p, reTransform), wrt = p_indices, order = 1, model = model,
                     updateNodes = joint_updateNodes, constantNodes = joint_constantNodes)
       return(ans$jacobian[1,])
       returnType(double(1))
@@ -1598,7 +1672,7 @@ buildOneAGHQuad <- nimbleFunction(
     },
     ## Gradient of logdet (negative) Hessian w.r.t. transformed random effects
     gr_logdetNegHess_wrt_re_internal = function(p = double(1), reTransform = double(1)) {
-      ans <- derivs(logdetNegHess(p, reTransform), wrt = reTrans_indices, order = 1, model = model,
+      ans <- derivs(logdetNegHess_onlyAD(p, reTransform), wrt = reTrans_indices, order = 1, model = model,
                     updateNodes = joint_updateNodes, constantNodes = joint_constantNodes)
       return(ans$jacobian[1,])
       returnType(double(1))
@@ -1769,7 +1843,7 @@ buildOneAGHQuad <- nimbleFunction(
       reTransform <- max_inner_logLik_last_argmax
       maxValue <- max_inner_logLik_last_value
       if(maxValue == -Inf) return(-Inf) # This would mean inner optimization failed
-      saved_inner_negHess_chol <<- cholNegHessian(p, reTransform)
+      saved_inner_negHess_chol <<- cholNegHessian(p, reTransform) 
       logdetNegHessian <<- 2 * sum(log(diag(saved_inner_negHess_chol)))
       
       if(nQuad_ == 1){
@@ -1840,7 +1914,7 @@ buildOneAGHQuad <- nimbleFunction(
         update_max_inner_logLik(p)
       }
       reTransform <- max_inner_logLik_last_argmax
-      negHessian <- negHess(p, reTransform)
+      negHessian <- negHess(p, reTransform)  # Double-taped, can use normality.
       invNegHessian <- inverse(negHessian)
       grlogdetNegHesswrtp <- gr_logdetNegHess_wrt_p(p, reTransform)
       grlogdetNegHesswrtre <- gr_logdetNegHess_wrt_re(p, reTransform)
@@ -1857,7 +1931,7 @@ buildOneAGHQuad <- nimbleFunction(
         update_max_inner_logLik_internal(p)
       }
       reTransform <- max_inner_logLik_last_argmax
-      negHessian <- negHess_internal(p, reTransform)
+      negHessian <- negHess(p, reTransform)  # Double-taped, can use normality.
       invNegHessian <- inverse(negHessian)
       grlogdetNegHesswrtp <- gr_logdetNegHess_wrt_p_internal(p, reTransform)
       grlogdetNegHesswrtre <- gr_logdetNegHess_wrt_re_internal(p, reTransform)
@@ -1934,25 +2008,25 @@ buildOneAGHQuad <- nimbleFunction(
     ##   cache_inner_max <<- cache
     ## }
   ),
-  buildDerivs = list(inner_logLik_noself                     = list(),
-                     inner_logLik_self                       = list(),
+  buildDerivs = list(inner_logLik                            = list(),
+                     inner_logLik_noNorm                     = list(),
                      joint_logLik                            = list(),
-                     gr_joint_logLik_wrt_re                  = list(),
-                     negHess                                 = list(),
-                     cholNegHessian                          = list(),
-                     logdetNegHess                           = list(), 
-                     gr_inner_logLik_noself_internal         = list(),
-                     gr_inner_logLik_self_internal           = list(),
+                     joint_logLik_noNorm                     = list(),
+                     negHess_internal                        = list(),
+                     negHess_onlyAD                          = list(),
+                     cholNegHessian_onlyAD                   = list(),
+                     logdetNegHess_onlyAD                    = list(), 
+                     gr_inner_logLik_internal                = list(),
                      he_inner_logLik_internal_as_vec         = list(),
+                     negHess_inner_logLik_internal           = list(),
                      gr_joint_logLik_wrt_p_internal          = list(),
                      gr_joint_logLik_wrt_re_internal         = list(),
                      hess_joint_logLik_wrt_p_wrt_re_internal = list(),
-                     negHess_internal                        = list(),
                      gr_logdetNegHess_wrt_p_internal         = list(),
                      gr_logdetNegHess_wrt_re_internal        = list(),
                      joint_logLik_with_grad_and_hess         = list(ignore = c("i","j")),
-                     joint_logLik_with_higher_derivs         = list(),
-                     negHess_inner_logLik_internal           = list())
+                     joint_logLik_with_higher_derivs         = list())
+
 ) ## End of buildOneAGHQuad
 
 
