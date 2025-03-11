@@ -983,7 +983,8 @@ buildOneAGHQuad <- nimbleFunction(
     p_indices  <-  S$p_indices
     quadRule_ <- S$quadRule
 
-    useNormality <- extractControlElement(control, 'useNormality', TRUE)
+    useNormalityGrad <- extractControlElement(control, 'useNormalityGrad', TRUE)
+    useNormalityHess <- extractControlElement(control, 'useNormalityHess', TRUE)
     
     ## paramDeps <- model$getDependencies(paramNodes, determOnly = TRUE, self=FALSE)
     ## if(length(paramDeps) > 0) {
@@ -2157,7 +2158,8 @@ buildAGHQ <- nimbleFunction(
                              optimStartValues=innerOptimStartValues,
                              optimWarning=innerOptimWarning,
                              quadTransform=quadTransform,
-                             useNormality = useNormality)
+                             useNormalityGrad = useNormalityGrad,
+                             useNormalityHess = useNormalityHess)
     if(nre > 0){
       ## Record the order of random effects processed internally
       internalRandomEffectsNodes <- NULL
