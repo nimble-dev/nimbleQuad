@@ -1084,11 +1084,11 @@ buildOneAGHQuad <- nimbleFunction(
     distrRE <- model$getDistribution(randomEffectsNodes)
     nREElements <- reTrans$transformData[, 4] - reTrans$transformData[, 3] + 1
     ## Indexing we need for block updates of gradient and precision.
-    firstRE <- c(1, 1+cumsum(nREElements[-nreNodes]))
+    firstRE <- as.numeric(c(1, 1+cumsum(nREElements[-nreNodes])))
     lastRE <- firstRE + nREElements - 1
 
-    gaussNodes1 <- distrRE == "dnorm"
-    gaussNodesM <- distrRE == "dmnorm"
+    gaussNodes1 <- as.numeric(distrRE == "dnorm")
+    gaussNodesM <- as.numeric(distrRE == "dmnorm")
     ndnorm <- sum(gaussNodes1)
     ndmnorm <- sum(gaussNodesM)
     gaussNodes <- gaussNodesM + gaussNodes1
@@ -1109,6 +1109,14 @@ buildOneAGHQuad <- nimbleFunction(
     nGNodes <- ndnorm + ndmnorm
     gaussRandomEffectsNodes <- randomEffectsNodes[gaussNodes == 1]
 
+    if(nreNodes == 1) {
+        gaussNodes <- c(gaussNodes, -1)
+        gaussNodes1 <- c(gaussNodes1, -1)
+        gaussNodesM <- c(gaussNodesM, -1)
+        firstRE <- c(firstRE, -1)
+        lastRE <- c(lastRE, -1)
+    }
+      
     ## Remove Gaussian priors from the inner likelihood.
     innerCalcNodesNoNorm <- innerCalcNodes[!innerCalcNodes %in% gaussRandomEffectsNodes]
     calcNodesNoNorm <- calcNodes[!calcNodes %in% gaussRandomEffectsNodes]
@@ -1156,6 +1164,13 @@ buildOneAGHQuad <- nimbleFunction(
         logLik3_previous_p <<- fix_one_vec(logLik3_previous_p)
         max_inner_logLik_previous_p <<- fix_one_vec(max_inner_logLik_previous_p)
         outer_param_max <<- fix_one_vec(outer_param_max)
+      }
+      if(nreNodes == 1) {
+          gaussNodes <<- fix_one_vec(gaussNodes)
+          gaussNodes1 <<- fix_one_vec(gaussNodes1)
+          gaussNodesM <<- fix_one_vec(gaussNodesM)
+          firstRE <<- fix_one_vec(firstRE)
+          lastRE <<- fix_one_vec(lastRE)
       }
       reInit <- values(model, randomEffectsNodes)
       set_reInit(reInit)
@@ -1258,19 +1273,18 @@ buildOneAGHQuad <- nimbleFunction(
       return(ans)
       returnType(double())
     },
-    includeNormGrad = function(vec = double(1)) {
+    includeNormGrad = function(vec = double(1), reTransform = double(1)) {
         if(nGNodes > 0) {
             for(i in 1:nreNodes) {
                 if (gaussNodes[i] == 1) {
                     normType <- gaussNodes1[i] + gaussNodesM[i]*2	## 1 is dnorm, 2 is dmnorm.
                     blockIndices <- firstRE[i]:lastRE[i]	## Just one value.
-                    res[blockIndices] <- res[blockIndices] + gaussNode_nfl[[normType]]$calcGradient(reTransform, i, firstRE[i], lastRE[i])
+                    vec[blockIndices] <- vec[blockIndices] + gaussNode_nfl[[normType]]$calcGradient(reTransform, i, firstRE[i], lastRE[i])
                 }
             }
         }
-        returnType()
     },
-    includeNormPrec = function(mat = double(2), add = logical(default = FALSE) {
+    includeNormPrec = function(mat = double(2), add = logical(default = FALSE)) {
         if(nGNodes > 0) {
             for(i in 1:nreNodes) {
                 if(gaussNodes[i] == 1){
@@ -1283,8 +1297,7 @@ buildOneAGHQuad <- nimbleFunction(
                 }
             }
         }
-        returnType()
-    }
+    },
     
     ## Gradient of the joint log-likelihood (p fixed) w.r.t. transformed random effects: used only for inner optimization
 
@@ -1304,12 +1317,11 @@ buildOneAGHQuad <- nimbleFunction(
 
     ## Derivs of this cannot be taken (and therefore this can't be used for double taping).
     gr_inner_logLik = function(reTransform = double(1)) {
-        if(useNormalityGrad) {
+      if(useNormalityGrad) {
           ans <- derivs(inner_logLik_noNorm(reTransform), wrt = reTrans_indices_inner, order = 1, model = model,
                         updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
           res <- ans$jacobian[1,]
-          includeNormGrad(res)
-        }
+          includeNormGrad(res, reTransform)
       } else {
         ans <- derivs(inner_logLik(reTransform), wrt = reTrans_indices_inner, order = 1, model = model,
                       updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
@@ -1326,7 +1338,7 @@ buildOneAGHQuad <- nimbleFunction(
                     updateNodes = inner_updateNodes, constantNodes = inner_constantNodes,
                     do_update = gr_inner_logLik_force_update | gr_inner_update_once)
         res <- ans$value
-        includeNormGrad(res)
+        includeNormGrad(res, reTransform)
       } else {
         ans <- derivs(gr_inner_logLik_internal(reTransform), wrt = reTrans_indices_inner, order = 0, model = model,
                     updateNodes = inner_updateNodes, constantNodes = inner_constantNodes,
@@ -1532,7 +1544,7 @@ buildOneAGHQuad <- nimbleFunction(
         ans <- derivs(joint_logLik_noNorm(p, reTransform), wrt = reTrans_indices, order = 1, model = model,
                       updateNodes = joint_updateNodes, constantNodes = joint_constantNodes)
         res <- ans$jacobian[1,]
-        includeNormGrad(res)
+        includeNormGrad(res, reTransform)
       } else {
         ans <- derivs(joint_logLik(p, reTransform), wrt = reTrans_indices, order = 1, model = model,
                       updateNodes = joint_updateNodes, constantNodes = joint_constantNodes)
@@ -1548,7 +1560,7 @@ buildOneAGHQuad <- nimbleFunction(
                         wrt = reTrans_indices, order = 0, model = model,
                         updateNodes = joint_updateNodes, constantNodes = joint_constantNodes)
         res <- ans$value
-        includeNormGrad(res)
+        includeNormGrad(res, reTransform)
       } else {
         ans <- derivs(gr_joint_logLik_wrt_re_internal(p, reTransform),
                         wrt = reTrans_indices, order = 0, model = model,
@@ -1593,6 +1605,7 @@ buildOneAGHQuad <- nimbleFunction(
     ## Double taping
     negHess = function(p = double(1), reTransform = double(1)) {
       if(useNormalityHess) {
+            print("DEBUGGING: In negHess using normality.")
         ans <- derivs(negHess_noNorm_internal(p, reTransform), wrt = reTrans_indices, order = 0, model = model,
                       updateNodes = joint_updateNodes, constantNodes = joint_constantNodes, do_update = update_once)
         neghess <- matrix(ans$value, nrow = nreTrans)
@@ -2039,6 +2052,7 @@ buildAGHQ <- nimbleFunction(
     check <- extractControlElement(control, 'check', TRUE)
     useNormalityGrad <- extractControlElement(control, 'useNormalityGrad', TRUE)
     useNormalityHess <- extractControlElement(control, 'useNormalityHess', TRUE)
+    useADouterGrad <- extractControlElement(control, 'useADouterGrad', TRUE)
     innerOptimWarning <- extractControlElement(control, 'innerOptimWarning', FALSE)
 
     if(nQuad > 35) {
@@ -2335,7 +2349,8 @@ buildAGHQ <- nimbleFunction(
                                replace_innerOptimControl = logical(0, default=FALSE),
                                outerOptimControl = optimControlNimbleList(default=nimOptimDefaultControl()),
                                replace_outerOptimControl = logical(0, default=FALSE),
-                               computeMethod = integer(0, default=-1)
+                               computeMethod = integer(0, default=-1),
+                               useADouterGrad = logical(0, default=FALSE)
                                ) {
       # checks
       if(innerOptimStart != "NULL") {
@@ -2399,6 +2414,7 @@ buildAGHQ <- nimbleFunction(
       }
       if(outerOptimMethod != "NULL")
         outerOptimMethod_ <<- outerOptimMethod
+      useADouterGrad <<- useADouterGrad  
     },
     one_time_fixes = function() {
       if(one_time_fixes_done) return()
@@ -2797,11 +2813,19 @@ buildAGHQ <- nimbleFunction(
 
       setLogDensType(includeJacobian = includeJacobian, includePrior = includePrior)
       if( !keepOneFixed_ ){
-        optRes <- optim(pStartTransform, calcLogDens_pTransformed, gr_LogDens_pTransformed, 
+#        optRes <- optim(pStartTransform, calcLogDens_pTransformed, gr_LogDens_pTransformed, 
+                                        #                        method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
+        if(useADouterGrad) {   # With moderate-large MVN densities, use AD for 3rd deriv can be memory-intensive and slow.
+          optRes <- optim(pStartTransform, calcLogDens_pTransformed, gr_LogDens_pTransformed, 
+                          method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
+          } else optRes <- optim(pStartTransform, calcLogDens_pTransformed,
                         method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)      
       }else{
-        optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, gr_LogDens_pTransformedFix1, 
-                        method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)                
+        if(useADouterGrad) {
+            optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, gr_LogDens_pTransformedFix1, 
+                            method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
+        } else optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, 
+                               method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
       }
       setLogDensType()  ## Reset it to default to posterior.
       keepOneFixed_ <<- FALSE ## Can only be switched on by calling findMax_fixedp.
