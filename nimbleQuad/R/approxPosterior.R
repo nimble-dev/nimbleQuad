@@ -11,7 +11,6 @@ buildNestedApprox <- nimbleFunction(
         check <- extractControlElement(control, "check", TRUE)
         innerOptimWarning <- extractControlElement(control, "innerOptimWarning", FALSE)
 
-        hyperGridRule <- extractControlElement(control, "hyperGridRule", "CCD")  ## Default rule for outer grid.
         nQuadOuter <- extractControlElement(control, "nQuadOuter", 3)
         nQuadInner <- extractControlElement(control, "nQuadInner", 1)
         nQuadMarginal <- extractControlElement(control, "nQuadMarginal", 3)
@@ -24,10 +23,21 @@ buildNestedApprox <- nimbleFunction(
         ## see how they work.
         control$innerOptimStart <- extractControlElement(control, "innerOptimStart",
                                                          "zero")
+        ## TODO: check if handling of no `paramNodes` or `latentNodes` is correct.
+        margNodes <- splitLatents(model, hyperParamNodes, latentNodes)
+        paramNodes <- margNodes$paramNodes
+        latentNodes <- margNodes$randomEffectsNodes
+        if(!length(paramNodes))
+            stop("No parameter nodes detected in model. Please check the model structure or provide parameter nodes explicitly via `hyperParamNodes`.")
 
         ## Configure all grids before calling AGHQ to make sure it builds
         ## correctly.  DO NOT MOVE WHEN THIS IS CALLED
         allGridRules <- c("CCD", "AGHQ", "AGHQSPRSE", "USER")
+
+        ## Default outer grid to CCD unless low dimensional.
+        hyperGridRule <- extractControlElement(control, "hyperGridRule", "none")
+        if(hyperGridRule == "none")
+            hyperGridRule <- ifelse(length(paramNodes) >= 3, "CCD", "AGHQ")
 
         if(hyperGridRule == "AGHQ" && nQuadOuter %% 2 == 0)
             messageIfVerbose("  [Note] For computational efficiency, it is recommended to use an odd number of quadrature points\n         for the parameter (outer) grid (`nQuadOuter`).")
@@ -36,7 +46,8 @@ buildNestedApprox <- nimbleFunction(
         theta_grid <- configureQuadGrid(d = 1, nQuad_ = nQuadOuter, quadRule = hyperGridRule,
                                         control = list(quadRules = allGridRules))
 
-        innerMethods <- buildAGHQ(model, nQuadInner, hyperParamNodes, latentNodes, calcNodes,
+        
+        innerMethods <- buildAGHQ(model, nQuadInner, paramNodes, latentNodes, calcNodes,
                                   calcNodesOther, control)
 
         ## Need to check this as it's is now computed in the 'buildAGHQ' function:
@@ -77,6 +88,30 @@ buildNestedApprox <- nimbleFunction(
         paramsTransform <- parameterTransform(model, paramNodes, control = list(allowDeterm = FALSE))
         theta_length <- paramsTransform$getTransformedLength()
         theta_indices <- innerMethods$pTransform_indices
+
+        ## Set up mapping of parameter names to indices of transformed elements for
+        ## 1:1 cases for determination of parameters for which approximate
+        ## marginals are possible and for use when users request marginals by node
+        ## name.
+        paramNodesComponents <- model$expandNodeNames(paramNodes, returnScalarComponents = TRUE)
+        paramNodesIndices <- seq_along(paramNodesComponents)
+
+        ## TODO: Check on handling of user-defined distributions - see discussion related to HMC.
+        if (any(paramsTransform$transformType > 9, na.rm = TRUE))
+            stop("buildNestedApprox: Unknown parameter transform type: ",
+                 paste0(paramsTransform$transformType[paramsTransform$transformType > 9], collapse = ", "))
+        
+        mapping <- paramsTransform$transformData
+        for (idx in seq_len(paramsTransform$nNodes)) {
+            if (paramsTransform$transformType < 7) {
+                paramNodeIndices[mapping[idx, 1]] <- mapping[idx, 3]
+            } else {
+                paramNodeIndices[mapping[idx, 1:2]] <- 0
+            }
+        }
+        
+        setupOutputs(paramNodesComponents, paramNodesIndices)
+        
 
         ## Indicator for removing the redundant index -1 in theta_indices
         one_time_fixes_done <- FALSE
