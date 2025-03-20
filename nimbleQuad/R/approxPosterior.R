@@ -103,10 +103,10 @@ buildNestedApprox <- nimbleFunction(
         
         mapping <- paramsTransform$transformData
         for (idx in seq_len(paramsTransform$nNodes)) {
-            if (paramsTransform$transformType < 7) {
-                paramNodeIndices[mapping[idx, 1]] <- mapping[idx, 3]
+            if (paramsTransform$transformType[idx] < 7) {
+                paramNodesIndices[mapping[idx, 1]] <- mapping[idx, 3]
             } else {
-                paramNodeIndices[mapping[idx, 1:2]] <- 0
+                paramNodesIndices[mapping[idx, 1:2]] <- 0
             }
         }
         
@@ -362,7 +362,9 @@ buildNestedApprox <- nimbleFunction(
             if (!skewedSDCached & skew) calcSkewedSD()
             ans <- 0
             ## Now fill in the grid values.
+            nimCat("Calculating inner AGHQ/Laplace approximation at outer (parameter) grid points (one dot per point): ")
             for (i in 1:nGrid) {
+                nimCat(".")
                 ## Operations at the mode:
                 if (i == theta_grid$modeI()) {
                     wgt <- theta_grid$weights(indx = i)[1]
@@ -398,6 +400,7 @@ buildNestedApprox <- nimbleFunction(
                 }
                 ## *** Add a convergence check?
             }
+            nimCat("\n")
             if (skew) adjLogWgt <- logSkewedWgt else adjLogWgt <- 0
 
             ## Marginal log posterior density, a normalizing constant for other
@@ -449,6 +452,7 @@ buildNestedApprox <- nimbleFunction(
 
             ## For each value of thetai, we need to do AGHQ which means finding the
             ## mode of the other parameters, transforming and computing.
+            nimCat("Calculating inner AGHQ/Laplace approximation at (", nPts, ") marginal points with ", nQuadGrid, " quadrature grid points (one dot per grid point): ")
             for (i in 1:nPts) {
                 res[i, 1] <- theta1_nodes[i, 2] * stdDev + thetaMode[pIndex]
                 thetaj[pIndex] <- res[i, 1]
@@ -481,7 +485,9 @@ buildNestedApprox <- nimbleFunction(
                     }
 
                     logDensi <- 0
+                    nimCat(i)
                     for (j in 1:nQuadGrid) {
+                        nimCat(".")
                         if (j != theta_marg_grid$modeI()) {
                             nodej <- theta_marg_grid$nodes(indx = j)[1, ]
                             theta_tmp <- z_to_theta(z = nodej, postMode = theta_iMode, A = Atransform_i,
@@ -497,6 +503,7 @@ buildNestedApprox <- nimbleFunction(
                 }
                 res[i, 2] <- res[i, 2] + log(logDensi) - 0.5 * logDetNegHessThetai
             }
+            nimCat("\n")
             ## Because thetai values are AGHQ, we can normalize to get the proper
             ## posterior prob.  This let's us get the marginal posterior via spline
             ## without any more normalizing.  Note that this is a 1-d quadrature,

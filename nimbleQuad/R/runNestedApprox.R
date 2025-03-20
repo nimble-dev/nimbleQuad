@@ -6,14 +6,17 @@
 ## Uses core algorithm code in `approxPosterior.R` and code for marginal
 ## summaries in `approxSummaries.R`.
 
-### Example workflow Rapprox <- buildNestedApprox(model) capprox <-
-### compileNimble(Rapprox, project = model) result <- runNestedApprox(capprox)
-### improveMarginals(result, nodes = 'sigma') paramSamples =
-### sampleParamNodes(result, n=1000) samples = sampleLatentNodes(result,
-### n=1000)
+### Example workflow
+## Rapprox <- buildNestedApprox(model)
+## capprox <- compileNimble(Rapprox, project = model)
+## result <- runNestedApprox(capprox)
+## improveMarginals(result, nodes = 'sigma')
+## paramSamples = sampleParamNodes(result, n=1000)
+## samples = sampleLatentNodes(result, n=1000)
 
 ## alternatively, with functions converted to class methods:
-## result$improveMarginals(nodes = 'sigma') result$sampleParamNodes(n=1000)
+## result$improveMarginals(nodes = 'sigma')
+## result$sampleParamNodes(n=1000)
 
 ## Class for holding nestedApprox object and various outputs/summaries computed
 ## from it when running `runNestedApprox` or individual functions that
@@ -87,62 +90,6 @@ approxSummary <- R6Class("approxSummary",
     )
 )
 
-
-## This contains initial steps not in Paul's version to handle node
-## determination and mapping of node element names to indices for 1:1
-## marginalization work.  Need to integrate this into his full function.
-buildNestedApprox_v2 <- function(model, paramNodes, latentNodes, control = list()) {
-
-    hyperGridRule <- extractControlElement(control, "hyperGridRule", "CCD")  ## Default rule for outer grid.
-
-    ## TODO: check if handling of no `paramNodes` or `latentNodes` is correct.
-    margNodes <- splitLatents(model, paramNodes, latentNodes)
-    paramNodes <- margNodes$paramNodes
-    latentNodes <- margNodes$randomEffectsNodes
-
-    ## This is done later in Paul's code
-    paramsTransform <- parameterTransform(model, paramNodes, control = list(allowDeterm = FALSE))
-
-    ## Set up mapping of parameter names to indices of transformed elements for
-    ## 1:1 cases for determination of parameters for which approximate
-    ## marginals are possible and for use when users request marginals by node
-    ## name.
-    paramNodesComponents <- model$expandNodeNames(paramNodes, returnScalarComponents = TRUE)
-    paramNodesIndices <- seq_along(paramNodesComponents)
-
-    if (any(paramsTransform$transformType > 9, na.rm = TRUE))
-        stop("buildNestedApprox: Unknown parameter transform type: ",
-             paste0(paramsTransform$transformType[paramsTransform$transformType > 9], collapse = ", "))
-
-    mapping <- paramsTransform$transformData
-    for (idx in seq_len(paramsTransform$nNodes)) {
-        if (paramsTransform$transformType < 7) {
-            paramNodeIndices[mapping[idx, 1]] <- mapping[idx, 3]
-        } else {
-            paramNodeIndices[mapping[idx, 1:2]] <- 0
-        }
-    }
-
-    setupOutputs(paramNodesComponents, paramNodesIndices)
-
-
-    ## Default outer grid to CCD unless low dimensional.
-    if (!"hyperGridRule" %in% names(control))
-        hyperGridRule <- ifelse(length(paramNodes) >= 3, "CCD", "AGHQ")
-
-    ## Presumably we allow CCD if user requests for nParam = 2.  Do we allow
-    ## CCD if user requests for nParam = 1?
-
-    ## skewOuterGrid=TRUE
-    theta_grid <- configureQuadGrid(d = 1, nQuad_ = nQuadOuter, quadRule = hyperGridRule,
-        control = list(quadRules = allGridRules))
-
-    ## call `buildAGHQ`.
-    innerMethods <- buildAGHQ(model, nQuadInner, paramNodes, latentNodes, margNodes$calcNodes,
-        margNodes$calcNodesOther, control)
-
-    ## TODO: Merge in with Paul's existing code.
-}
 
 ## Main user-facing function for running a nested approximation and getting a
 ## results summary.  Note in roxygen that `functionalsScale` will have no

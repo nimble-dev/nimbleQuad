@@ -1970,6 +1970,9 @@ buildAGHQ <- nimbleFunction(
           stop("buildAGHQ: There was a problem determining conditionally independent random effects sets for this model")
         }
         for(i in seq_along(reSets)){
+          if(length(reSets) > 1) {
+              messageIfVerbose("  [Note] Building individual AGHQ/Laplace approximations (one dot for each): ", appendLF = FALSE) }
+          else messageIfVerbose("  [Note] Building AGHQ/Laplace approximation.")
           ## Work with one conditionally independent set of latent states
           these_reNodes <- reSets[[i]]
           internalRandomEffectsNodes <- c(internalRandomEffectsNodes, these_reNodes)
@@ -2026,8 +2029,10 @@ buildAGHQ <- nimbleFunction(
           }
           else AGHQuad_nfl[[i]] <- buildOneAGHQuad1D(model, nQuad = nQuad_, paramNodes, these_reNodes, these_calcNodes,
                                                      innerControlList)
-          #innerOptimControl_, innerOptimMethod, innerOptimStart, these_innerOptimStartValues)
+                                        #innerOptimControl_, innerOptimMethod, innerOptimStart, these_innerOptimStartValues)
+          if(length(reSets) > 1) messageIfVerbose(".", appendLF = FALSE)
         }
+        if(length(reSets) > 1) messageIfVerbose("")
       }
       if(length(lenInternalRENodeSets) == 1) lenInternalRENodeSets <- c(lenInternalRENodeSets, -1)
       reTransform <- parameterTransform(model, internalRandomEffectsNodes)
@@ -2562,12 +2567,13 @@ buildAGHQ <- nimbleFunction(
       
       if(includeJacobian & !includePrior)
         stop("Should not include a Jacobian transformation when not including the prior distribution in the log density calculation.")
+
+      pStartTransform <- paramsTransform$transform(pStart)
+      ## In case parameter nodes are not properly initialized.
+      ## We need to check on transformed scale as that is where 0 as initial value makes sense generally.
+      invalidStart <- is.na(pStartTransform) | is.nan(pStartTransform) | abs(pStartTransform) == Inf
+      pStartTransform[invalidStart] <- 0
       
-      ## In case parameter nodes are not properly initialized
-      if(any_na(pStart) | any_nan(pStart) | any(abs(pStart)==Inf)) pStartTransform <- rep(0, pTransform_length)
-      else pStartTransform <- paramsTransform$transform(pStart)
-      ## In case bad start values are provided
-      if(any_na(pStartTransform) | any_nan(pStartTransform) | any(abs(pStartTransform)==Inf)) pStartTransform <- rep(0, pTransform_length)
       ## Choose the MLE, or the MAP, or a penalized MLE (:= no Jacobian MAP).
       # optRes <- optim(pStartTransform, calcLogLik_pTransformed, gr_logLik_pTransformed, method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
 
