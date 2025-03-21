@@ -43,8 +43,9 @@ estimateQuantiles <- function(marginalApprox, transform = NULL,
     used <- cdf > 0.001 & cdf < 0.999  # Need to avoid cdf values too close together or spline fit will fail.
     ss <- splines::interpSpline(cdf[used], finegridTrans[used], bSpline = TRUE, sparse = FALSE)
     quantsTrans <- stats::predict(ss, quantiles)$y
-    if (!is.null(transform))
-        quants <- transform$inverseTransform(quantsTrans) else quants <- quantsTrans
+    if (!is.null(transform)) {
+        quants <- sapply(quantsTrans, transform$inverseTransform)
+    } else quants <- quantsTrans
     names(quants) <- paste0("q", quantiles)
 
     return(quants)
@@ -65,7 +66,7 @@ estimateExpectations <- function(marginalApprox, transform = NULL, functionals =
     finegridTrans <- marginalApprox[, "finegrid"]
     pdfTrans <- marginalApprox[, "pdf"]
     if (!is.null(transform)) {
-        finegrid <- transform$inverseTransform(finegridTrans)
+        finegrid <- sapply(finegridTrans, transform$inverseTransform)
     } else {
         finegrid <- finegridTrans
     }

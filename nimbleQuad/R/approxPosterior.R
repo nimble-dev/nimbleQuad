@@ -110,7 +110,7 @@ buildNestedApprox <- nimbleFunction(
             }
         }
         
-        setupOutputs(paramNodesComponents, paramNodesIndices)
+        setupOutputs(model, paramNodesComponents, paramNodesIndices)
         
 
         ## Indicator for removing the redundant index -1 in theta_indices
@@ -590,6 +590,10 @@ buildNestedApprox <- nimbleFunction(
             returnType(double(2))
             return(sims)
         },
+        getParamGrid = function() {
+            return(theta_grid$nodes())
+            returnType(double(2))
+        }, 
         findApproxPosterior = function() {
             ## Basic approx posterior steps:
             ##-------------------------------------
