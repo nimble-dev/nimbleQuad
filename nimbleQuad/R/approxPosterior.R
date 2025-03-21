@@ -14,8 +14,9 @@ buildNestedApprox <- nimbleFunction(
         hyperGridRule <- extractControlElement(control, "hyperGridRule", "CCD")  ## Default rule for outer grid.
         nQuadOuter <- extractControlElement(control, "nQuadOuter", 3)
         nQuadInner <- extractControlElement(control, "nQuadInner", 1)
+        nQuadMarginal <- extractControlElement(control, "nQuadMarginal", 3)
+        quadRuleMarginal <- extractControlElement(control, "marginalGridRule", "AGHQ")
 
-        quadRuleMarginal <- extractControlElement(control, "outerMarginalQuadRule", "AGHQ")
         transformMethod <- extractControlElement(control, "quadTransform", "spectral")
 
         ## Default starting value for Approx Posterior set here and passed to
@@ -28,6 +29,9 @@ buildNestedApprox <- nimbleFunction(
         ## correctly.  DO NOT MOVE WHEN THIS IS CALLED
         allGridRules <- c("CCD", "AGHQ", "AGHQSPRSE", "USER")
 
+        if(hyperGridRule == "AGHQ" && nQuadOuter %% 2 == 0)
+            messageIfVerbose("  [Note] For computational efficiency, it is recommended to use an odd number of quadrature points\n         for the parameter (outer) grid (`nQuadOuter`).")
+        
         ## Default to CCD
         theta_grid <- configureQuadGrid(d = 1, nQuad_ = nQuadOuter, quadRule = hyperGridRule,
                                         control = list(quadRules = allGridRules))
@@ -110,7 +114,10 @@ buildNestedApprox <- nimbleFunction(
 
         ## Build marginal AGHQ grid to compute the hyperparameter marginals
         ## (integrate over pT-1 theta values).
-        theta_marg_grid <- configureQuadGrid(d = theta_length - 1, nQuad_ = 3,
+        if(quadRuleMarginal == "AGHQ" && nQuadMarginal %% 2 == 0)
+            messageIfVerbose("  [Note] For computational efficiency, it is recommended to use an odd number of quadrature points\n         for marginalizing over the parameter (outer) grid (`nQuadMarginal`).")
+
+        theta_marg_grid <- configureQuadGrid(d = theta_length - 1, nQuad_ = nQuadMarginal,
                                              quadRule = quadRuleMarginal)
         theta1_nodes <- matrix(0, nrow = 1, ncol = 2)
 

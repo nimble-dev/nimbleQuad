@@ -1817,8 +1817,10 @@ buildAGHQ <- nimbleFunction(
     check <- extractControlElement(control, 'check', TRUE)
     innerOptimWarning <- extractControlElement(control, 'innerOptimWarning', FALSE)
 
+    if(nQuad %% 2 == 0)
+      messageIfVerbose("  [Note] For computational efficiency, it is recommended to use an odd number of quadrature points.")
     if(nQuad > 35) {
-      print("  [Note] Currently only a maximum of 35 quadrature points are allowed, setting nQuad to 35.")
+      messageIfVerbose("  [Note] Currently only a maximum of 35 quadrature points are allowed; setting nQuad to 35.")
       nQuad <- 35
     }
     nQuad_ <- nQuad
