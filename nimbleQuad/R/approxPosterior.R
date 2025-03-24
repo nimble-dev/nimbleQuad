@@ -362,7 +362,7 @@ buildNestedApprox <- nimbleFunction(
             if (!skewedSDCached & skew) calcSkewedSD()
             ans <- 0
             ## Now fill in the grid values.
-            nimCat("Calculating inner AGHQ/Laplace approximation at outer (parameter) grid points (one dot per point): ")
+            nimCat("Calculating inner AGHQ/Laplace approximation at ", nGrid, " outer (parameter) grid points (one dot per point): ")
             for (i in 1:nGrid) {
                 nimCat(".")
                 ## Operations at the mode:
@@ -485,7 +485,7 @@ buildNestedApprox <- nimbleFunction(
                     }
 
                     logDensi <- 0
-                    nimCat(i)
+                    nimCat("(", i, ")")
                     for (j in 1:nQuadGrid) {
                         nimCat(".")
                         if (j != theta_marg_grid$modeI()) {

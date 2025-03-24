@@ -60,8 +60,7 @@ runTrapezRule <- function(grid, pdf, functional) {
 
 ## functionals should be a named list of functions.  if user wants any of their
 ## functionals to take additional args, all of them must take ...
-estimateExpectations <- function(marginalApprox, transform = NULL, functionals = NULL,
-    functionalsArgs = NULL, scale = "original") {
+estimateExpectations <- function(marginalApprox, transform = NULL, functional = NULL, ...) {
 
     finegridTrans <- marginalApprox[, "finegrid"]
     pdfTrans <- marginalApprox[, "pdf"]
@@ -73,46 +72,26 @@ estimateExpectations <- function(marginalApprox, transform = NULL, functionals =
 
     ## Posterior expectations: defaults
     ## Use pdf on transformed (theta) scale.
-    ## If user set `originalScale = FALSE` then there will be no transform, 
+    ## If user set `originalScale = FALSE` then there will be no transform
+    ## provided from `runNestedApprox`, 
     ## and this will give mean and sd on transformed scale.
-    functionalVals <- finegrid
-    postMean <- runTrapezRule(finegridTrans, pdfTrans, functionalVals)
-    functionalVals <- (finegrid - postMean)^2
-    postVar <- runTrapezRule(finegridTrans, pdfTrans, functionalVals)
-    postSD <- sqrt(postVar)
+    if(is.null(functional)) {
+        functionalVals <- finegrid
+        postMean <- runTrapezRule(finegridTrans, pdfTrans, functionalVals)
+        functionalVals <- (finegrid - postMean)^2
+        postVar <- runTrapezRule(finegridTrans, pdfTrans, functionalVals)
+        postSD <- sqrt(postVar)
 
-    expectations <- c(mean = postMean, sd = postSD)
-
+        expectations <- c(mean = postMean, sd = postSD)
+    } else { ## User-defined expectation.
+        functionalVals <- functional(finegrid, ...)
+        expectations <- runTrapezRule(finegridTrans, pdfTrans, functionalVals)
+    }
+    
     ## Expectations calculated directly on original scale.
     ## postMean <-   ## sum(diff(finegrid)*(pdf[-n]*finegrid[-n]+pdf[-1]*finegrid[-1])/2)
     ## functional <- (finegrid - postMean)^2
     ## postVar <- sum(diff(finegrid)*(pdf[-n]*functional[-n]+pdf[-1]*functional[-1])/2)
-
-    ## User-defined expectations.  if `scale = 'original'` then
-    ## `functionals[[i]]` is assumed to be a function of parameters on original
-    ## scale.
-    ## If `originalScale=FALSE` then `transform` will be NULL, so this
-    ## will take functionals to operate on transformed values, regardless of
-    ## `functionalsScale`.
-    if (length(functionals)) {
-        userExps <- rep(0, length(functionals))
-        names(userExps) <- names(functionals)
-        for (i in seq_along(functionals)) {
-            if (scale == "original")
-                input <- finegrid else input <- finegridTrans
-            if (is.null(functionalsArgs)) {
-                functionalVals <- functionals[[i]](input)
-            } else {
-                argList <- list()
-                length(argList) <- length(functionalArgs[[i]]) + 1
-                argList[[1]] <- input
-                argList[2:length(argList)] <- functionalArgs[[i]]
-                functionalVals <- do.call(functionals[[i]], argList)
-            }
-            userExps[i] <- runTrapezRule(finegridTrans, pdfTrans, functionalVals)
-        }
-        expectations <- c(expectations, userExps)
-    }
 
     return(expectations)
 }

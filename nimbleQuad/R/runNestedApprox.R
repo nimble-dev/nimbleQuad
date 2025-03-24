@@ -44,26 +44,33 @@ approxSummary <- R6Class("approxSummary",
             if(is(approx, "NestedApprox")) 
                 Rapprox <- approx else Rapprox <- approx$Robject
 
-            if (self$originalScale) {
-                paramNames <- paste0("param", Rapprox$npar)
+            if (!self$originalScale) {
+                paramNames <- paste0("param", seq_len(Rapprox$npar))
             } else {
                 paramNames <- names(self$quantiles)
             }
             first <- which(!sapply(self$quantiles, is.null))[1]
-            qs <- self$quantiles[[first]]$quantiles
+            qs <- self$quantiles[[first]]
             first <- which(!sapply(self$expectations, is.null))[1]
             exps <- self$expectations[[first]]
             
             ## Form tabular info on expectations and quantiles as a dataframe (or could
             ## be a matrix as with INLA output), which should print nicely.
-            params <- data.frame()
-            for (i in seq_along(exps))
-                params[[names(exps)[i]]] <- sapply(self$expectations, `[`, i)
+            params <- list()
+            for (i in seq_along(exps)) {
+                tmp <- sapply(self$expectations, `[`, i)
+                names(tmp) <- NULL
+                params[[names(exps)[i]]] <- tmp
+            }
             ## params <- data.frame(mean = sapply(self$marginalsSummary, `[[`,
             ## 'mean'), sd = sapply(self$marginalsSummary, `[[`, 'sd'), row.names =
             ## paramNames)
-            for (i in seq_along(qs))
-                params[[names(qs)[i]]] <- sapply(self$quantiles, `[`, i)
+            for (i in seq_along(qs)) {
+                tmp <- sapply(self$quantiles, `[`, i)
+                names(tmp) <- NULL
+                params[[names(qs)[i]]] <- tmp
+            }
+            params <- as.data.frame(params)
             row.names(params) <- paramNames
             self$params <- params
         },
@@ -72,7 +79,7 @@ approxSummary <- R6Class("approxSummary",
             if (is.null(self$params)) self$params <- self$generateParamsMatrix()
             print(self$params)
             
-            cat("Marginal log-likelihood (asymmetric Gaussian approximation): ",
+            cat("\nMarginal log-likelihood (asymmetric Gaussian approximation): ",
                 self$marginalLogLik, "\n")
             ## Careful with ref to AGHQ here as we do at the moment allow 'improved'
             ## calc under CCD.
@@ -80,6 +87,24 @@ approxSummary <- R6Class("approxSummary",
                 cat("Marginal log-likelihood (AGHQ): ", self$marginalLogLik_improved, "\n")
             
             invisible(self)
+        },
+        improveMarginals = function(nodes, nMarginalGrid = 3, nQuad = 3) {
+            improveMarginals(self, nodes, nMarginalGrid, nQuad)
+        },
+        calcMarginalLogLikImproved = function() {
+            calcMarginalLogLikImproved(self)
+        },
+        sampleParamNodes = function(n = 1000, matchMarginals = TRUE) {
+            sampleParamNodes(self, n, matchMarginals)
+        },
+        sampleLatentNodes = function(n = 1000, includeParams = FALSE) {
+            sampleLatentNodes(self, n, includeParams)
+        },
+        qmarginal = function(node, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)) {
+            qmarginal(self, node, quantiles)
+        },
+        emarginal = function(node, functional, ...) {
+            emarginal(self, node, functional, ...)
         },
         approx = NULL,
         quantiles = NULL,
@@ -98,12 +123,9 @@ approxSummary <- R6Class("approxSummary",
 
 
 ## Main user-facing function for running a nested approximation and getting a
-## results summary.  Note in roxygen that `functionalsScale` will have no
-## effect if `originalScale=FALSE`, in which case functional will compute on
-## the transformed parameter values.
+## results summary.  
 runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975),
-                            originalScale = TRUE, nSamplesLatents = 0, nSamplesParams = 0,
-                            functionals = NULL, functionalsArgs = NULL, functionalsScale = "original") {
+                            originalScale = TRUE, nSamplesLatents = 0, nSamplesParams = 0) {
     if(is(approx, "NestedApprox")) 
         Rapprox <- approx else Rapprox <- approx$Robject
 
@@ -139,8 +161,7 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
             marginalsApprox[[i]] <- fitMarginalSpline(marginalsRaw[[i]])
             quantileEsts[[cnt]] <- estimateQuantiles(marginalsApprox[[i]], indivParamTransforms[[i]],
                 quantiles)
-            expectations[[cnt]] <- estimateExpectations(marginalsApprox[[i]], indivParamTransforms[[i]],
-                functionals = functionals, functionalsArgs = functionalsArgs, scale = functionalsScale)
+            expectations[[cnt]] <- estimateExpectations(marginalsApprox[[i]], indivParamTransforms[[i]])
         }
     }
 
@@ -158,8 +179,7 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
     ## With only one parameter, computations should not be so slow, so go ahead
     ## and use better marginal and logLik estimates.
     if (length(Rapprox$paramNodesComponents) == 1) {
-        improveMarginals(summary, Rapprox$paramNodesComponents[1], nMarginalGrid = 3,
-            functionals = functionals, functionalsArgs = functionalsArgs, functionalsScale = functionalsScale)
+        improveMarginals(summary, Rapprox$paramNodesComponents[1])
         ## TODO: make sure that `calcMarginalLogLikQuad()` works if
         ## `calcHyperGrid` has not yet been called.
         summary$marginalLogLik_improved <- approx$calcMarginalLogLikQuad()
@@ -186,50 +206,58 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
     return(summary)
 }
 
+## Helper function that takes either a character string for an original node element
+## and returns transformed parameter index (if in a 1:1 transformation)
+## or simply checks that the index of the transformed parameter is valid.
+getNodeIndex <- function(node, Rapprox) {
+    if (is.character(node)) {
+        mtch <- which(node == Rapprox$paramNodesComponents)
+        if(length(mtch) != 1)
+            stop("node `", nodes[i], "` is not a parameter element or is not involved in a 1:1 parameter transformation, so marginals cannot be estimated by analytic approximation. In the latter case, use `sampleParamNodes` for inference.")
+        idx <- Rapprox$paramNodesIndices[mtch]
+    } else {
+        if(node > Rapprox$innerMethods$pTransform_length)
+            stop("Numeric index value ", node, " exceeds number of transformed parameters")
+        idx <- node
+    }
+    return(idx)
+}
 
 
 ## This uses d-1 dimensional AGHQ to get improved univariate marginal estimates
-## for parameters Should it be called `improveParamMarginals`?
-improveMarginals <- function(summary, nodes, nMarginalGrid = 3, functionals = NULL,
-                             functionalsArgs = NULL, functionalsScale = "original") {
+## for parameters.
+## Should it be called `improveParamMarginals`?
+improveMarginals <- function(summary, nodes, nMarginalGrid = 3, nQuad = 3) {
     Rapprox <- summary$approx$Robject
     originalScale <- summary$originalScale
-    nodes <- Rapprox$model$expandNodeNames(nodes, returnScalarComponents = TRUE)
-    if (!all(nodes %in% Rapprox$paramNodesComponents)) {
-        badNodes <- nodes[!nodes %in% Rapprox$paramNodesComponents]
-        stop("improveMarginals: nodes `", paste0(badNodes, sep = "`, `"), "` are not parameter elements or are not involved in 1:1 parameter transformation, so marginals cannot be estimated by analytic approximation. In the latter case, use `sampleParamNodes` for inference.")
-    }
+    if(originalScale) 
+        nodes <- Rapprox$model$expandNodeNames(nodes, returnScalarComponents = TRUE)
+
     marginalsRaw <- list()
     length(marginalsRaw) <- Rapprox$innerMethods$npar
-    for (i in seq_len(nodes)) {
+    for (i in seq_along(nodes)) {
         ## Improve marginal and insert into raw and summary objects.
-        if (originalScale) {
-            idx = Rapprox$paramNodesIndices[which(nodes[i] == paramNodesComponents)]
-        } else idx <- i
+        idx <- getNodeIndex(nodes[i], Rapprox)
+        
         ## TODO: what should `nQuad` and should it be what is set in
         ## `buildNestedApprox` setup. And make sure it is available via
         ## `approx$nQuadMarginal`.
-        summary$marginalsRaw[[idx]] <- findMarginalPosteriorDensity(idx, nPts = nMarginalGrid,
-            nQuad = summary$approx$nQuadMarginal)
-        if (originalScale)
-            paramTransform <- parameterTransform(Rapprox$model, nodes[i]) else paramTransform <- NULL
+        summary$marginalsRaw[[idx]] <- summary$approx$findMarginalPosteriorDensity(idx,
+                                            nPts = nMarginalGrid, nQuad = nQuad)
         summary$marginalsApprox[[idx]] <- fitMarginalSpline(summary$marginalsRaw[[idx]])
         ## TODO: check that nodes[i] name will correspond to element in
         ## `marginalsSummary`
-        if (originalScale)
-            idx2 <- nodes[i] else idx2 <- i
-        summary$quantileEsts[[idx2]] <- estimateQuantiles(summary$marginalsApprox[[idx]],
+        summary$quantiles[[nodes[i]]] <- estimateQuantiles(summary$marginalsApprox[[idx]],
             summary$indivParamTransforms[[idx]])
-        summary$expectations[[idx2]] <- estimateExpectations(summary$marginalsApprox[[idx]],
-            summary$indivParamTransforms[[idx]], functionals = functionals, functionalsArgs = functionalsArgs,
-            scale = functionalsScale)
+        summary$expectations[[nodes[i]]] <- estimateExpectations(summary$marginalsApprox[[idx]],
+            summary$indivParamTransforms[[idx]])
     }
     summary$generateParamsMatrix()
     return(summary)
 }
 
 calcMarginalLogLikImproved <- function(summary) {
-    summary$marginalLogLik_improved <- approx$calcMarginalLogLikQuad()
+    summary$marginalLogLik_improved <- summary$approx$calcMarginalLogLikQuad()
     invisible(summary$marginalLogLik_improved)
 }
 
@@ -287,21 +315,21 @@ sampleLatentNodes <- function(summary, n = 1000, includeParams = FALSE) {
     return(summary$samples)
 }
 
+qmarginal <- function(summary, node, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)) {
+    Rapprox <- summary$approx$Robject
+    if(is.character(node))
+        paramTransform  <- parameterTransform(Rapprox$model, node) else paramTransform <- NULL
+    idx <- getNodeIndex(node, Rapprox)
+    quantileEsts <- estimateQuantiles(summary$marginalsApprox[[idx]], paramTransform, quantiles)
+    names(quantileEsts) <- quantiles
+    return(quantileEsts)
+}
 
-
-## This allows user to provide different quantiles or expectations of interest
-## after running `runNestedApprox`.
-updateMarginalSummaries <- function(summary, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975),
-                                    functionals = NULL, functionalsArgs = NULL, functionalsScale = "original") {
-    cnt <- 0
-    for (i in seq_along(summary$marginalsRaw)) {
-        if (!is.null(summary$marginalsRaw[[i]])) {
-            cnt <- cnt + 1
-            summary$quantileEsts[[cnt]] <- estimateQuantiles(summary$marginalsApprox[[i]],
-                summary$indivParamTransforms[[i]], quantiles)
-            expectations[[cnt]] <- estimateExpectations(marginalsApprox[[i]], paramTransforms[[i]],
-                functionals = functionals, functionalsArgs = functionalsArgs, scale = functionalsScale)
-        }
-    }
-    invisible(summary)
+emarginal <- function(summary, node, functional, ...) {
+    Rapprox <- summary$approx$Robject
+    if(is.character(node))
+        paramTransform  <- parameterTransform(Rapprox$model, node) else paramTransform <- NULL
+    idx <- getNodeIndex(node, Rapprox)
+    expectation <- estimateExpectations(summary$marginalsApprox[[idx]], paramTransform, functional, ...)
+    return(expectation)
 }
