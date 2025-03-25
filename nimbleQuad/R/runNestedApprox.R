@@ -103,6 +103,12 @@ approxSummary <- R6Class("approxSummary",
         qmarginal = function(node, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)) {
             qmarginal(self, node, quantiles)
         },
+        rmarginal = function(node, n = 1000) {
+            rmarginal(self, node, n)
+        },
+        dmarginal = function(node, x, log = FALSE) {
+            dmarginal(self, node, x, log)
+        },
         emarginal = function(node, functional, ...) {
             emarginal(self, node, functional, ...)
         },
@@ -323,6 +329,24 @@ qmarginal <- function(summary, node, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975
     quantileEsts <- estimateQuantiles(summary$marginalsApprox[[idx]], paramTransform, quantiles)
     names(quantileEsts) <- quantiles
     return(quantileEsts)
+}
+
+rmarginal <- function(summary, node, n = 1000) {
+    samples <- qmarginal(summary, node, runif(n))
+    names(samples) <- NULL
+    return(samples)
+}
+
+dmarginal <- function(summary, node, x, log = FALSE) {
+    Rapprox <- summary$approx$Robject
+    if(is.character(node)) {
+        paramTransform  <- parameterTransform(Rapprox$model, node)
+        x <- sapply(x, paramTransform$transform)
+    }
+    idx <- getNodeIndex(node, Rapprox)
+
+    logPDF <- fitMarginalSpline(summary$marginalsRaw[[idx]], xnew = x)
+    if(log) return(logPDF) else return(exp(logPDF))
 }
 
 emarginal <- function(summary, node, functional, ...) {

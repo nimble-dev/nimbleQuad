@@ -1,7 +1,7 @@
 marginalSplineR <- nimbleRcall(function(theta = double(1), logdens = double(1)) {},
                                Rfun = "marginalSpline", returnType = double(2))
 
-fitMarginalSpline <- function(gridded, normalize = TRUE) {
+fitMarginalSpline <- function(gridded, normalize = TRUE, xnew = NULL) {
     theta <- gridded[, 1]
     logdens <- gridded[, 2]
     n <- length(theta)
@@ -12,11 +12,15 @@ fitMarginalSpline <- function(gridded, normalize = TRUE) {
     if (n <= 3) {
         log_pdf <- as.function(polynom::poly.calc(x = theta, y = logdens))
         logPDF <- log_pdf(finegrid)
+        if(!is.null(xnew))
+            logPDFnew <- log_pdf(xnew)
     } else {
         ss <- splines::interpSpline(theta, logdens, bSpline = TRUE, sparse = FALSE)
         if (isS4(co <- ss[["coefficients"]]))
             ss[["coefficients"]] <- as.vector(co)  ## Not sure why this might be necessary.
         logPDF <- as.numeric(stats::predict(ss, finegrid)$y)
+        if(!is.null(xnew))
+            logPDFnew <- as.numeric(stats::predict(ss, xnew)$y)
     }
     ## Normalize the PDF:
     pdf <- exp(logPDF)
@@ -25,8 +29,9 @@ fitMarginalSpline <- function(gridded, normalize = TRUE) {
         norm <- sum(trapezoids) else norm <- 1
     pdf <- pdf/norm
     cdf <- c(0, cumsum(trapezoids)/norm)
-    ## Return the gridded distribution information.
-    return(cbind(finegrid, pdf, cdf))
+    ## Return the gridded distribution information or evaluation at provided points.
+    if(is.null(xnew))
+        return(cbind(finegrid, pdf, cdf)) else return(logPDFnew - log(norm))
 }
 ## TODO: should we refine the grid based on excluding portions with negligible
 ## mass?
