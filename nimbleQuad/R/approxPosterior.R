@@ -13,7 +13,6 @@ buildNestedApprox <- nimbleFunction(
 
         nQuadOuter <- extractControlElement(control, "nQuadOuter", 3)
         nQuadInner <- extractControlElement(control, "nQuadInner", 1)
-        nQuadMarginal <- extractControlElement(control, "nQuadMarginal", 3)
         quadRuleMarginal <- extractControlElement(control, "marginalGridRule", "AGHQ")
 
         transformMethod <- extractControlElement(control, "quadTransform", "spectral")
@@ -147,12 +146,7 @@ buildNestedApprox <- nimbleFunction(
         ## Store the quadrature sums for each grid:
         marginalPostDensity <- rep(-Inf, length(allGridRules))
 
-        ## Build marginal AGHQ grid to compute the hyperparameter marginals
-        ## (integrate over pT-1 theta values).
-        if(quadRuleMarginal == "AGHQ" && nQuadMarginal %% 2 == 0)
-            messageIfVerbose("  [Note] For computational efficiency, it is recommended to use an odd number of quadrature points\n         for marginalizing over the parameter (outer) grid (`nQuadMarginal`).")
-
-        theta_marg_grid <- configureQuadGrid(d = theta_length - 1, nQuad_ = nQuadMarginal,
+        theta_marg_grid <- configureQuadGrid(d = theta_length - 1, nQuad_ = 1,
                                              quadRule = quadRuleMarginal)
         theta1_nodes <- matrix(0, nrow = 1, ncol = 2)
 
@@ -430,8 +424,13 @@ buildNestedApprox <- nimbleFunction(
             ## Build the quadrature grid points:
             if (dim(theta1_nodes)[1] != nPts) theta1_nodes <<- AGHQ1D(nQuad = nPts)
 
+            if(nQuad %% 2 == 0)
+                cat("  [Note] For computational efficiency, it is recommended to use an odd number of quadrature points\n         (via argument `nQuad`) for marginalizing over the parameter (outer) grid.\n")
+
             ## Grid for additional theta.
-            theta_marg_grid$buildGrid(nQuad = nQuad)  ## This is the n_theta - 1 grid
+            ## Build marginal AGHQ grid to compute the hyperparameter marginals
+            ## (integrate over pT-1 theta values).            
+            theta_marg_grid$buildGrid(nQuad = nQuad)  
 
             nQuadGrid <- theta_marg_grid$gridSize()
 
