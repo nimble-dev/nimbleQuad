@@ -504,8 +504,10 @@ buildNestedApprox <- nimbleFunction(
             }
             nimCat("\n")
             ## Because thetai values are AGHQ, we can normalize to get the proper
-            ## posterior prob.  This let's us get the marginal posterior via spline
-            ## without any more normalizing.  Note that this is a 1-d quadrature,
+            ## posterior density.  This lets us get the marginal posterior via spline
+            ## without any more normalizing (but note that in `fitMarginalSpline`
+            ## we do also normalize.
+            ## Note that this is a 1-d quadrature,
             ## normalizing P(thetai,Y) to get P(Y) rather than the expensive
             ## calculation of denominator in (8) in Bilodeau et al.
             margi <- sum(exp(res[, 2] - logPostProbMode) * theta1_nodes[, 1])
