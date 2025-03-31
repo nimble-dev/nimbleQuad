@@ -1121,6 +1121,13 @@ buildOneAGHQuad <- nimbleFunction(
     innerCalcNodesNoNorm <- innerCalcNodes[!innerCalcNodes %in% gaussRandomEffectsNodes]
     calcNodesNoNorm <- calcNodes[!calcNodes %in% gaussRandomEffectsNodes]
 
+    inner_derivsInfoNoNorm <- makeModelDerivsInfo(model = model, wrtNodes = randomEffectsNodes, calcNodes = innerCalcNodesNoNorm)
+    inner_updateNodesNoNorm   <- inner_derivsInfoNoNorm$updateNodes
+    inner_constantNodesNoNorm <- inner_derivsInfoNoNorm$constantNodes
+    joint_derivsInfoNoNorm    <- makeModelDerivsInfo(model = model, wrtNodes = wrtNodes, calcNodes = calcNodesNoNorm)
+    joint_updateNodesNoNorm   <- joint_derivsInfoNoNorm$updateNodes
+    joint_constantNodesNoNorm <- joint_derivsInfoNoNorm$constantNodes
+
     ## Build Quadrature grid for any dimension:
     ## This is set up to add other quad grids in the future. quadRule := "AGHQ" to start.
     quadGrid <- configureQuadGrid(d = nreTrans, nQuad_ = nQuad_, quadRule = quadRule_)
@@ -1304,7 +1311,7 @@ buildOneAGHQuad <- nimbleFunction(
     ## These are used only for double taping since handling of normality must be done external to these.
     gr_inner_logLik_noNorm_internal = function(reTransform = double(1)) {
       ans <- derivs(inner_logLik_noNorm(reTransform), wrt = reTrans_indices_inner, order = 1, model = model,
-                      updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
+                      updateNodes = inner_updateNodesNoNorm, constantNodes = inner_constantNodesNoNorm)
       return(ans$jacobian[1,])
       returnType(double(1))
     },
@@ -1319,7 +1326,7 @@ buildOneAGHQuad <- nimbleFunction(
     gr_inner_logLik = function(reTransform = double(1)) {
       if(useNormalityGrad) {
           ans <- derivs(inner_logLik_noNorm(reTransform), wrt = reTrans_indices_inner, order = 1, model = model,
-                        updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
+                        updateNodes = inner_updateNodesNoNorm, constantNodes = inner_constantNodesNoNorm)
           res <- ans$jacobian[1,]
           includeNormGrad(res, reTransform)
       } else {
@@ -1335,7 +1342,7 @@ buildOneAGHQuad <- nimbleFunction(
     gr_inner_logLik_doubletape = function(reTransform = double(1)) {
       if(useNormalityGrad) {
         ans <- derivs(gr_inner_logLik_noNorm_internal(reTransform), wrt = reTrans_indices_inner, order = 0, model = model,
-                    updateNodes = inner_updateNodes, constantNodes = inner_constantNodes,
+                    updateNodes = inner_updateNodesNoNorm, constantNodes = inner_constantNodesNoNorm,
                     do_update = gr_inner_logLik_force_update | gr_inner_update_once)
         res <- ans$value
         includeNormGrad(res, reTransform)
@@ -1358,7 +1365,7 @@ buildOneAGHQuad <- nimbleFunction(
     he_inner_logLik_internal_as_vec = function(reTransform = double(1)) {
       if(useNormalityHess) {
           ans <- derivs(inner_logLik_noNorm(reTransform), wrt = reTrans_indices_inner, order = 2, model = model,
-                        updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
+                        updateNodes = inner_updateNodesNoNorm, constantNodes = inner_constantNodesNoNorm)
       } else ans <- derivs(inner_logLik(reTransform), wrt = reTrans_indices_inner, order = 2, model = model,
                         updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
       hess <- ans$hessian[,,1]  # Avoid compilation error when use `value = ans$hessian[,,1]`.
@@ -1370,7 +1377,7 @@ buildOneAGHQuad <- nimbleFunction(
     he_inner_logLik = function(reTransform = double(1)) {
       if(useNormalityHess) {
         ans <- derivs(inner_logLik_noNorm(reTransform), wrt = reTrans_indices_inner, order = 2, model = model,
-                      updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
+                      updateNodes = inner_updateNodesNoNorm, constantNodes = inner_constantNodesNoNorm)
         res <- ans$hessian[,,1]  # Doing `derivs()$hessian[,,1]` gives compilation error.
         includeNormPrec(res)
       } else {
@@ -1383,7 +1390,10 @@ buildOneAGHQuad <- nimbleFunction(
     },
     ## Double taping for possible efficiency
     he_inner_logLik_doubletape = function(reTransform = double(1)) {
-      ans <- derivs(he_inner_logLik_internal_as_vec(reTransform), wrt = reTrans_indices_inner, order = 0, model = model,
+      if(useNormalityHess) {
+          ans <- derivs(he_inner_logLik_internal_as_vec(reTransform), wrt = reTrans_indices_inner, order = 0, model = model,
+                        updateNodes = inner_updateNodesNoNorm, constantNodes = inner_constantNodesNoNorm)
+      } else ans <- derivs(he_inner_logLik_internal_as_vec(reTransform), wrt = reTrans_indices_inner, order = 0, model = model,
                     updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
       res <- matrix(value = ans$value, nrow = length(reTransform), ncol = length(reTransform))
       if(useNormalityHess) 
@@ -1396,8 +1406,8 @@ buildOneAGHQuad <- nimbleFunction(
     negHess_inner_logLik_internal = function(reTransform = double(1)) {
       if(useNormalityHess) {
         ans <- derivs(gr_inner_logLik_noNorm_internal(reTransform), wrt = reTrans_indices_inner, 
-                    order = 1, model = model, updateNodes = inner_updateNodes, 
-                    constantNodes = inner_constantNodes)
+                    order = 1, model = model, updateNodes = inner_updateNodesNoNorm, 
+                    constantNodes = inner_constantNodesNoNorm)
       } else ans <- derivs(gr_inner_logLik_internal(reTransform), wrt = reTrans_indices_inner, 
                     order = 1, model = model, updateNodes = inner_updateNodes, 
                     constantNodes = inner_constantNodes)
@@ -1406,9 +1416,13 @@ buildOneAGHQuad <- nimbleFunction(
     },
     # We also tried double-taping straight to second order. That was a bit slower.
     negHess_inner_logLik = function(reTransform = double(1)) {
-      ans <- derivs(negHess_inner_logLik_internal(reTransform), wrt = reTrans_indices_inner, order = 0, model = model,
-                    updateNodes = inner_updateNodes, constantNodes = inner_constantNodes,
-                    do_update = negHess_inner_logLik_force_update | negHess_inner_update_once)
+      if(useNormalityHess) {
+          ans <- derivs(negHess_inner_logLik_internal(reTransform), wrt = reTrans_indices_inner, order = 0, model = model,
+                        updateNodes = inner_updateNodesNoNorm, constantNodes = inner_constantNodesNoNorm,
+                        do_update = negHess_inner_logLik_force_update | negHess_inner_update_once)
+      } else ans <- derivs(negHess_inner_logLik_internal(reTransform), wrt = reTrans_indices_inner, order = 0, model = model,
+                        updateNodes = inner_updateNodes, constantNodes = inner_constantNodes,
+                        do_update = negHess_inner_logLik_force_update | negHess_inner_update_once)
       neghess <- matrix(ans$value, nrow = nreTrans)
       if(useNormalityHess) 
         includeNormPrec(neghess, add = TRUE)
@@ -1527,7 +1541,7 @@ buildOneAGHQuad <- nimbleFunction(
     ## These used only for double taping since handling of normality must be done external to them.
     gr_joint_logLik_wrt_re_noNorm_internal = function(p = double(1), reTransform = double(1)) {
       ans <- derivs(joint_logLik_noNorm(p, reTransform), wrt = reTrans_indices, order = 1, model = model,
-                    updateNodes = joint_updateNodes, constantNodes = joint_constantNodes)
+                    updateNodes = joint_updateNodesNoNorm, constantNodes = joint_constantNodesNoNorm)
       return(ans$jacobian[1,])
       returnType(double(1))
     },
@@ -1542,7 +1556,7 @@ buildOneAGHQuad <- nimbleFunction(
     gr_joint_logLik_wrt_re = function(p = double(1), reTransform = double(1)) {
       if(useNormalityGrad) {
         ans <- derivs(joint_logLik_noNorm(p, reTransform), wrt = reTrans_indices, order = 1, model = model,
-                      updateNodes = joint_updateNodes, constantNodes = joint_constantNodes)
+                      updateNodes = joint_updateNodesNoNorm, constantNodes = joint_constantNodesNoNorm)
         res <- ans$jacobian[1,]
         includeNormGrad(res, reTransform)
       } else {
@@ -1558,7 +1572,7 @@ buildOneAGHQuad <- nimbleFunction(
       if(useNormalityGrad) {  
         ans <- derivs(gr_joint_logLik_wrt_re_noNorm_internal(p, reTransform),
                         wrt = reTrans_indices, order = 0, model = model,
-                        updateNodes = joint_updateNodes, constantNodes = joint_constantNodes)
+                        updateNodes = joint_updateNodesNoNorm, constantNodes = joint_constantNodesNoNorm)
         res <- ans$value
         includeNormGrad(res, reTransform)
       } else {
@@ -1598,16 +1612,15 @@ buildOneAGHQuad <- nimbleFunction(
     },
     negHess_noNorm_internal = function(p = double(1), reTransform = double(1)) {
       ans <- derivs(gr_joint_logLik_wrt_re_noNorm_internal(p, reTransform), wrt = reTrans_indices, order = 1, model = model,
-                      updateNodes = joint_updateNodes, constantNodes = joint_constantNodes)
+                      updateNodes = joint_updateNodesNoNorm, constantNodes = joint_constantNodesNoNorm)
       return(-ans$jacobian)
       returnType(double(2))
     },
     ## Double taping
     negHess = function(p = double(1), reTransform = double(1)) {
       if(useNormalityHess) {
-            print("DEBUGGING: In negHess using normality.")
         ans <- derivs(negHess_noNorm_internal(p, reTransform), wrt = reTrans_indices, order = 0, model = model,
-                      updateNodes = joint_updateNodes, constantNodes = joint_constantNodes, do_update = update_once)
+                      updateNodes = joint_updateNodesNoNorm, constantNodes = joint_constantNodesNoNorm, do_update = update_once)
         neghess <- matrix(ans$value, nrow = nreTrans)
         includeNormPrec(neghess, add = TRUE)
       } else {
@@ -2819,7 +2832,7 @@ buildAGHQ <- nimbleFunction(
           optRes <- optim(pStartTransform, calcLogDens_pTransformed, gr_LogDens_pTransformed, 
                           method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
           } else optRes <- optim(pStartTransform, calcLogDens_pTransformed,
-                        method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)      
+                                 method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
       }else{
         if(useADouterGrad) {
             optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, gr_LogDens_pTransformedFix1, 
