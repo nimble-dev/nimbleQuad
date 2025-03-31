@@ -2052,7 +2052,7 @@ buildAGHQ <- nimbleFunction(
     check <- extractControlElement(control, 'check', TRUE)
     useNormalityGrad <- extractControlElement(control, 'useNormalityGrad', TRUE)
     useNormalityHess <- extractControlElement(control, 'useNormalityHess', TRUE)
-    useADouterGrad <- extractControlElement(control, 'useADouterGrad', TRUE)
+    useADouterGrad <- extractControlElement(control, 'useADouterGrad', FALSE)
     innerOptimWarning <- extractControlElement(control, 'innerOptimWarning', FALSE)
 
     if(nQuad > 35) {
