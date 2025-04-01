@@ -79,7 +79,7 @@ approxSummary <- R6Class("approxSummary",
             ## Careful with ref to AGHQ here as we do at the moment allow 'improved'
             ## calc under CCD.
             if (!is.na(self$marginalLogLik_improved))
-                cat("Marginal log-likelihood (AGHQ): ", self$marginalLogLik_improved, "\n")
+                cat("Marginal log-likelihood (grid-based): ", self$marginalLogLik_improved, "\n")
             
             invisible(self)
         },
@@ -194,13 +194,10 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
     ## we have user tell us whether to `includeParams`?  Perhaps tell them to
     ## use more manual workflow if they need that.
     if (nSamplesLatents) {
-        summary$samples <- sampleLatentNodes(summary, n = nSamplesLatents, includeParams = FALSE)
-        if (Rapprox$hyperGridRule == "AGHQ")
-            summary$marginalLogLik_improved <- approx$calcMarginalLogLikQuad()  ## TODO: should be named 'get'?
-    }
+        sampleLatentNodes(summary, n = nSamplesLatents, includeParams = FALSE)
 
     if (nSamplesParams) {
-        summary$paramSamples <- sampleParamNodes(summary, n = nSamplesParams)
+        sampleParamNodes(summary, n = nSamplesParams)
     }
 
     return(summary)
@@ -298,13 +295,17 @@ sampleParamNodes <- function(summary, n = 1000, matchMarginals = TRUE) {
     ## TODO: check that INLA's improve.marginals does nothing for non 1:1
     ## cases.
     summary$paramSamples <- samples
-    return(samples)
+    invisible(samples)
 }
 
 ## Potentially called from runNestedApprox or independently.
 sampleLatentNodes <- function(summary, n = 1000, includeParams = FALSE) {
     Rapprox <- summary$approx$Robject
     samples <- summary$approx$simulateLatentEffects(n)
+
+    ## Grid-based marginal log-likelihood comes "for free" if simulate parameters.
+    summary$marginalLogLik_improved <- summary$approx$calcMarginalLogLikQuad()
+
     colnames(samples) <- c("index", Rapprox$innerMethods$reNodesAsScalars_vec)
     if (includeParams) {
         paramValues <- getParamGrid()  ## `getParamGrid` needs to be written as a nestedApprox nf method, returning `theta_grid$nodes`.
@@ -314,7 +315,7 @@ sampleLatentNodes <- function(summary, n = 1000, includeParams = FALSE) {
         samples <- cbind(samples, paramSamples)
     }
     summary$samples <- samples[, -1]
-    return(summary$samples)
+    invisible(summary$samples)
 }
 
 qmarginal <- function(summary, node, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)) {

@@ -186,7 +186,7 @@ buildNestedApprox <- nimbleFunction(
         post_sims <- matrix(0, nrow = 3, ncol = nre)
 
         ## Optim info:
-        calcMode <- FALSE
+        modeCached <- FALSE
         thetaMode <- numeric(theta_length)
         if (theta_length == 1) {
             thetaMode <- c(thetaMode, -1)
@@ -226,7 +226,7 @@ buildNestedApprox <- nimbleFunction(
             optRes <- innerMethods$optimize(pStart = pStart, includePrior = TRUE,
                                             includeJacobian = TRUE,
                                             hessian = TRUE, parscale = parscale)
-            calcMode <<- TRUE
+            modeCached <<- TRUE
             thetaMode <<- optRes$par
             thetaNegHess <<- -optRes$hessian
             logPostProbMode <<- optRes$value
@@ -242,7 +242,7 @@ buildNestedApprox <- nimbleFunction(
             theta_grid$buildGrid(method = hyperGridRule, nQuad = nQuadOuter)
             nGrid <- theta_grid$gridSize()
             inner_grid_cache_nfl[[I_GRID]]$buildCache(nGridUpdate = nGrid, nLatentNodes = nre)
-            if (!calcMode) posteriorMode(rep(Inf, npar), hessian = TRUE, parscale = "transformed")
+            if (!modeCached) posteriorMode(rep(Inf, npar), hessian = TRUE, parscale = "transformed")
         },
         setHyperGridRule = function(quadRule = character(0, default = "AGHQ")) {
             ## Add a rule check here to make sure it's valid.
@@ -408,8 +408,9 @@ buildNestedApprox <- nimbleFunction(
         ## Probably not particularly accurate for CCD.
         calcMarginalLogLikQuad = function() {
             if (I_GRID == I_CCD)
-                print("Warning:  CCD not theoretically supported to compute marginal. Switch to AGHQ if accuracy is required.")
-            ## Need to check if `calcHyperGrid()` has actually been called.
+                print("  [Note]: Estimating marginal log-likelihood based on CCD grid. Estimation based on an AGHQ grid may be more accurate (but more computationally expensive).")
+            if(!hyperGridCached[I_GRID])
+                calcHyperGrid()
             returnType(double())
             return(marginalPostDensity[I_GRID])
         },
@@ -421,6 +422,7 @@ buildNestedApprox <- nimbleFunction(
                                                 nPts = integer(0, default = 3),
                                                 nQuad = integer(0, default = 3),
                                                 gridTransformMethod = character(0, default = "spectral")) {
+            one_time_fixes()
             ## Build the quadrature grid points:
             if (dim(theta1_nodes)[1] != nPts) theta1_nodes <<- AGHQ1D(nQuad = nPts)
 
@@ -434,7 +436,7 @@ buildNestedApprox <- nimbleFunction(
 
             nQuadGrid <- theta_marg_grid$gridSize()
 
-            if (!calcMode) posteriorMode(rep(Inf, npar), hessian = TRUE, parscale = "transformed")  ## *** default is now nlminb
+            if (!modeCached) posteriorMode(rep(Inf, npar), hessian = TRUE, parscale = "transformed")  ## *** default is now nlminb
 
             ## 1D quadrature to evaluate the theta on.
             stdDev <- sqrt(covTheta[pIndex, pIndex])
@@ -557,16 +559,14 @@ buildNestedApprox <- nimbleFunction(
         ## returnType(double(2))
         ## return(marginalSplineR(marg_theta[pIndex, , 1], marg_theta[pIndex, , 2]))
         ## },
-        ## ***Note for CJP: The simulations now return the FIRST column as the theta index.
-        ## To be used as discussed.
         simulateLatentEffects = function(n = integer()) {
-            if (!hyperGridCached[I_GRID]) calcHyperGrid(skew = TRUE)
+            if (!hyperGridCached[I_GRID]) calcHyperGrid()
 
             sims <- inner_grid_cache_nfl[[I_GRID]]$simulate(n)
             returnType(double(2))
             return(sims)
         },
-        ## Simulation method for marginals of theta on the skewed multivariate normal.
+        ## Simulation method for theta marginal on the skewed multivariate normal.
          simulateHyperParams = function(n = integer()) {
             sims <- matrix(0, nrow = n, ncol = theta_length)
             if (!skewedSDCached) calcSkewedSD()
@@ -592,34 +592,6 @@ buildNestedApprox <- nimbleFunction(
         getParamGrid = function() {
             return(theta_grid$nodes())
             returnType(double(2))
-        }, 
-        findApproxPosterior = function() {
-            ## Basic approx posterior steps:
-            ##-------------------------------------
-
-            ## 1) Find posterior mode + build hyperparameter grid.  Values are saved to
-            ## theta_grid_nfl and locally cached.
-            buildHyperGrid()
-
-            ## 2) Calculate skew and if I_GRID == CCD, skew grid.
-            if (!skewedSDCached) calcSkewedSD()
-
-            ## 3) Calculate the density on the grid points. Saves to theta_grid_nfl
-            ## This is used for inference on the fixed and random-effects.
-            if (!hyperGridCached[I_GRID]) calcHyperGrid(skew = TRUE)
-
-            ## 4) Calculate Marginal log-Likelihood Based on asymmetric Gaussian
-            ## assumption of the marginal of theta.
-            marginalAG <- calcMarginalLogLikApprox()
-            marginalQuad <- calcMarginalLogLikQuad()  ## This one probably make sense only for AGHQ.
-
-            ## 5) Marginals for theta: Automatically do integration free for now.
-            ## Values are cached.  User can compare with manually doing aghq.
-            for (i in 1:theta_length) {
-                findMarginalHyperIntFree(i)
-            }
-
-            ## 6) Marginals for Fixed and Random-Effects: Only simulation based. Will
-            ## assume 10000? User can add more or do less after testing.
-            sims <- simulateLatentEffects(10000)
-        }))
+        }
+    )
+)
