@@ -35,13 +35,16 @@ splitLatents <- function(model, paramNodes, latentNodes, calcNodes, calcNodesOth
         ## along with random effects.
         newLatents <- model$getParents(deps)
         paramNodes <- setdiff(paramNodes, newLatents)
+        latentNodes <- unique(c(latentNodes, newLatents))
         margNodes <- setupMargNodes(model = model, paramNodes = paramNodes,
-            randomEffectsNodes = c(latentNodes, newLatents), split = split, check = check)
+            randomEffectsNodes = latentNodes, split = split, check = check)
     }
 
     messageIfVerbose("  [Note] Posterior approximation is using the following node sets:\n",
-                     "         parameter nodes: ", makeNodeString(paramNodes, model), "\n",
-                     "         latent nodes: ", makeNodeString(latentNodes, model))
+                     "         - parameter nodes: ", makeNodeString(paramNodes, model), "\n",
+                     "         - latent nodes: ", makeNodeString(latentNodes, model))
+    if(length(intersect(latentNodes, paramNodes)))
+        stop("some nodes appear in both the parameter and latent sets")
     if (length(paramNodes) > 20)
         messageIfVerbose("  [Warning] There is a large number of parameter node elements. Computation may be slow.")
     return(margNodes)

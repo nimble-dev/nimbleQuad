@@ -1969,10 +1969,10 @@ buildAGHQ <- nimbleFunction(
         if(num_reSets == 0){
           stop("buildAGHQ: There was a problem determining conditionally independent random effects sets for this model")
         }
+        if(length(reSets) > 1) {
+            messageIfVerbose("  Building individual AGHQ/Laplace approximations (one dot for each): ", appendLF = FALSE) 
+        } else messageIfVerbose("  Building AGHQ/Laplace approximation.")
         for(i in seq_along(reSets)){
-          if(length(reSets) > 1) {
-              messageIfVerbose("  Building individual AGHQ/Laplace approximations (one dot for each): ", appendLF = FALSE) }
-          else messageIfVerbose("  Building AGHQ/Laplace approximation.")
           ## Work with one conditionally independent set of latent states
           these_reNodes <- reSets[[i]]
           internalRandomEffectsNodes <- c(internalRandomEffectsNodes, these_reNodes)
