@@ -442,10 +442,8 @@ buildNestedApprox <- nimbleFunction(
             ## Initialize optimization at theta mode.
             Atransform_i <- matrix(0, nrow = theta_length - 1, ncol = theta_length - 1)
 
-            ## Column 1 is chosen theta values, Column 2 is marginalized values, Column
-            ## 3 is normalized marginal posterior.  This matches AGHQ output from
-            ## Stringer paper.
-            res <- matrix(0, nrow = nPts, ncol = 3)
+            ## Column 1 is chosen theta values, Column 2 is marginalized values, normalized based on AGHQ.
+            res <- matrix(0, nrow = nPts, ncol = 2)
             thetaj <- thetaMode
             other_theta_indices <- theta_indices[theta_indices != pIndex]
 
@@ -512,7 +510,7 @@ buildNestedApprox <- nimbleFunction(
             ## calculation of denominator in (8) in Bilodeau et al.
             margi <- sum(exp(res[, 2] - logPostProbMode) * theta1_nodes[, 1])
             lognormconst <- log(margi) + logPostProbMode + log(stdDev)
-            res[, 3] <- res[, 2] - lognormconst
+            res[, 2] <- res[, 2] - lognormconst
             ## *** Should I cache this?
             returnType(double(2))
             return(res)
