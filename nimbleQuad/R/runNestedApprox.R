@@ -156,7 +156,7 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
     }
 
     if(originalScale) {
-        length(quantileEsts) <- length(expectations) <- length(indivParamTransforms) <- length(Rapprox$paramNodesComponents)
+        length(quantileEsts) <- length(expectations) <- length(indivParamTransforms) <- sum(Rapprox$paramNodesIndices > 0)
         cnt <- 0
         for (i in seq_along(Rapprox$paramNodesComponents)) {
             idx <- Rapprox$paramNodesIndices[i]
@@ -168,14 +168,6 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
                 expectations[[cnt]] <- estimateExpectations(marginalsApprox[[idx]], indivParamTransforms[[i]])
             }
         }
-        if(cnt < length(Rapprox$paramNodesComponents)) {
-            quantileEsts <- quantileEsts[1:cnt]
-            expectations <- expectations[1:cnt]
-            indivParamTransforms <- indivParamTransforms[1:cnt]
-        }
-    }
-        
-    if (originalScale) {
         names(quantileEsts) <- Rapprox$paramNodesComponents[Rapprox$paramNodesIndices > 0]
         names(expectations) <- Rapprox$paramNodesComponents[Rapprox$paramNodesIndices > 0]
         names(indivParamTransforms) <- Rapprox$paramNodesComponents[Rapprox$paramNodesIndices > 0]
