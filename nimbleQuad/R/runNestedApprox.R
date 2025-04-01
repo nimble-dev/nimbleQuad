@@ -193,12 +193,11 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
     ## This is expensive. Avoid if user only needs parameter inference.  How do
     ## we have user tell us whether to `includeParams`?  Perhaps tell them to
     ## use more manual workflow if they need that.
-    if (nSamplesLatents) {
+    if (nSamplesLatents) 
         sampleLatentNodes(summary, n = nSamplesLatents, includeParams = FALSE)
 
-    if (nSamplesParams) {
+    if (nSamplesParams) 
         sampleParamNodes(summary, n = nSamplesParams)
-    }
 
     return(summary)
 }
@@ -233,9 +232,8 @@ improveMarginals <- function(summary, nodes, nMarginalGrid = 3, nQuad = 3) {
     if(!originalScale && is.character(nodes))
         stop("Results are being reported on the transformed (unconstrained) scale. `nodes` must contain one or more integer values indicating the transformed parameters.")
     
-    if(is.character(nodes)) {
+    if(is.character(nodes)) 
         nodes <- Rapprox$model$expandNodeNames(nodes, returnScalarComponents = TRUE)
-    } 
 
     for (i in seq_along(nodes)) {
         ## Improve marginal and insert into raw and summary objects.
