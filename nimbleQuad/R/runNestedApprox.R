@@ -44,11 +44,6 @@ approxSummary <- R6Class("approxSummary",
             if(is(approx, "NestedApprox")) 
                 Rapprox <- approx else Rapprox <- approx$Robject
 
-            if (!self$originalScale) {
-                paramNames <- paste0("param", seq_len(Rapprox$npar))
-            } else {
-                paramNames <- names(self$quantiles)
-            }
             first <- which(!sapply(self$quantiles, is.null))[1]
             qs <- self$quantiles[[first]]
             first <- which(!sapply(self$expectations, is.null))[1]
@@ -71,7 +66,7 @@ approxSummary <- R6Class("approxSummary",
                 params[[names(qs)[i]]] <- tmp
             }
             params <- as.data.frame(params)
-            row.names(params) <- paramNames
+            row.names(params) <- names(self$quantiles)
             self$params <- params
         },
         print = function() {
@@ -150,11 +145,12 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
         marginalsRaw[[i]] <- approx$findMarginalHyperIntFree(i)
         marginalsApprox[[i]] <- fitMarginalSpline(marginalsRaw[[i]])
         if(!originalScale) {
-            length(quantileEsts) <- length(expectations) <- nParamTrans
+            length(quantileEsts) <- length(expectations) <- length(indivParamTransforms) <- nParamTrans
             quantileEsts[[i]] <- estimateQuantiles(marginalsApprox[[i]], NULL, quantiles)
             expectations[[i]] <- estimateExpectations(marginalsApprox[[i]], NULL)
+            names(indivParamTransforms) <- names(quantileEsts) <- names(expectations) <-
+                paste0("param", seq_len(nParamTrans))
         }
-        length(indivParamTransforms) <- nParamTrans
     }
 
     if(originalScale) {
@@ -170,9 +166,8 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
                 expectations[[cnt]] <- estimateExpectations(marginalsApprox[[idx]], indivParamTransforms[[i]])
             }
         }
-        names(quantileEsts) <- Rapprox$paramNodesComponents[Rapprox$paramNodesIndices > 0]
-        names(expectations) <- Rapprox$paramNodesComponents[Rapprox$paramNodesIndices > 0]
-        names(indivParamTransforms) <- Rapprox$paramNodesComponents[Rapprox$paramNodesIndices > 0]
+        names(quantileEsts) <- names(expectations) <- names(indivParamTransforms) <-
+            Rapprox$paramNodesComponents[Rapprox$paramNodesIndices > 0]
     }
 
     marginalLogLik <- approx$calcMarginalLogLikApprox()
@@ -236,21 +231,28 @@ improveMarginals <- function(summary, nodes, nMarginalGrid = 3, nQuad = 3) {
     Rapprox <- summary$approx$Robject
 
     originalScale <- summary$originalScale
-    if(is.character(nodes))
+    if(originalScale && !is.character(nodes))
+        stop("Results are being reported on the original scale as specified in the model. `nodes` must contain model node(s) or variable(s).")
+    if(!originalScale && is.character(nodes))
+        stop("Results are being reported on the transformed (unconstrained) scale. `nodes` must contain one or more integer values indicating the transformed parameters.")
+    
+    if(is.character(nodes)) {
         nodes <- Rapprox$model$expandNodeNames(nodes, returnScalarComponents = TRUE)
+    } 
 
     for (i in seq_along(nodes)) {
         ## Improve marginal and insert into raw and summary objects.
         idx <- getNodeIndex(nodes[i], Rapprox)
+        if(is.character(nodes[i])) paramName <- nodes[i] else paramName <- paste0("param", nodes[i])
         
         summary$marginalsRaw[[idx]] <- summary$approx$findMarginalPosteriorDensity(idx,
                                             nPts = nMarginalGrid, nQuad = nQuad)
         summary$marginalsApprox[[idx]] <- fitMarginalSpline(summary$marginalsRaw[[idx]])
 
-        summary$quantiles[[nodes[i]]] <- estimateQuantiles(summary$marginalsApprox[[idx]],
-            summary$indivParamTransforms[[nodes[i]]])
-        summary$expectations[[nodes[i]]] <- estimateExpectations(summary$marginalsApprox[[idx]],
-            summary$indivParamTransforms[[nodes[i]]])
+        summary$quantiles[[paramName]] <- estimateQuantiles(summary$marginalsApprox[[idx]],
+            summary$indivParamTransforms[[paramName]])
+        summary$expectations[[paramName]] <- estimateExpectations(summary$marginalsApprox[[idx]],
+            summary$indivParamTransforms[[paramName]])
     }
     summary$generateParamsMatrix()
     return(summary)
@@ -288,7 +290,10 @@ sampleParamNodes <- function(summary, n = 1000, matchMarginals = TRUE) {
         samples <- t(apply(samplesTrans, 1, Rapprox$innerMethods$paramsTransform$inverseTransform))
         colnames(samples) <- Rapprox$model$expandNodeNames(Rapprox$innerMethods$paramNodes,
                                                            returnScalarComponents = TRUE)
-    } else samples <- samplesTrans
+    } else {
+        samples <- samplesTrans
+        colnames(samples) <- paste0("param", seq_len(ncol(samples)))
+    }
 
     ## TODO: check that INLA's improve.marginals does nothing for non 1:1
     ## cases.
