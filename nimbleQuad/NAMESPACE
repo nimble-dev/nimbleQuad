@@ -18,6 +18,10 @@ export(AGHQ1D)
 export(calcMarginalLogLikImproved)
 export(sampleLatentNodes)
 export(sampleParamNodes)
+export(improveMarginals)
 export(qmarginal)
 export(emarginal)
-export(improveMarginals)
+export(dmarginal)
+export(rmarginal)
+
+

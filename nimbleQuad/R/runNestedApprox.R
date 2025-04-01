@@ -151,8 +151,10 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
         marginalsApprox[[i]] <- fitMarginalSpline(marginalsRaw[[i]])
         if(!originalScale) {
             length(quantileEsts) <- length(expectations) <- nParamTrans
-            quantileEsts[[cnt]] <- estimateQuantiles(marginalsApprox[[i]], NULL, quantiles)
-            expectations[[cnt]] <- estimateExpectations(marginalsApprox[[i]], NULL)
+            quantileEsts[[i]] <- estimateQuantiles(marginalsApprox[[i]], NULL, quantiles)
+            expectations[[i]] <- estimateExpectations(marginalsApprox[[i]], NULL)
+        }
+        length(indivParamTransforms) <- nParamTrans
     }
 
     if(originalScale) {
@@ -278,7 +280,6 @@ sampleParamNodes <- function(summary, n = 1000, matchMarginals = TRUE) {
                                                NULL,
                                                empirQuantiles)
                 samplesTrans[, i] <- quantiles
-            }
         }
     }
 
