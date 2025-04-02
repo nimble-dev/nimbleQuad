@@ -78,8 +78,6 @@ buildNestedApprox <- nimbleFunction(
         paramNodes <- innerMethods$paramNodes
         npar <- innerMethods$npar
         paramNodesAsScalars_vec <- innerMethods$paramNodesAsScalars_vec
-        if (npar == 1)
-            p_indices <- c(1, -1) else p_indices <- 1:npar
 
         ## If we use this need to add to one time fixes.
         latentNodesAsScalars_vec <- innerMethods$reNodesAsScalars_vec
@@ -211,11 +209,6 @@ buildNestedApprox <- nimbleFunction(
             if (theta_length == 1) {
                 theta_indices <<- numeric(length = 1, value = 1)
                 thetaMode <<- numeric(length = 1, value = 0)
-            }
-            if (npar == 1) {
-                if (length(p_indices) == 2) {
-                    p_indices <<- numeric(length = 1, value = 1)
-                }
             }
             one_time_fixes_done <<- TRUE
         },
