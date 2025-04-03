@@ -40,9 +40,9 @@ splitLatents <- function(model, paramNodes, latentNodes, calcNodes, calcNodesOth
             randomEffectsNodes = latentNodes, split = split, check = check)
     }
 
-    messageIfVerbose("  [Note] Posterior approximation is using the following node sets:\n",
-                     "         - parameter nodes: ", makeNodeString(paramNodes, model), "\n",
-                     "         - latent nodes: ", makeNodeString(latentNodes, model))
+    messageIfVerbose("Building posterior approximation with the following node sets:\n",
+                     " - parameter nodes: ", makeNodeString(paramNodes, model), "\n",
+                     " - latent nodes: ", makeNodeString(latentNodes, model))
     if(length(intersect(latentNodes, paramNodes)))
         stop("some nodes appear in both the parameter and latent sets")
     if (length(paramNodes) > 20)
