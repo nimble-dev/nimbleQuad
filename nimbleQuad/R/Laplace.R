@@ -3405,8 +3405,8 @@ runAGHQ <- function(AGHQ, pStart,
 #'         elements based on some default inspections of the model. If
 #'         unnecessary warnings are emitted, simply set \code{check=FALSE}.
 #'
-#'   \item \code{innerOptimControl}. A list (either an R list or a
-#'         `optimControlNimbleList`) of control parameters for the inner
+#'   \item \code{innerOptimControl}. An `optimControlNimbleList` list 
+#'         of control parameters (an R list is sufficient for uncompiled operation) for the inner
 #'         optimization of Laplace approximation using \code{nimOptim}. See
 #'         'Details' of \code{\link{nimOptim}} for further information. Default
 #'         is `nimOptimDefaultControl()`.
@@ -3495,7 +3495,8 @@ runAGHQ <- function(AGHQ, pStart,
 #'         argument to `findMLE`). Choice of optimizers can be important and so
 #'         can be worth exploring.
 #'
-#' \item \code{outerOptimControl}. A list of control parameters for maximizing
+#' \item \code{outerOptimControl}. An `optimControlNimbleList` of control parameters
+#'         (an R list is sufficient for uncompiled operation) for maximizing
 #'         the Laplace log-likelihood using \code{nimOptim}. See 'Details' of
 #'         \code{\link{nimOptim}} for further information.
 #'
@@ -3810,8 +3811,10 @@ runAGHQ <- function(AGHQ, pStart,
 #' allres <- CpumpLaplace$summary(MLEres, randomEffectsStdError = TRUE)
 #'
 #' # Change the settings and also illustrate runLaplace
-#' CpumpLaplace$updateSettings(innerOptimControl = list(maxit = 1000),
-#'                             replace_innerOptimControl)
+#' innerControl <- nimOptimDefaultControl()
+#' innerControl$maxit <- 1000
+#' CpumpLaplace$updateSettings(innerOptimControl = innerControl,
+#'                             replace_innerOptimControl = TRUE)
 #' newres <- runLaplace(CpumpLaplace)
 #'
 #' # Illustrate use of the component log likelihood and gradient functions to
