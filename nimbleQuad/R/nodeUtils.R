@@ -40,13 +40,6 @@ splitLatents <- function(model, paramNodes, latentNodes, calcNodes, calcNodesOth
             randomEffectsNodes = latentNodes, split = split, check = check)
     }
 
-    messageIfVerbose("Building posterior approximation with the following node sets:\n",
-                     " - parameter nodes: ", makeNodeString(paramNodes, model), "\n",
-                     " - latent nodes: ", makeNodeString(latentNodes, model))
-    if(length(intersect(latentNodes, paramNodes)))
-        stop("some nodes appear in both the parameter and latent sets")
-    if (length(paramNodes) > 20)
-        messageIfVerbose("  [Warning] There is a large number of parameter node elements. Computation may be slow.")
     return(margNodes)
 }
 

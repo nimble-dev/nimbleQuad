@@ -2590,10 +2590,10 @@ buildAGHQ <- nimbleFunction(
       keepOneFixed_ <<- FALSE ## Can only be switched on by calling findMax_fixedp.
 
       if(optRes$convergence != 0) 
-          print("  [Warning] In maximing the Laplace/AGHQ approximation,\n"
+          print("  [Warning] In maximizing the Laplace/AGHQ approximation,\n",
                 "            `optim` has a non-zero convergence code: ", optRes$convergence, ".\n",
-                "            The control parameters of `optim` can be adjusted in the control argument of\n",
-                "            `buildLaplace` or `buildAGHQ` via `list(outerOptimControl = list())`.")
+                "            The control parameters of `optim` can be adjusted using the `outerOptimControl`\n",
+                "            list component of the `control` list argument of `buildLaplace` or `buildAGHQ`.")
       
       ## Print out warning about inner convergence.
       if( checkInnerConvergence(FALSE) != 0 )

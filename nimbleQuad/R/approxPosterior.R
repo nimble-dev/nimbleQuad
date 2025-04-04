@@ -22,6 +22,7 @@ buildNestedApprox <- nimbleFunction(
         ## see how they work.
         control$innerOptimStart <- extractControlElement(control, "innerOptimStart",
                                                          "zero")
+
         ## TODO: check if handling of no `paramNodes` or `latentNodes` is correct.
         margNodes <- splitLatents(model, hyperParamNodes, latentNodes)
         paramNodes <- margNodes$paramNodes
@@ -29,6 +30,7 @@ buildNestedApprox <- nimbleFunction(
         if(!length(paramNodes))
             stop("No parameter nodes detected in model. Please check the model structure or provide parameter nodes explicitly via `hyperParamNodes`.")
 
+        
         ## Configure all grids before calling AGHQ to make sure it builds
         ## correctly.  DO NOT MOVE WHEN THIS IS CALLED
         allGridRules <- c("CCD", "AGHQ", "AGHQSPRSE", "USER")
@@ -38,6 +40,17 @@ buildNestedApprox <- nimbleFunction(
         if(hyperGridRule == "none")
             hyperGridRule <- ifelse(length(paramNodes) >= 3, "CCD", "AGHQ")
 
+        messageIfVerbose("Building nested posterior approximation using the following node sets:\n",
+                         " - parameter nodes: ", makeNodeString(paramNodes, model), "\n",
+                         " - latent nodes: ", makeNodeString(latentNodes, model), "\n",
+                         "using ", hyperGridRule, " grid for the parameters and ", ifelse(nQuadInner > 1, "AGHQ", "Laplace"), " approximation for the latent nodes.")
+ 
+        if(length(intersect(latentNodes, paramNodes)))
+            stop("some nodes appear in both the parameter and latent sets")
+        if (length(paramNodes) > 20)
+            messageIfVerbose("  [Warning] There is a large number of parameter node elements. Computation may be slow.")
+
+        
         if(hyperGridRule == "AGHQ" && nQuadOuter %% 2 == 0)
             messageIfVerbose("  [Note] For computational efficiency, it is recommended to use an odd number of quadrature points\n         for the parameter (outer) grid (`nQuadOuter`).")
         
