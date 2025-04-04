@@ -219,6 +219,18 @@ buildNestedApprox <- nimbleFunction(
             optRes <- innerMethods$optimize(pStart = pStart, includePrior = TRUE,
                                             includeJacobian = TRUE,
                                             hessian = TRUE, parscale = parscale)
+            dm <- dim(optRes$hessian)[1]
+            if(dm != 2)
+                stop("Posterior mode could not be found. Consider adjusting the control parameters for the optimization via the `control` argument of `buildNestedApprox`.")
+            if(any_nan(c(optRes$hessian)))
+                stop("While attempting to find posterior mode, invalid hessian calculated. Consider adjusting the control parameters for the optimization via the `control` argument of `buildNestedApprox`.")
+            if(optRes$convergence != 0)
+                print("  [Warning] In optimization over parameters to find the posterior mode as the\n",
+                      "            starting point for setting up the parameter grid,\n",
+                      "            `optim` has a non-zero convergence code: ", optRes$convergence, ".\n",
+                      "            Approximation may not be accurate.")
+
+            
             modeCached <<- TRUE
             thetaMode <<- optRes$par
             thetaNegHess <<- -optRes$hessian

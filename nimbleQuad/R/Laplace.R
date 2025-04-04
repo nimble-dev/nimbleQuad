@@ -2578,20 +2578,22 @@ buildAGHQ <- nimbleFunction(
       # optRes <- optim(pStartTransform, calcLogLik_pTransformed, gr_logLik_pTransformed, method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
 
       setLogDensType(includeJacobian = includeJacobian, includePrior = includePrior)
+      ## Use of AD-based gradient requires fix to handling of gradient of prior. // CJP 2025-04-03
       if( !keepOneFixed_ ){
-        optRes <- optim(pStartTransform, calcLogDens_pTransformed, gr_LogDens_pTransformed, 
+        optRes <- optim(pStartTransform, calcLogDens_pTransformed,  gr_LogDens_pTransformed, 
                         method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)      
       }else{
-        optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, gr_LogDens_pTransformedFix1, 
+        optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, # gr_LogDens_pTransformedFix1, 
                         method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)                
       }
       setLogDensType()  ## Reset it to default to posterior.
       keepOneFixed_ <<- FALSE ## Can only be switched on by calling findMax_fixedp.
 
       if(optRes$convergence != 0) 
-        print("  [Warning] `optim` has a non-zero convergence code: ", optRes$convergence, ".\n",
-              "            The control parameters of `optim` can be adjusted in the control argument of\n",
-              "            `buildLaplace` or `buildAGHQ` via `list(outerOptimControl = list())`.")
+          print("  [Warning] In maximing the Laplace/AGHQ approximation,\n"
+                "            `optim` has a non-zero convergence code: ", optRes$convergence, ".\n",
+                "            The control parameters of `optim` can be adjusted in the control argument of\n",
+                "            `buildLaplace` or `buildAGHQ` via `list(outerOptimControl = list())`.")
       
       ## Print out warning about inner convergence.
       if( checkInnerConvergence(FALSE) != 0 )
