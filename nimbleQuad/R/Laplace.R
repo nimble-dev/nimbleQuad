@@ -2580,7 +2580,7 @@ buildAGHQ <- nimbleFunction(
       setLogDensType(includeJacobian = includeJacobian, includePrior = includePrior)
       ## Use of AD-based gradient requires fix to handling of gradient of prior. // CJP 2025-04-03
       if( !keepOneFixed_ ){
-        optRes <- optim(pStartTransform, calcLogDens_pTransformed,  gr_LogDens_pTransformed, 
+        optRes <- optim(pStartTransform, calcLogDens_pTransformed, #  gr_LogDens_pTransformed, 
                         method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)      
       }else{
         optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, # gr_LogDens_pTransformedFix1, 
