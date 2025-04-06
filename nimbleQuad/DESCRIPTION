@@ -18,3 +18,11 @@ Copyright: See COPYRIGHTS file.
 Encoding: UTF-8
 LazyData: false
 RoxygenNote: 7.3.1
+Collate:
+    quadratureGrids.R
+    quadratureRules.R
+    nodeUtils.R
+    Laplace.R
+    approxPosterior.R
+    runNestedApprox.R
+    approxSummaries.R

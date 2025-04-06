@@ -23,13 +23,20 @@ buildNestedApprox <- nimbleFunction(
         control$innerOptimStart <- extractControlElement(control, "innerOptimStart",
                                                          "zero")
 
-        ## TODO: check if handling of no `paramNodes` or `latentNodes` is correct.
+        inferenceNodes <- model$getNodeNames(includeData = FALSE, stochOnly = TRUE)
+        if(!missing(hyperParamNodes) && !all(model$expandNodeNames(hyperParamNodes) %in% inferenceNodes))
+            stop("some elements of `hyperParamNodes` do not have prior distributions")
+        if(!missing(latentNodes) && !all(model$expandNodeNames(latentNodes) %in% inferenceNodes))
+            stop("some elements of `latentNodes` do not have prior distributions")
+
+        
         margNodes <- splitLatents(model, hyperParamNodes, latentNodes)
         paramNodes <- margNodes$paramNodes
         latentNodes <- margNodes$randomEffectsNodes
         if(!length(paramNodes))
             stop("No parameter nodes detected in model. Please check the model structure or provide parameter nodes explicitly via `hyperParamNodes`.")
-
+        if(!length(latentNodes))
+            stop("No latent nodes detected in model. Please check the model structure or provide latent nodes explicitly via `latentNodes`.")
         
         ## Configure all grids before calling AGHQ to make sure it builds
         ## correctly.  DO NOT MOVE WHEN THIS IS CALLED
@@ -40,7 +47,7 @@ buildNestedApprox <- nimbleFunction(
         if(hyperGridRule == "none")
             hyperGridRule <- ifelse(length(paramNodes) >= 3, "CCD", "AGHQ")
 
-        messageIfVerbose("Building nested posterior approximation using the following node sets:\n",
+        messageIfVerbose("Building nested posterior approximation for the following node sets:\n",
                          " - parameter nodes: ", makeNodeString(paramNodes, model), "\n",
                          " - latent nodes: ", makeNodeString(latentNodes, model), "\n",
                          "using ", hyperGridRule, " grid for the parameters and ", ifelse(nQuadInner > 1, "AGHQ", "Laplace"), " approximation for the latent nodes.")
@@ -233,7 +240,7 @@ buildNestedApprox <- nimbleFunction(
                                             includeJacobian = TRUE,
                                             hessian = TRUE, parscale = parscale)
             dm <- dim(optRes$hessian)[1]
-            if(dm != 2)
+            if(dm != theta_length)
                 stop("Posterior mode could not be found. Consider adjusting the control parameters for the optimization via the `control` argument of `buildNestedApprox`.")
             if(any_nan(c(optRes$hessian)))
                 stop("While attempting to find posterior mode, invalid hessian calculated. Consider adjusting the control parameters for the optimization via the `control` argument of `buildNestedApprox`.")
@@ -246,7 +253,9 @@ buildNestedApprox <- nimbleFunction(
             
             modeCached <<- TRUE
             thetaMode <<- optRes$par
-            thetaNegHess <<- -optRes$hessian
+            if(theta_length == 1) {
+                thetaNegHess <<- matrix(-optRes$hessian, 1, 1)
+            } else thetaNegHess <<- -optRes$hessian
             logPostProbMode <<- optRes$value
             covTheta <<- inverse(thetaNegHess)
             return(optRes)
@@ -455,7 +464,8 @@ buildNestedApprox <- nimbleFunction(
             nQuadGrid <- theta_marg_grid$gridSize()
 
             if (!modeCached) posteriorMode(rep(Inf, npar), hessian = TRUE, parscale = "transformed")  ## *** default is now nlminb
-
+            print("DEBUG: finished mode", pIndex, covTheta)
+            
             ## 1D quadrature to evaluate the theta on.
             stdDev <- sqrt(covTheta[pIndex, pIndex])
 
