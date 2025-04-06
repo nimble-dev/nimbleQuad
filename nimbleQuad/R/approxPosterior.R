@@ -464,7 +464,6 @@ buildNestedApprox <- nimbleFunction(
             nQuadGrid <- theta_marg_grid$gridSize()
 
             if (!modeCached) posteriorMode(rep(Inf, npar), hessian = TRUE, parscale = "transformed")  ## *** default is now nlminb
-            print("DEBUG: finished mode", pIndex, covTheta)
             
             ## 1D quadrature to evaluate the theta on.
             stdDev <- sqrt(covTheta[pIndex, pIndex])
