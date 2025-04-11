@@ -179,7 +179,7 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
     ## With only one parameter, computations should not be so slow, so go ahead
     ## and use better marginal and logLik estimates.
     if (length(Rapprox$paramNodesComponents) == 1) {
-        improveMarginals(summary, Rapprox$paramNodesComponents[1])
+        improveMarginals(summary, ifelse(originalScale, Rapprox$paramNodesComponents[1], 1))
         ## TODO: make sure that `calcMarginalLogLikQuad()` works if
         ## `calcHyperGrid` has not yet been called.
         summary$marginalLogLik_improved <- approx$calcMarginalLogLikQuad()
@@ -283,6 +283,8 @@ sampleParamNodes <- function(summary, n = 1000, matchMarginals = TRUE) {
     ## Should we compile such that we can used compiled $paramsTransform?
     if (originalScale) {
         samples <- t(apply(samplesTrans, 1, Rapprox$innerMethods$paramsTransform$inverseTransform))
+        if(Rapprox$npar == 1)
+            samples <- matrix(samples, ncol = 1)
         colnames(samples) <- Rapprox$model$expandNodeNames(Rapprox$innerMethods$paramNodes,
                                                            returnScalarComponents = TRUE)
     } else {

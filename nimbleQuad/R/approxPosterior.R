@@ -453,6 +453,17 @@ buildNestedApprox <- nimbleFunction(
             ## Build the quadrature grid points:
             if (dim(theta1_nodes)[1] != nPts) theta1_nodes <<- AGHQ1D(nQuad = nPts)
 
+            if(theta_length == 1) {
+                ## d-1 dimensional AGHQ not needed; just evaluate inner approximation.
+                res <- matrix(0, nrow = nPts, ncol = 2)
+                stdDev <- sqrt(covTheta[1, 1])
+                for(i in 1:nPts) {
+                    res[i, 1] <- theta1_nodes[i, 2] * stdDev + thetaMode[pIndex]
+                    res[i, 2] <- innerMethods$calcLogDens_pTransformed(c(res[i, 1]))
+                }
+                return(res)
+            }
+
             if(nQuad %% 2 == 0)
                 cat("  [Note] For computational efficiency, it is recommended to use an odd number of quadrature points\n         (via argument `nQuad`) for marginalizing over the parameter (outer) grid.\n")
 
@@ -496,38 +507,35 @@ buildNestedApprox <- nimbleFunction(
                     theta_iMode <- optRes$par
                     maxPostDensi <- optRes$value
                 }
-                res[i, 2] <- maxPostDensi
-                if (theta_length > 1) {
-                    ## Only need d-1 dim. AGHQ if d>1.
-                    if (gridTransformMethod == "spectral") {
-                        E <- eigen(subsetNegHess, symmetric = TRUE)
-                        for (d in 1:theta_length) {
-                            Atransform_i[, d] <- E$vectors[, d]/sqrt(E$values[d])
-                        }
-                        logDetNegHessThetai <- sum(log(E$values))
-                    } else {
-                        Atransform_i <- chol(subsetNegHess)
-                        logDetNegHessThetai <- 2 * sum(log(diag(Atransform_i)))
+                
+                if (gridTransformMethod == "spectral") {
+                    E <- eigen(subsetNegHess, symmetric = TRUE)
+                    for (d in 1:theta_length) {
+                        Atransform_i[, d] <- E$vectors[, d]/sqrt(E$values[d])
                     }
-
-                    logDensi <- 0
-                    nimCat("(", i, ")")
-                    for (j in 1:nQuadGrid) {
-                        nimCat(".")
-                        if (j != theta_marg_grid$modeI()) {
-                            nodej <- theta_marg_grid$nodes(indx = j)[1, ]
-                            theta_tmp <- z_to_theta(z = nodej, postMode = theta_iMode, A = Atransform_i,
-                                                    method = gridTransformMethod)
-                            thetaj[other_theta_indices] <- theta_tmp
-                            postLogDensij <- innerMethods$calcLogDens_pTransformed(pTransform = thetaj)
-
-                            logDensi <- logDensi + exp(postLogDensij - maxPostDensi) * theta_marg_grid$weights(indx = j)[1]
-                        } else {
-                            logDensi <- logDensi + theta_marg_grid$weights(indx = j)[1]
-                        }
+                    logDetNegHessThetai <- sum(log(E$values))
+                } else {
+                    Atransform_i <- chol(subsetNegHess)
+                    logDetNegHessThetai <- 2 * sum(log(diag(Atransform_i)))
+                }
+                
+                logDensi <- 0
+                nimCat("(", i, ")")
+                for (j in 1:nQuadGrid) {
+                    nimCat(".")
+                    if (j != theta_marg_grid$modeI()) {
+                        nodej <- theta_marg_grid$nodes(indx = j)[1, ]
+                        theta_tmp <- z_to_theta(z = nodej, postMode = theta_iMode, A = Atransform_i,
+                                                method = gridTransformMethod)
+                        thetaj[other_theta_indices] <- theta_tmp
+                        postLogDensij <- innerMethods$calcLogDens_pTransformed(pTransform = thetaj)
+                        
+                        logDensi <- logDensi + exp(postLogDensij - maxPostDensi) * theta_marg_grid$weights(indx = j)[1]
+                    } else {
+                        logDensi <- logDensi + theta_marg_grid$weights(indx = j)[1]
                     }
                 }
-                res[i, 2] <- res[i, 2] + log(logDensi) - 0.5 * logDetNegHessThetai
+                res[i, 2] <- log(logDensi) + maxPostDensi - 0.5 * logDetNegHessThetai
             }
             nimCat("\n")
             ## Because thetai values are AGHQ, we can normalize to get the proper
