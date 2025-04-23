@@ -24,7 +24,7 @@ fitMarginalSpline <- function(gridded, normalize = TRUE, xnew = NULL) {
     }
     ## Normalize the PDF:
     pdf <- exp(logPDF)
-    trapezoids <- diff(finegrid) * (pdf[-n] + pdf[-1])/2  # trapezoidal rule (could use Simpson as (2M+T)/3
+    trapezoids <- diff(finegrid) * (pdf[-length(pdf)] + pdf[-1])/2  # trapezoidal rule (could use Simpson as (2M+T)/3
     if (normalize)
         norm <- sum(trapezoids) else norm <- 1
     pdf <- pdf/norm

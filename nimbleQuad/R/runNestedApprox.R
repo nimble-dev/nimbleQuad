@@ -306,7 +306,10 @@ sampleLatentNodes <- function(summary, n = 1000, includeParams = FALSE) {
     ## Grid-based marginal log-likelihood comes "for free" if simulate parameters.
     summary$marginalLogLik_improved <- summary$approx$calcMarginalLogLikQuad()
 
-    colnames(samples) <- c("index", Rapprox$innerMethods$reNodesAsScalars_vec)
+    nms <- Rapprox$innerMethods$reNodesAsScalars_vec
+    if(dim(samples)[2] == 2) 
+        nms <- nms[1]
+    colnames(samples) <- c("index", nms)
     if (includeParams) {
         paramValues <- getParamGrid()  ## `getParamGrid` needs to be written as a nestedApprox nf method, returning `theta_grid$nodes`.
         paramValues <- t(apply(paramValues, 1, Rapprox$innerMethods$paramsTransform))
@@ -314,7 +317,7 @@ sampleLatentNodes <- function(summary, n = 1000, includeParams = FALSE) {
         colnames(paramSamples) <- Rapprox$paramNodesComponents
         samples <- cbind(samples, paramSamples)
     }
-    summary$samples <- samples[, -1]
+    summary$samples <- samples[, -1, drop = FALSE]
     invisible(summary$samples)
 }
 
