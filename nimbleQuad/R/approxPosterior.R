@@ -50,7 +50,7 @@ buildNestedApprox <- nimbleFunction(
         messageIfVerbose("Building nested posterior approximation for the following node sets:\n",
                          " - parameter nodes: ", makeNodeString(paramNodes, model), "\n",
                          " - latent nodes: ", makeNodeString(latentNodes, model), "\n",
-                         "using ", hyperGridRule, " grid for the parameters and ", ifelse(nQuadInner > 1, "AGHQ", "Laplace"), " approximation for the latent nodes.")
+                         " with ", hyperGridRule, " grid for the parameters and ", ifelse(nQuadInner > 1, "AGHQ", "Laplace"), " approximation for the latent nodes.")
  
         if(length(intersect(latentNodes, paramNodes)))
             stop("some nodes appear in both the parameter and latent sets")

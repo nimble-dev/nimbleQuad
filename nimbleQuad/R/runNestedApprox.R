@@ -75,11 +75,12 @@ approxSummary <- R6Class("approxSummary",
             print(self$params)
             
             cat("\nMarginal log-likelihood (asymmetric Gaussian approximation): ",
-                self$marginalLogLik, "\n")
+                self$marginalLogLik, "(*)\n")
             ## Careful with ref to AGHQ here as we do at the moment allow 'improved'
             ## calc under CCD.
             if (!is.na(self$marginalLogLik_improved))
-                cat("Marginal log-likelihood (grid-based): ", self$marginalLogLik_improved, "\n")
+                cat("Marginal log-likelihood (grid-based): ", self$marginalLogLik_improved, "(*)\n")
+            cat("(*) Marginal log-likelihood is invalid for improper priors and may not be useful\n   for non-informative priors.")
             
             invisible(self)
         },
@@ -311,10 +312,16 @@ sampleLatentNodes <- function(summary, n = 1000, includeParams = FALSE) {
         nms <- nms[1]
     colnames(samples) <- c("index", nms)
     if (includeParams) {
-        paramValues <- getParamGrid()  ## `getParamGrid` needs to be written as a nestedApprox nf method, returning `theta_grid$nodes`.
-        paramValues <- t(apply(paramValues, 1, Rapprox$innerMethods$paramsTransform))
-        paramSamples <- paramValues[samples[, "index"], ]
-        colnames(paramSamples) <- Rapprox$paramNodesComponents
+        paramValues <- summary$approx$getParamGrid()
+        if(summary$originalScale) {
+            paramValues <- apply(paramValues, 1, Rapprox$innerMethods$paramsTransform$inverseTransform)
+            if(is.null(dim(paramValues)))
+                paramValues <- matrix(paramValues, ncol = 1) else paramValues <- t(paramValues)
+        }
+        paramSamples <- paramValues[samples[, "index"], , drop = FALSE]
+        if(summary$originalScale) {
+            colnames(paramSamples) <- Rapprox$paramNodesComponents
+        } else colnames(paramSamples) <- paste0('param', seq_len(Rapprox$npar))
         samples <- cbind(samples, paramSamples)
     }
     summary$samples <- samples[, -1, drop = FALSE]
