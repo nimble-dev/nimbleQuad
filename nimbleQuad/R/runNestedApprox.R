@@ -80,7 +80,7 @@ approxSummary <- R6Class("approxSummary",
             ## calc under CCD.
             if (!is.na(self$marginalLogLik_improved))
                 cat("Marginal log-likelihood (grid-based): ", self$marginalLogLik_improved, "(*)\n")
-            cat("(*) Marginal log-likelihood is invalid for improper priors and may not be useful\n   for non-informative priors.")
+            cat("(*) Marginal log-likelihood is invalid for improper priors and may not be useful\n   for non-informative priors.\n")
             
             invisible(self)
         },
