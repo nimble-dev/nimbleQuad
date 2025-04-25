@@ -458,8 +458,8 @@ inner_cache_methods = nimbleFunction(
                                     cholesky = innerNegHessChol[k, jStart:(jStart + condIndptSets[j] - 1),
                                                                 jStart:(jStart + condIndptSets[j] - 1)],
                                     prec_param = TRUE)
+                    jStart <- jStart + condIndptSets[j]
                 }
-                jStart <- jStart + condIndptSets[j]
             }
             returnType(double(2))
             return(val)
