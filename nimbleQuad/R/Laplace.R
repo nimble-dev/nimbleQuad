@@ -2086,7 +2086,7 @@ buildAGHQ <- nimbleFunction(
     pTransform_fixed <- 0
     pTransform_index_fixed <- 1
     pTransform_indices_other <- numeric(2)
-    test_ptrans_values <- numeric(2)
+#    test_ptrans_values <- numeric(2)
 
     ## The nimbleList definitions AGHQuad_params and AGHQuad_summary
     ## have moved to predefined nimbleLists.
@@ -2410,7 +2410,7 @@ buildAGHQ <- nimbleFunction(
     },
     calcLogDens_pTransformedFix1 = function(pTransform = double(1)){
       pTransform_star <- replaceOneVec(pTransform)
-      test_ptrans_values <<- pTransform_star
+#      test_ptrans_values <<- pTransform_star
 
       ans <- calcLogDens(pTransform_star, trans = TRUE, 
                          includeJacobian = includeJacobian_, 
@@ -2467,7 +2467,7 @@ buildAGHQ <- nimbleFunction(
     },
     gr_LogDens_pTransformedFix1 = function(pTransform = double(1)){
       pTransform_star <- replaceOneVec(pTransform)
-      test_ptrans_values <<- pTransform_star
+#      test_ptrans_values <<- pTransform_star
       ans <- gr_LogDens(pTransform_star, trans = TRUE, 
                            includeJacobian = includeJacobian_, 
                            includePrior = includePrior_)
@@ -2542,7 +2542,7 @@ buildAGHQ <- nimbleFunction(
                        includePrior = includePrior,
                        includeJacobian = includeJacobian,
                        hessian = hessian,
-                       parscale = "transform")
+                       parscale = "transformed")
 
       return(maxRes)
       returnType(optimResultNimbleList())                       
@@ -2581,10 +2581,15 @@ buildAGHQ <- nimbleFunction(
       ## Use of AD-based gradient requires fix to handling of gradient of prior. // CJP 2025-04-03
       if( !keepOneFixed_ ){
         optRes <- optim(pStartTransform, calcLogDens_pTransformed, #  gr_LogDens_pTransformed, 
-                        method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)      
-      }else{
+                        method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
+        p <- paramsTransform$inverseTransform(optRes$par)
+        ## Could this be dangerous compilation-wise if $par and p are different lengths? // CJP 2025-04-27
+        if(parscale == "real") optRes$par <- p
+      } else {
         optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, # gr_LogDens_pTransformedFix1, 
-                        method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)                
+                        method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
+        fullpar <- replaceOneVec(optRes$par)
+        p <- paramsTransform$inverseTransform(fullpar)
       }
       setLogDensType()  ## Reset it to default to posterior.
       keepOneFixed_ <<- FALSE ## Can only be switched on by calling findMax_fixedp.
@@ -2601,9 +2606,8 @@ buildAGHQ <- nimbleFunction(
                 "            Use `checkInnerConvergence(TRUE)` to see details.")
 
       ## Back transform results to original scale if requested.
-      p <- paramsTransform$inverseTransform(optRes$par)
-      if(parscale == "real") optRes$par <- p
-      setModelValues(p) ## Make sure the model object contains all the updated parameter values.
+      
+      setModelValues(p) ## Make sure the model object contains all the updated parameter values. 
  
       ## Returns on transformed scale just like optim.
       return(optRes)

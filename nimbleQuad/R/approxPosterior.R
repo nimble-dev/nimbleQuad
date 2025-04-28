@@ -338,7 +338,7 @@ buildNestedApprox <- nimbleFunction(
         },
         calcSkewedSD = function() {
             ## Require the grid to have been built and the mode found.
-            buildHyperGrid()
+            buildHyperGrid(nQuadUpdate = nQuadOuter)
 
             setTransformations(transformMethod)
             logSkewedWgt <<- 0
@@ -376,7 +376,7 @@ buildNestedApprox <- nimbleFunction(
         ## Calculate theta on the quadrature grid points. AGHQ or CCD.
         ## Stores all values we need for simulation inference on the latent nodes.
         calcHyperGrid = function(skew = logical(0, default = TRUE)) {
-            buildHyperGrid()
+            buildHyperGrid(nQuadUpdate = nQuadOuter)
             setTransformations(transformMethod)
             nGrid <- theta_grid$gridSize()
 
@@ -510,7 +510,7 @@ buildNestedApprox <- nimbleFunction(
                 
                 if (gridTransformMethod == "spectral") {
                     E <- eigen(subsetNegHess, symmetric = TRUE)
-                    for (d in 1:theta_length) {
+                    for (d in 1:(theta_length-1)) {
                         Atransform_i[, d] <- E$vectors[, d]/sqrt(E$values[d])
                     }
                     logDetNegHessThetai <- sum(log(E$values))
@@ -518,7 +518,7 @@ buildNestedApprox <- nimbleFunction(
                     Atransform_i <- chol(subsetNegHess)
                     logDetNegHessThetai <- 2 * sum(log(diag(Atransform_i)))
                 }
-                
+
                 logDensi <- 0
                 nimCat("(", i, ")")
                 for (j in 1:nQuadGrid) {
@@ -529,7 +529,6 @@ buildNestedApprox <- nimbleFunction(
                                                 method = gridTransformMethod)
                         thetaj[other_theta_indices] <- theta_tmp
                         postLogDensij <- innerMethods$calcLogDens_pTransformed(pTransform = thetaj)
-                        
                         logDensi <- logDensi + exp(postLogDensij - maxPostDensi) * theta_marg_grid$weights(indx = j)[1]
                     } else {
                         logDensi <- logDensi + theta_marg_grid$weights(indx = j)[1]
