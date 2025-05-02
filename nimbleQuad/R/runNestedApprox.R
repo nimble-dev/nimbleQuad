@@ -131,7 +131,7 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
     if(is(approx, "NestedApprox")) 
         Rapprox <- approx else Rapprox <- approx$Robject
 
-    nParamTrans <- Rapprox$npar
+    nParamTrans <- Rapprox$theta_length
 
     marginalsRaw <- list()
     length(marginalsRaw) <- nParamTrans
@@ -179,7 +179,7 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
 
     ## With only one parameter, computations should not be so slow, so go ahead
     ## and use better marginal and logLik estimates.
-    if (length(Rapprox$paramNodesComponents) == 1) {
+    if (Rapprox$npar == 1) {
         improveMarginals(summary, ifelse(originalScale, Rapprox$paramNodesComponents[1], 1))
         ## TODO: make sure that `calcMarginalLogLikQuad()` works if
         ## `calcHyperGrid` has not yet been called.
@@ -321,7 +321,7 @@ sampleLatentNodes <- function(summary, n = 1000, includeParams = FALSE) {
         paramSamples <- paramValues[samples[, "index"], , drop = FALSE]
         if(summary$originalScale) {
             colnames(paramSamples) <- Rapprox$paramNodesComponents
-        } else colnames(paramSamples) <- paste0('param', seq_len(Rapprox$npar))
+        } else colnames(paramSamples) <- paste0('param', seq_len(Rapprox$theta_length))
         samples <- cbind(samples, paramSamples)
     }
     summary$samples <- samples[, -1, drop = FALSE]
