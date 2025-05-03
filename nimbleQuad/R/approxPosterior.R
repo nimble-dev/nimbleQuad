@@ -123,7 +123,7 @@ buildNestedApprox <- nimbleFunction(
             if (paramsTransform$transformType[idx] < 7) {
                 paramNodesIndices[mapping[idx, 1]] <- mapping[idx, 3]
             } else {
-                paramNodesIndices[mapping[idx, 1:2]] <- 0
+                paramNodesIndices[mapping[idx,1]:mapping[idx,2]] <- 0
             }
         }
         
