@@ -262,9 +262,10 @@ buildNestedApprox <- nimbleFunction(
             returnType(optimResultNimbleList())
         },
         buildHyperGrid = function(quadRule = character(0, default = "AGHQ"),
-                                  nQuadUpdate = integer(0, default = 3)) {
+                                  nQuadUpdate = integer(0, default = -1)) {
             one_time_fixes()
-            nQuadOuter <<- nQuadUpdate
+            if(nQuadUpdate != -1)
+                nQuadOuter <<- nQuadUpdate
             setHyperGridRule(quadRule)
             theta_grid$buildGrid(method = hyperGridRule, nQuad = nQuadOuter)
             nGrid <- theta_grid$gridSize()
@@ -338,7 +339,7 @@ buildNestedApprox <- nimbleFunction(
         },
         calcSkewedSD = function() {
             ## Require the grid to have been built and the mode found.
-            buildHyperGrid(nQuadUpdate = nQuadOuter)
+            buildHyperGrid()
 
             setTransformations(transformMethod)
             logSkewedWgt <<- 0
@@ -376,7 +377,7 @@ buildNestedApprox <- nimbleFunction(
         ## Calculate theta on the quadrature grid points. AGHQ or CCD.
         ## Stores all values we need for simulation inference on the latent nodes.
         calcHyperGrid = function(skew = logical(0, default = TRUE)) {
-            buildHyperGrid(nQuadUpdate = nQuadOuter)
+            buildHyperGrid()
             setTransformations(transformMethod)
             nGrid <- theta_grid$gridSize()
 
