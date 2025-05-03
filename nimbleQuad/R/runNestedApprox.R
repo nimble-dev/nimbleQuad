@@ -72,8 +72,9 @@ approxSummary <- R6Class("approxSummary",
         print = function() {
             cat("Model (hyper)parameters: \n")
             if (is.null(self$params)) self$params <- self$generateParamsMatrix()
-            print(self$params)
-            
+            if(length(self$params)) {
+                print(self$params)
+            } else cat("  No analytic marginals available for non-1:1 transformations; use `sampleParamNodes`.\n")
             cat("\nMarginal log-likelihood (asymmetric Gaussian approximation): ",
                 self$marginalLogLik, "(*)\n")
             ## Careful with ref to AGHQ here as we do at the moment allow 'improved'
@@ -228,8 +229,12 @@ improveMarginals <- function(summary, nodes, nMarginalGrid = 3, nQuad = 3) {
     Rapprox <- summary$approx$Robject
 
     originalScale <- summary$originalScale
-    if(originalScale && !is.character(nodes))
-        stop("Results are being reported on the original scale as specified in the model. `nodes` must contain model node(s) or variable(s).")
+    if(originalScale) {
+        if(!is.character(nodes))
+            stop("Results are being reported on the original scale as specified in the model. `nodes` must contain model node(s) or variable(s).")
+        
+
+    }
     if(!originalScale && is.character(nodes))
         stop("Results are being reported on the transformed (unconstrained) scale. `nodes` must contain one or more integer values indicating the transformed parameters.")
     
@@ -239,16 +244,18 @@ improveMarginals <- function(summary, nodes, nMarginalGrid = 3, nQuad = 3) {
     for (i in seq_along(nodes)) {
         ## Improve marginal and insert into raw and summary objects.
         idx <- getNodeIndex(nodes[i], Rapprox)
-        if(is.character(nodes[i])) paramName <- nodes[i] else paramName <- paste0("param", nodes[i])
+        if(idx > 0) {
+            if(is.character(nodes[i])) paramName <- nodes[i] else paramName <- paste0("param", nodes[i])
         
-        summary$marginalsRaw[[idx]] <- summary$approx$findMarginalPosteriorDensity(idx,
-                                            nPts = nMarginalGrid, nQuad = nQuad)
-        summary$marginalsApprox[[idx]] <- fitMarginalSpline(summary$marginalsRaw[[idx]])
-
-        summary$quantiles[[paramName]] <- estimateQuantiles(summary$marginalsApprox[[idx]],
-            summary$indivParamTransforms[[paramName]])
-        summary$expectations[[paramName]] <- estimateExpectations(summary$marginalsApprox[[idx]],
-            summary$indivParamTransforms[[paramName]])
+            summary$marginalsRaw[[idx]] <- summary$approx$findMarginalPosteriorDensity(idx,
+                                                                                       nPts = nMarginalGrid, nQuad = nQuad)
+            summary$marginalsApprox[[idx]] <- fitMarginalSpline(summary$marginalsRaw[[idx]])
+            
+            summary$quantiles[[paramName]] <- estimateQuantiles(summary$marginalsApprox[[idx]],
+                                                                summary$indivParamTransforms[[paramName]])
+            summary$expectations[[paramName]] <- estimateExpectations(summary$marginalsApprox[[idx]],
+                                                                      summary$indivParamTransforms[[paramName]])
+        }
     }
     summary$generateParamsMatrix()
     return(summary)
