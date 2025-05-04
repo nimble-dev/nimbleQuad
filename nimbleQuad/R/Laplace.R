@@ -2236,17 +2236,17 @@ buildAGHQ <- nimbleFunction(
       returnType(double(1))
     },
     ## AGHQuad approximation in terms of original parameters
-    calcLogLik = function(p = double(1), trans = logical(0, default = FALSE)) {
+    calcLogLik = function(par = double(1), trans = logical(0, default = FALSE)) {
       if(!one_time_fixes_done) one_time_fixes()
       checkInterrupt()
       if(trans) {
-          if(length(p) != pTransform_length) {
+          if(length(par) != pTransform_length) {
               ## We cannot have variables in a nimStop.
-              print("For `calcLogLik` (or `calcLaplace`) with `trans = TRUE`, `p` should be length ", pTransform_length, " but was provided with length ", length(p), ".")
+              print("For `calcLogLik` (or `calcLaplace`) with `trans = TRUE`, `p` should be length ", pTransform_length, " but was provided with length ", length(par), ".")
               stop("incorrect length for `p`")
           }
-          p <- paramsTransform$inverseTransform(p)
-      }
+          p <- paramsTransform$inverseTransform(par)
+      } else p <- par
       if(length(p) != npar) {
           print("For `calcLogLik` (or `calcLaplace`), `p` should be length ", npar, " but is length ", length(p), ".")
           stop("incorrect length for `p`")
@@ -2273,16 +2273,16 @@ buildAGHQ <- nimbleFunction(
       returnType(double())
     },
     ## Gradient of the AGHQuad approximation w.r.t. parameters
-    gr_logLik = function(p = double(1), trans = logical(0, default=FALSE)) {
+    gr_logLik = function(par = double(1), trans = logical(0, default=FALSE)) {
       if(!one_time_fixes_done) one_time_fixes()
       if(trans) {
-        if(length(p) != pTransform_length) {
-            print("for `gr_logLik` (or `gr_Laplace`) with `trans = TRUE`, `p` should be length ", pTransform_length, " but was provided with length ", length(p), ".")
+        if(length(par) != pTransform_length) {
+            print("for `gr_logLik` (or `gr_Laplace`) with `trans = TRUE`, `p` should be length ", pTransform_length, " but was provided with length ", length(par), ".")
             stop("incorrect length for `p`")
         }
-        pDerivs <- derivs_pInverseTransform(p, c(0, 1))
+        pDerivs <- derivs_pInverseTransform(par, c(0, 1))
         p <- pDerivs$value
-      }
+      } else p <- par
       if(length(p) != npar) {
           print("for `gr_logLik` (or `gr_Laplace`), `p` should be length ", npar, " but is length ", length(p), ".")
           stop("incorrect length for `p`")
@@ -2352,6 +2352,7 @@ buildAGHQ <- nimbleFunction(
       returnType(ADNimbleList())
     },
     ## Gradient of the AGHQuad approximation in terms of transformed parameters
+    ## Note: this is never used // CJP.
     gr_logLik_pTransformed = function(pTransform = double(1)) {
       ans <- gr_logLik(pTransform, trans = TRUE)
       ## if(!one_time_fixes_done) one_time_fixes()
@@ -2380,22 +2381,17 @@ buildAGHQ <- nimbleFunction(
     calcLogDens = function(p = double(1), trans = logical(0, default = FALSE), 
                            includeJacobian = logical(0, default = TRUE), 
                            includePrior = logical(0, default = TRUE)) {
-      ans <- 0
-      if(trans) {
-        pstar <- paramsTransform$inverseTransform(p)  ## Just want to do this once.
-        if(includeJacobian)
-          ans <- ans + logDetJacobian(p)  ## p is transformed, add Jacobian here.
-      }else{
-        pstar <- p
-      }
-      
-      ans <- ans + calcLogLik(pstar, FALSE)
-
-      if(includePrior)
-        ans <- ans + calcPrior_p(pstar)
-      
-      returnType(double())
-      return(ans)
+        
+        ans <- calcLogLik(p, trans)
+        if(includePrior) {
+            if(trans) {
+                ans <- ans + calcPrior_pTransformed(p)
+                if(!includeJacobian)
+                    ans <- ans - logDetJacobian(p)
+            } else ans <- ans + calcPrior_p(p)
+        }
+        returnType(double())
+        return(ans)
     },
     ## Calculate posterior density at p transformed, log likelihood + log prior (transformed).
     calcLogDens_pTransformed = function(pTransform = double(1)) {
@@ -2410,8 +2406,6 @@ buildAGHQ <- nimbleFunction(
     },
     calcLogDens_pTransformedFix1 = function(pTransform = double(1)){
       pTransform_star <- replaceOneVec(pTransform)
-#      test_ptrans_values <<- pTransform_star
-
       ans <- calcLogDens(pTransform_star, trans = TRUE, 
                          includeJacobian = includeJacobian_, 
                          includePrior = includePrior_)
@@ -2428,35 +2422,25 @@ buildAGHQ <- nimbleFunction(
       returnType(double(1))
     },
     ## Gradient of prior distribution.
-    gr_prior = function(p = double(1)){
-      ans <- derivs(calcPrior_p(p), wrt = p_indices, order = 1)
-      return(ans$jacobian[1,])
-      returnType(double(1))
+    gr_prior = function(p = double(1), trans = logical(0, default = FALSE)) {
+        if(trans) {
+            ans <- derivs(calcPrior_pTransformed(p), wrt = pTransform_indices, order = 1)
+        } else ans <- derivs(calcPrior_p(p), wrt = p_indices, order = 1)
+        return(ans$jacobian[1,])
+        returnType(double(1))
     },
     ## Gradient of posterior density on the transformed scale.
     gr_LogDens = function(p = double(1), trans = logical(0, default = FALSE), 
                            includeJacobian = logical(0, default = TRUE), 
-                           includePrior = logical(0, default = TRUE)){
-      if(trans) {
-        pDerivs <- derivs_pInverseTransform(p, c(0, 1))
-        pstar <- pDerivs$value
-      }else{
-        pstar <- p
-      }
-      ## Gradient of log likelihood:
-      ans <- gr_logLik(pstar, FALSE)
-
-      if(includePrior)
-        ans <- ans + gr_prior(pstar)
-
-      if(trans){
-        ans <- (ans %*% pDerivs$jacobian)[1,]
-        if(includeJacobian)
-          ans <- ans + gr_logDetJacobian(p)
-      }
-      
-      return(ans)
-      returnType(double(1))
+                          includePrior = logical(0, default = TRUE)){
+        ans <- gr_logLik(p, trans)
+        if(includePrior) {
+            ans <- ans + gr_prior(p, trans)
+            if(trans & !includeJacobian)
+                ans <- ans - gr_logDetJacobian(p)
+        }
+        return(ans)
+        returnType(double(1))
     },
     gr_LogDens_pTransformed = function(pTransform = double(1)){
       ans <- gr_LogDens(pTransform, trans = TRUE, 
@@ -2467,7 +2451,6 @@ buildAGHQ <- nimbleFunction(
     },
     gr_LogDens_pTransformedFix1 = function(pTransform = double(1)){
       pTransform_star <- replaceOneVec(pTransform)
-#      test_ptrans_values <<- pTransform_star
       ans <- gr_LogDens(pTransform_star, trans = TRUE, 
                            includeJacobian = includeJacobian_, 
                            includePrior = includePrior_)
@@ -2576,17 +2559,14 @@ buildAGHQ <- nimbleFunction(
       
       ## Choose the MLE, or the MAP, or a penalized MLE (:= no Jacobian MAP).
       # optRes <- optim(pStartTransform, calcLogLik_pTransformed, gr_logLik_pTransformed, method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
-
       setLogDensType(includeJacobian = includeJacobian, includePrior = includePrior)
-      ## Use of AD-based gradient requires fix to handling of gradient of prior. // CJP 2025-04-03
       if( !keepOneFixed_ ){
-        optRes <- optim(pStartTransform, calcLogDens_pTransformed, #  gr_LogDens_pTransformed, 
+        optRes <- optim(pStartTransform, calcLogDens_pTransformed, gr_LogDens_pTransformed, 
                         method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
         p <- paramsTransform$inverseTransform(optRes$par)
-        ## Could this be dangerous compilation-wise if $par and p are different lengths? // CJP 2025-04-27
         if(parscale == "real") optRes$par <- p
       } else {
-        optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, # gr_LogDens_pTransformedFix1, 
+        optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, gr_LogDens_pTransformedFix1, 
                         method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
         fullpar <- replaceOneVec(optRes$par)
         p <- paramsTransform$inverseTransform(fullpar)
@@ -2971,7 +2951,8 @@ buildAGHQ <- nimbleFunction(
                      otherLogLik = list(),
                      gr_otherLogLik_internal = list(),
                      logDetJacobian = list(),
-                     calcPrior_p = list()
+                     calcPrior_p = list(),
+                     calcPrior_pTransformed = list()
                      )
 )
 										 
