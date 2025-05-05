@@ -40,13 +40,13 @@ m <- nimbleModel(code, data = list(rating = inhaler$rating),inits = list(psi = r
 approx <- buildNestedApprox(m, latentNodes = c('beta_int','beta_treat','beta_period','beta_carry'), hyperParamNodes = c('psi'))
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
-result <- runNestedApprox(capprox, originalScale = FALSE)  # Use originalScale=FALSE for comparison with INLA. Not great results compared to MCMC.
+result <- runNestedApprox(capprox, originalScale = FALSE)  # Use originalScale=FALSE for comparison with INLA. Way underdispersed.
 result$improveMarginals(1:3, nMarginalGrid = 7) ## Pretty good.
 
 ## AGHQ
-approx2 <- buildNestedApprox(m, latentNodes = c('beta_int','beta_treat','beta_period','beta_carry'), hyperParamNodes = c('psi'), control = list(hyperGridRule='AGHQ',nQuadOuter=3))
+approx2 <- buildNestedApprox(m, latentNodes = c('beta_int','beta_treat','beta_period','beta_carry'), hyperParamNodes = c('psi'), control = list(hyperGridRule='AGHQ',nQuadOuter=5))
 capprox2 <- compileNimble(approx2, project = m)
-result2 <- runNestedApprox(capprox2, originalScale = FALSE)  # Good results.
+result2 <- runNestedApprox(capprox2, originalScale = FALSE)  # Way underdispersed.
 
 latent_sample <- result$sampleLatentNodes(100000)
 apply(latent_sample, 2, quantile, qpts)  # beta_int is off; others seem good
@@ -73,6 +73,7 @@ apply(param, 2, quantile, qpts)
 theta <- cbind(out[,'alpha[1]'],
                log(out[,'alpha[2]']-out[,'alpha[1]']),
                log(out[,'alpha[3]']-out[,'alpha[2]']))
+apply(theta, 2, quantile, qpts)
 
 ## INLA
 
