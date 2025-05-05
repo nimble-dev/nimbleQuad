@@ -321,7 +321,7 @@ buildNestedApprox <- nimbleFunction(
                 d <- dim(z)[1]
                 theta <- numeric(value = 0, length = d)
                 for (i in 1:d) {
-                    theta[i] <- postMode[i] + sum(A[, i] * z)
+                    theta[i] <- postMode[i] + sum(A[i,] * z) # TMP
                 }
             } else {
                 theta <- postMode + backsolve(A, z)
@@ -337,7 +337,7 @@ buildNestedApprox <- nimbleFunction(
                 z <- numeric(value = 0, length = d)
                 theta_mean <- theta - postMode
                 for (i in 1:d) {
-                    z[i] <- sum(A[i, ] * theta_mean)
+                    z[i] <- sum(A[,i] * theta_mean)
                 }
             } else {
                 z <- (A %*% (theta - postMode))[, 1]
@@ -570,7 +570,6 @@ buildNestedApprox <- nimbleFunction(
             stdDev <- sqrt(covTheta[pIndex, pIndex])
             thetai <- numeric(value = 0, length = theta_length)
             setTransformations(transformMethod)
-
             for (i in 1:nzMargGrid) {
                                         # Known fixed # of points
                 thetai[pIndex] <- thetaMode[pIndex] + zMargGrid[i] * stdDev
