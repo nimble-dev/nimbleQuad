@@ -34,7 +34,7 @@ approx <- buildNestedApprox(m, latentNodes = c('eta'), hyperParamNodes = c('mu',
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox)
-result
+result # phi looks good but not the others
 
 result$improveMarginals(c('mu','phi','sigma'), nMarginalGrid = 7)  # These look good.
 
