@@ -37,7 +37,13 @@ buildNestedApprox <- nimbleFunction(
             stop("No parameter nodes detected in model. Please check the model structure or provide parameter nodes explicitly via `hyperParamNodes`.")
         if(!length(latentNodes))
             stop("No latent nodes detected in model. Please check the model structure or provide latent nodes explicitly via `latentNodes`.")
-        
+
+        ## We need `theta_length` now; this should be ok, as `paramNodes` shouldn't be changed
+        ## by creation of `innerMethods`.
+        paramsTransform <- parameterTransform(model, paramNodes, control = list(allowDeterm = FALSE))
+        theta_length <- paramsTransform$getTransformedLength()
+
+       
         ## Configure all grids before calling AGHQ to make sure it builds
         ## correctly.  DO NOT MOVE WHEN THIS IS CALLED
         allGridRules <- c("CCD", "AGHQ", "AGHQSPRSE", "USER")
@@ -45,7 +51,7 @@ buildNestedApprox <- nimbleFunction(
         ## Default outer grid to CCD unless low dimensional.
         hyperGridRule <- extractControlElement(control, "hyperGridRule", "none")
         if(hyperGridRule == "none")
-            hyperGridRule <- ifelse(length(paramNodes) >= 3, "CCD", "AGHQ")
+            hyperGridRule <- ifelse(theta_length >= 3, "CCD", "AGHQ")
 
         messageIfVerbose("Building nested posterior approximation for the following node sets:\n",
                          " - parameter nodes: ", makeNodeString(paramNodes, model), "\n",
@@ -54,7 +60,7 @@ buildNestedApprox <- nimbleFunction(
  
         if(length(intersect(latentNodes, paramNodes)))
             stop("some nodes appear in both the parameter and latent sets")
-        if (length(paramNodes) > 20)
+        if (theta_length > 20)
             messageIfVerbose("  [Warning] There is a large number of parameter node elements. Computation may be slow.")
 
         
@@ -69,6 +75,11 @@ buildNestedApprox <- nimbleFunction(
         innerMethods <- buildAGHQ(model, nQuadInner, paramNodes, latentNodes, calcNodes,
                                   calcNodesOther, control)
 
+        if(!identical(paramNodes, innerMethods$paramNodes))
+            stop("`paramNodes` has unexpectedly changed. This should not have occurred.")
+
+        theta_indices <- innerMethods$pTransform_indices
+        
         ## Need to check this as it's is now computed in the 'buildAGHQ' function:
         nre <- innerMethods$nre
 
@@ -101,10 +112,6 @@ buildNestedApprox <- nimbleFunction(
 
         ## If we use this need to add to one time fixes.
         latentNodesAsScalars_vec <- innerMethods$reNodesAsScalars_vec
-
-        paramsTransform <- parameterTransform(model, paramNodes, control = list(allowDeterm = FALSE))
-        theta_length <- paramsTransform$getTransformedLength()
-        theta_indices <- innerMethods$pTransform_indices
 
         ## Set up mapping of parameter names to indices of transformed elements for
         ## 1:1 cases for determination of parameters for which approximate
@@ -261,12 +268,13 @@ buildNestedApprox <- nimbleFunction(
             return(optRes)
             returnType(optimResultNimbleList())
         },
-        buildHyperGrid = function(quadRule = character(0, default = "AGHQ"),
+        buildHyperGrid = function(quadRule = character(0, default = "NULL"),
                                   nQuadUpdate = integer(0, default = -1)) {
             one_time_fixes()
             if(nQuadUpdate != -1)
                 nQuadOuter <<- nQuadUpdate
-            setHyperGridRule(quadRule)
+            if(quadRule != "NULL")
+                setHyperGridRule(quadRule)
             theta_grid$buildGrid(method = hyperGridRule, nQuad = nQuadOuter)
             nGrid <- theta_grid$gridSize()
             inner_grid_cache_nfl[[I_GRID]]$buildCache(nGridUpdate = nGrid, nLatentNodes = nre)
