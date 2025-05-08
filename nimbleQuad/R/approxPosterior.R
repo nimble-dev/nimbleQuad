@@ -378,6 +378,8 @@ buildNestedApprox <- nimbleFunction(
             ## *** What Paul thinks it should be. ***
             marg <- logPostProbMode + 0.5 * theta_length * log(2 * pi) - 0.5 * (logDetNegHessTheta) +
                 logSkewedWgt  # sum(log((skewedStdDev[,1] + skewedStdDev[,2])/2))
+            tmp <- logPostProbMode + 0.5 * theta_length * log(2 * pi) - 0.5 * (logDetNegHessTheta) -
+                0.5 * sum(log(skewedStdDev[,1]^2) + log(skewedStdDev[,2]^2))
             returnType(double())
             return(marg)
         },
