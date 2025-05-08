@@ -5,7 +5,7 @@ qpts <- c(.025,.25,.5,.75,.975)
 code <- nimbleCode({
     for(i in 1:n)
         y[i] ~ dnorm(b0 + b1*x[i], sd = sqrt(1/tau))
-    b0 ~ dnorm(0,.001)
+    b0 ~ dflat() # dnorm(0,.001)
     b1 ~ dnorm(0,.001)
     tau~dgamma(1, rate=5e-5)
 })
@@ -23,15 +23,21 @@ cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox)
 
-result
+result # -55.70563
 
 result$improveMarginals('tau', nMarginalGrid = 31)
 
 mu_sample <- result$sampleLatentNodes(100000)
 apply(mu_sample, 2, quantile, qpts)
 
+# -55.70194
+
 ## INLA
 
 library(INLA)
-fit <- inla(y~x, family="gaussian", data=data.frame(y=y,x=x), quantiles = qpts)
+fit <- inla(y~x, family="gaussian", data=data.frame(y=y,x=x),
+            quantiles = qpts,
+            control.fixed = list(prec.intercept = .001))
 summary(fit)
+
+fit$mlik  # -55.323, -55.706

@@ -114,14 +114,15 @@ m <- nimbleModel(code, data = list(y = rnorm(n)), constants = list(n=n),
 approx <- buildNestedApprox(m, latentNodes = 'mu', hyperParamNodes = 'tau')
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
-result <- runNestedApprox(capprox)
+result <- runNestedApprox(capprox)  # MLL=-55.09768  (-55.0941 by INLA arithmetic)
 
 result
 
 result$improveMarginals('tau', nMarginalGrid = 11)
 
 mu_sample <- result$sampleLatentNodes(100000)
-apply(mu_sample, 2, qpts)
+apply(mu_sample, 2, quantile, qpts)
+# MLL: -55.0941
 
 cm <- compileNimble(m)
 mcmc <- buildMCMC(m)
@@ -133,9 +134,10 @@ apply(out, 2, quantile, qpts)
 
 ## INLA
 
-fit <- inla(y~1, family="gaussian", data=data.frame(y=m$y), quantiles = qpts)
+fit <- inla(y~1, family="gaussian", data=data.frame(y=m$y), quantiles = qpts, control.fixed = list(prec.intercept = .001))
 summary(fit)
 
+# MLL: -54.715, -55.098
 
 ## direct estimation is quite uncertain
 n <- 1e6
@@ -146,7 +148,7 @@ taus <- rgamma(n,1,rate=5e-5)
 theta <- cbind(mus,sqrt(1/taus))
 y <- m$y
 logpy <- apply(theta, 1, function(x) sum(dnorm(y,x[1],x[2],log=T)))
-log(mean(exp(logpy)))
+log(mean(exp(logpy)))   # -63.8818
 
 ## Try with more constrained priors.
 
@@ -160,7 +162,8 @@ code <- nimbleCode({
 
 set.seed(1)
 n <- 30
-m <- nimbleModel(code, data = list(y = rnorm(n)), constants = list(n=n),
+y <- rnorm(n)
+m <- nimbleModel(code, data = list(y = y), constants = list(n=n),
                  inits = list(mu = 0, sigma = 1), buildDerivs = TRUE)
 
 approx <- buildNestedApprox(m, latentNodes = 'mu', hyperParamNodes = 'sigma')
@@ -169,6 +172,10 @@ capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox)
 
 result
+## MLL: -45.36005
+## MLL INLA arithmetic: -45.3573
+# MLL grid: -45.35235
+
 
 ## direct
 
@@ -178,9 +185,10 @@ mus <- rnorm(n,0,sd=3)
 sigmas <- runif(n,0,5)
 
 theta <- cbind(mus,sigmas)
-y <- m$y
+
+set.seed(1)
 logpy <- apply(theta, 1, function(x) sum(dnorm(y,x[1],x[2],log=T)))
-log(mean(exp(logpy)))  # -45.34829  vs. -45.35235 for improved and -45.36005 for AG
+log(mean(exp(logpy)))  # -45.34327  vs. -45.35235 for improved and -45.36005 for AG
 
 ## priors where I can use INLA too
 
@@ -202,24 +210,23 @@ cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox)
 result
+## MLL: -44.04466
+## INLA calc: -44.0411
+## grid: -44.04109
 
-result$improveMarginals('tau', nMarginalGrid = 31)
-
-result
 
 ## INLA
-
-tmp <- inla.set.control.fixed.default(prec=1/9)
 
 fit <- inla(y ~ 1,  family="gaussian", data=data.frame(y=y),quantiles = qpts,
                control.family = list(
                  hyper = list(
                    prec = list(
-                     prior = "loggamma", param=c(1,1)))))
+                       prior = "loggamma", param=c(1,1)))),
+            control.fixed = list(prec.intercept = 1/9))
 
-# inla.models()$likelihood$gaussian$hyper
+summary(fit)  
 
-summary(fit)
+fit$mlik # -43.66045 (integr), -44.04549 (Gaussian)
 
 ## direct
 
