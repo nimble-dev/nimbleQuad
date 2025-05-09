@@ -32,14 +32,14 @@ cm <- compileNimble(m)
 approx <- buildNestedApprox(model = m, hyperParamNodes = c('Tau', 'Tau_re'), latentNodes = c('b', 're'))
 capprox <- compileNimble(approx, project = m)
 
-result <- runNestedApprox(capprox)
+result <- runNestedApprox(capprox)  # -87.86014
 
 ## Seems somewhat better than INLA.
 result$improveMarginals(nodes = 'Tau_re', nMarginalGrid=7)
 result$improveMarginals(nodes = 'Tau', nMarginalGrid=7)
 
 smp <- result$sampleLatentNodes(n=100000)
-apply(smp, 2, quantile, qpts)
+apply(smp, 2, quantile, qpts) # -87.800
 
 ## Use more accurate outer grid, this gets fixed effects well-aligned with MCMC.
 ## Random effects seem too uncertain, while INLA is too certain (but closer to MCMC).
@@ -70,8 +70,10 @@ apply(out, 2, quantile, qpts)
 library(INLA)
 formula <- yield ~ treat + f(blend, model="iid")
 fit <- inla(formula, family = "gaussian", data=penicillin, 
-	control.compute=list(config = TRUE), quantiles = qpts)
+            control.compute=list(config = TRUE), quantiles = qpts,
+            control.fixed = list(prec.intercept = .001))
 
 summary(fit)
+fit$mlik # -88.260, -87.925
 
 fit$summary.random

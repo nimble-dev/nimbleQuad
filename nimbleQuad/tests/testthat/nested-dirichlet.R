@@ -43,7 +43,12 @@ capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox, originalScale = FALSE)  # Use originalScale=FALSE for comparison with INLA. 
 result$improveMarginals(1:3, nMarginalGrid = 7) ## Pretty good.
 
-# MLL: 
+## MLL: -474.3491
+
+latent_sample <- result$sampleLatentNodes(100000)
+
+## MLL: -474.3335
+
 
 ## AGHQ
 approx2 <- buildNestedApprox(m, latentNodes = c('beta_int','beta_treat','beta_period','beta_carry'), hyperParamNodes = c('psi'), control = list(hyperGridRule='AGHQ',nQuadOuter=5))
