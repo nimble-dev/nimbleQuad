@@ -1634,10 +1634,9 @@ buildOneAGHQuad <- nimbleFunction(
       if(method == "spectral"){
         theta <- numeric(value = 0, length = nreTrans)
         for( i in 1:nreTrans ){
-#          theta[i] <- max_inner_logLik_last_argmax[i] + sum(eigenvec[,i] * z) / sqrt(eigenval[i])
-          theta[i] <- max_inner_logLik_last_argmax[i] + sum(eigenvec[i,] * z/sqrt(eigenval))
+            theta[i] <- max_inner_logLik_last_argmax[i] + sum(eigenvec[i,] * z/sqrt(eigenval))
         }
-      }else{
+      } else{
         theta <- max_inner_logLik_last_argmax + backsolve(saved_inner_negHess_chol, z)
       }
       returnType(double(1))
