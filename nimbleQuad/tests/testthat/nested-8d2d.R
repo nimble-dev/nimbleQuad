@@ -27,7 +27,7 @@ m <- nimbleModel(code, data = list(y = y), constants = list(n=n, J=J),
 approx <- buildNestedApprox(m, latentNodes = c('lambda'), hyperParamNodes = c('mu','tau'))
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
-result <- runNestedApprox(capprox)
+result <- runNestedApprox(capprox)  # rather off compared to INLA or truth, more so with Aspectral fix
 
 result
 ## MLL: -129.9792

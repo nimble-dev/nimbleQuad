@@ -292,7 +292,7 @@ buildNestedApprox <- nimbleFunction(
             E <- eigen(thetaNegHess, symmetric = TRUE)  ## Should be symmetric...
             for (d in 1:theta_length) {
                 A_spectral[, d] <<- E$vectors[, d]/sqrt(E$values[d])
-                Ainverse_spectral[, d] <<- E$vectors[, d] * sqrt(E$values[d])
+                Ainverse_spectral[, d] <<- E$vectors[, d] * sqrt(E$values[d]) # Strictly speaking, the transpose of the inverse of A.
             }
             logDetNegHessTheta <<- sum(log(E$values))
             eigenCached <<- TRUE
@@ -310,7 +310,7 @@ buildNestedApprox <- nimbleFunction(
                 AinverseTransform <<- Ainverse_spectral
             } else {
                 if (!cholCached) calcCholesky()
-                Atransform <<- cholNegHess
+                Atransform <<- cholNegHess # Used with backsolve in `z_to_theta`.
                 AinverseTransform <<- cholNegHess
             }
         },
@@ -320,8 +320,8 @@ buildNestedApprox <- nimbleFunction(
             if (method == "spectral") {
                 d <- dim(z)[1]
                 theta <- numeric(value = 0, length = d)
-                for (i in 1:d) {
-                    theta[i] <- postMode[i] + sum(A[i,] * z) # TMP
+                for (i in 1:d) {  # A %*% z
+                    theta[i] <- postMode[i] + sum(A[i,] * z) 
                 }
             } else {
                 theta <- postMode + backsolve(A, z)
@@ -333,10 +333,11 @@ buildNestedApprox <- nimbleFunction(
         theta_to_z = function(theta = double(1), postMode = double(1), A = double(2),
                               method = character(0, default = "spectral")) {
             if (method == "spectral") {
+                ## A provided will be inverse of transpose of true A.
                 d <- dim(theta)[1]
                 z <- numeric(value = 0, length = d)
                 theta_mean <- theta - postMode
-                for (i in 1:d) {
+                for (i in 1:d) {  # t(A) %*% theta_mean
                     z[i] <- sum(A[,i] * theta_mean)
                 }
             } else {
@@ -378,8 +379,6 @@ buildNestedApprox <- nimbleFunction(
             ## *** What Paul thinks it should be. ***
             marg <- logPostProbMode + 0.5 * theta_length * log(2 * pi) - 0.5 * (logDetNegHessTheta) +
                 logSkewedWgt  # sum(log((skewedStdDev[,1] + skewedStdDev[,2])/2))
-            tmp <- logPostProbMode + 0.5 * theta_length * log(2 * pi) - 0.5 * (logDetNegHessTheta) -
-                0.5 * sum(log(skewedStdDev[,1]^2) + log(skewedStdDev[,2]^2))
             returnType(double())
             return(marg)
         },
