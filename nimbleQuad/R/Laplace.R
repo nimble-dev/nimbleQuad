@@ -1916,6 +1916,8 @@ buildAGHQ <- nimbleFunction(
                 stop("buildAGHQ: The only valid character value for `control$innerOptimStartValues` is 'model'")
     }
 
+    outerOptimUseAD <<- extractControlElement(control, "outerOptimUseAD", TRUE)
+
     ## Create an AGHQuad (Adaptive Gauss-Hermite Quadrature) nimbleFunctionList
     AGHQuad_nfl <- nimbleFunctionList(AGHQuad_BASE)
     scalarRENodes <- model$expandNodeNames(randomEffectsNodes, returnScalarComponents = TRUE)
@@ -2580,13 +2582,19 @@ buildAGHQ <- nimbleFunction(
       setLogDensType(includeJacobian = includeJacobian, includePrior = includePrior)
       ## Use of AD-based gradient requires fix to handling of gradient of prior. // CJP 2025-04-03
       if( !keepOneFixed_ ){
-        optRes <- optim(pStartTransform, calcLogDens_pTransformed, #  gr_LogDens_pTransformed, 
-                        method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
+        if(outerOptimUseAD) {
+            optRes <- optim(pStartTransform, calcLogDens_pTransformed, gr_LogDens_pTransformed, 
+                            method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
+        } else optRes <- optim(pStartTransform, calcLogDens_pTransformed, 
+                            method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
         p <- paramsTransform$inverseTransform(optRes$par)
         if(parscale == "real") optRes$par <- p
       } else {
-        optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, # gr_LogDens_pTransformedFix1, 
-                        method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
+        if(outerOptimUseAD) {
+            optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, gr_LogDens_pTransformedFix1, 
+                            method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
+        } else optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, 
+                            method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
         fullpar <- replaceOneVec(optRes$par)
         p <- paramsTransform$inverseTransform(fullpar)
       }
