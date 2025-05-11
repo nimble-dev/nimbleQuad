@@ -1916,7 +1916,7 @@ buildAGHQ <- nimbleFunction(
                 stop("buildAGHQ: The only valid character value for `control$innerOptimStartValues` is 'model'")
     }
 
-    outerOptimUseAD <<- extractControlElement(control, "outerOptimUseAD", TRUE)
+    outerOptimUseAD <- extractControlElement(control, "outerOptimUseAD", TRUE)
 
     ## Create an AGHQuad (Adaptive Gauss-Hermite Quadrature) nimbleFunctionList
     AGHQuad_nfl <- nimbleFunctionList(AGHQuad_BASE)
