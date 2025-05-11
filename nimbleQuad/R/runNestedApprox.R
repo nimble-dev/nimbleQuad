@@ -182,8 +182,6 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
     ## and use better marginal and logLik estimates.
     if (nParamTrans == 1) {
         improveMarginals(summary, ifelse(originalScale, Rapprox$paramNodesComponents[1], 1))
-        ## TODO: make sure that `calcMarginalLogLikQuad()` works if
-        ## `calcHyperGrid` has not yet been called.
         summary$marginalLogLik_improved <- approx$calcMarginalLogLikQuad()
     }
 
