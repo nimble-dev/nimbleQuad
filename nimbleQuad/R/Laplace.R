@@ -2583,7 +2583,6 @@ buildAGHQ <- nimbleFunction(
         optRes <- optim(pStartTransform, calcLogDens_pTransformed, #  gr_LogDens_pTransformed, 
                         method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
         p <- paramsTransform$inverseTransform(optRes$par)
-        ## Could this be dangerous compilation-wise if $par and p are different lengths? // CJP 2025-04-27
         if(parscale == "real") optRes$par <- p
       } else {
         optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, # gr_LogDens_pTransformedFix1, 
