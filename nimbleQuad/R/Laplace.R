@@ -3509,6 +3509,13 @@ runAGHQ <- function(AGHQ, pStart,
 #'  eigenvalues) for the corresponding matrix decompositions on which the grid
 #'  can be based.
 #'
+#' \item \code{outerOptimUseAD}. The optimization of the (hyper)parameters (the
+#' "outer" optimization can provide an AD-based gradient to the chosen outer
+#' optimization function or can omit this, causing any derivative-based
+#' optimization method to use finite differences. Turning this off allows one
+#' to avoid any complexity associatend with use of AD applied to the inner
+#' Laplace/AGHQ approximation.
+#'
 #' } # end itemize
 #'
 #' @section Available methods:
