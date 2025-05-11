@@ -1855,6 +1855,11 @@ buildAGHQ <- nimbleFunction(
       otherLogLik_updateNodes   <- character(0)
       otherLogLik_constantNodes <- character(0)
     }
+
+    calcPrior_derivsInfo <- makeModelDerivsInfo(model, paramNodes, paramNodes)
+    calcPrior_updateNodes   <- calcPrior_derivsInfo$updateNodes
+    calcPrior_constantNodes <- calcPrior_derivsInfo$constantNodes
+    
     ## Out and inner optimization settings
     outerOptimControl_   <- nimOptimDefaultControl()
     innerOptimControl_ <- nimOptimDefaultControl()
@@ -2431,7 +2436,8 @@ buildAGHQ <- nimbleFunction(
     },
     ## Gradient of prior distribution.
     gr_prior = function(p = double(1)){
-      ans <- derivs(calcPrior_p(p), wrt = p_indices, order = 1)
+        ans <- derivs(calcPrior_p(p), wrt = p_indices, order = 1, model = model,
+                      updateNodes = calcPrior_updateNodes, constantNodes = calcPrior_constantNodes)
       return(ans$jacobian[1,])
       returnType(double(1))
     },
