@@ -43,7 +43,7 @@ approxSummary <- R6Class("approxSummary",
         generateParamsMatrix = function() {
             if(is(self$approx, "NestedApprox")) 
                 Rapprox <- self$approx else Rapprox <- self$approx$Robject
-
+browser() # DEBUG
             first <- which(!sapply(self$quantiles, is.null))[1]
             qs <- self$quantiles[[first]]
             first <- which(!sapply(self$expectations, is.null))[1]
@@ -65,7 +65,9 @@ approxSummary <- R6Class("approxSummary",
                 names(tmp) <- NULL
                 params[[names(qs)[i]]] <- tmp
             }
+            nms <- names(params)
             params <- as.data.frame(params)
+            names(params) <- nms  # Deals with `25%` formatting.
             row.names(params) <- names(self$quantiles)
             self$params <- params
         },
@@ -81,7 +83,7 @@ approxSummary <- R6Class("approxSummary",
             ## calc under CCD.
             if (!is.na(self$marginalLogLik_improved))
                 cat("Marginal log-likelihood (grid-based): ", self$marginalLogLik_improved, "(*)\n")
-            cat("(*) Marginal log-likelihood is invalid for improper priors and may not be useful\n   for non-informative priors.\n")
+            cat("(*) Marginal log-likelihood is invalid for improper priors and may not be useful\n    for non-informative priors.\n")
             
             invisible(self)
         },
