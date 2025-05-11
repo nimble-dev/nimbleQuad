@@ -51,7 +51,7 @@ estimateQuantiles <- function(marginalApprox, transform = NULL,
     if (!is.null(transform)) {
         quants <- sapply(quantsTrans, transform$inverseTransform)
     } else quants <- quantsTrans
-    names(quants) <- paste0("q", quantiles)
+    names(quants) <- paste0(100*quantiles, "%")
 
     return(quants)
 }
