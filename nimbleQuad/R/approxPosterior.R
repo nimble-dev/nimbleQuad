@@ -120,16 +120,15 @@ buildNestedApprox <- nimbleFunction(
         paramNodesComponents <- model$expandNodeNames(paramNodes, returnScalarComponents = TRUE)
         paramNodesIndices <- seq_along(paramNodesComponents)
 
-        ## TODO: Check on handling of user-defined distributions - see discussion related to HMC.
         if (any(paramsTransform$transformType > 9, na.rm = TRUE))
             stop("buildNestedApprox: Unknown parameter transform type: ",
                  paste0(paramsTransform$transformType[paramsTransform$transformType > 9], collapse = ", "))
         
         mapping <- paramsTransform$transformData
         for (idx in seq_len(paramsTransform$nNodes)) {
-            if (paramsTransform$transformType[idx] < 7) {
+            if (paramsTransform$transformType[idx] < 7) {  # 1:1 cases; see `parameterTransform.R`.
                 paramNodesIndices[mapping[idx, 1]] <- mapping[idx, 3]
-            } else {
+            } else { # Wishart/inverse-Wishart, Dirichlet, LKJ
                 paramNodesIndices[mapping[idx,1]:mapping[idx,2]] <- 0
             }
         }
