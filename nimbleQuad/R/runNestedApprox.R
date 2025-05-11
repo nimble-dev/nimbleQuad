@@ -43,7 +43,7 @@ approxSummary <- R6Class("approxSummary",
         generateParamsMatrix = function() {
             if(is(self$approx, "NestedApprox")) 
                 Rapprox <- self$approx else Rapprox <- self$approx$Robject
-browser() # DEBUG
+
             first <- which(!sapply(self$quantiles, is.null))[1]
             qs <- self$quantiles[[first]]
             first <- which(!sapply(self$expectations, is.null))[1]
