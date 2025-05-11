@@ -1855,6 +1855,12 @@ buildAGHQ <- nimbleFunction(
       otherLogLik_updateNodes   <- character(0)
       otherLogLik_constantNodes <- character(0)
     }
+
+    calcPrior_derivsInfo <- makeModelDerivsInfo(model, paramNodes, paramNodes)
+    calcPrior_updateNodes   <- calcPrior_derivsInfo$updateNodes
+    calcPrior_constantNodes <- calcPrior_derivsInfo$constantNodes
+
+    
     ## Out and inner optimization settings
     outerOptimControl_   <- nimOptimDefaultControl()
     innerOptimControl_ <- nimOptimDefaultControl()
@@ -2089,7 +2095,7 @@ buildAGHQ <- nimbleFunction(
     pTransform_index_fixed <- 1
     pTransform_indices_other <- numeric(2)
 #    test_ptrans_values <- numeric(2)
-
+    
     ## The nimbleList definitions AGHQuad_params and AGHQuad_summary
     ## have moved to predefined nimbleLists.
   },## End of setup
@@ -2375,7 +2381,7 @@ buildAGHQ <- nimbleFunction(
     ## Prior contribution to the posterior on the transformed scale.
     calcPrior_pTransformed = function(pTransform = double(1)) {
       p <- paramsTransform$inverseTransform(pTransform)
-      ans <- calcPrior_p(p) + logDetJacobian(pTransform)
+      ans <- calcPrior_p(p) + logDetJacobian(pTransform) 
       return(ans)
       returnType(double())
     },
@@ -2426,8 +2432,10 @@ buildAGHQ <- nimbleFunction(
     ## Gradient of prior distribution.
     gr_prior = function(p = double(1), trans = logical(0, default = FALSE)) {
         if(trans) {
-            ans <- derivs(calcPrior_pTransformed(p), wrt = pTransform_indices, order = 1)
-        } else ans <- derivs(calcPrior_p(p), wrt = p_indices, order = 1)
+            ans <- derivs(calcPrior_pTransformed(p), wrt = pTransform_indices, order = c(0,1),
+                          model = model, updateNodes = calcPrior_updateNodes, constantNodes = calcPrior_constantNodes)
+        } else ans <- derivs(calcPrior_p(p), wrt = p_indices, order = 1, model = model,
+                             updateNodes = calcPrior_updateNodes, constantNodes = calcPrior_constantNodes)
         return(ans$jacobian[1,])
         returnType(double(1))
     },

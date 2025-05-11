@@ -1,7 +1,6 @@
 ## INLA/BUGS-examples Dirichlet case
 ## https://inla.r-inla-download.org/r-inla.org/doc/likelihood/pom.pdf
 
-ln('adn1')
 library(nimbleQuad)
 
 qpts <- c(.025,.25,.5,.75,.975)
