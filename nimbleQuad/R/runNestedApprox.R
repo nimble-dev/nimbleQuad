@@ -87,7 +87,7 @@ approxSummary <- R6Class("approxSummary",
             
             invisible(self)
         },
-        improveMarginals = function(nodes, nMarginalGrid = 3, nQuad = 3) {
+        improveMarginals = function(nodes, nMarginalGrid = 5, nQuad = 3) {
             improveMarginals(self, nodes, nMarginalGrid, nQuad)
         },
         calcMarginalLogLikImproved = function() {
@@ -225,7 +225,7 @@ getNodeIndex <- function(node, Rapprox) {
 ## This uses d-1 dimensional AGHQ to get improved univariate marginal estimates
 ## for parameters.
 ## Should it be called `improveParamMarginals`?
-improveMarginals <- function(summary, nodes, nMarginalGrid = 3, nQuad = 3) {
+improveMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad = 3) {
     Rapprox <- summary$approx$Robject
 
     originalScale <- summary$originalScale

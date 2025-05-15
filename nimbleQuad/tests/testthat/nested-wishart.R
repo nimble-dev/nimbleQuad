@@ -71,5 +71,3 @@ runLaplace(cmLaplace,originalScale=FALSE)
 
 apply(out, 2, quantile, qpts)  # REs and sigma seem good; Q values rather off both transformed and untransformed.
 
-
-MLE <- cmLaplace$findMLE(innerOptimMethod='BFGS')

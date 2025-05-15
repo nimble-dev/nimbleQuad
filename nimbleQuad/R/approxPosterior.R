@@ -455,7 +455,7 @@ buildNestedApprox <- nimbleFunction(
         ## *** Is this a good name? Tooooo long.
         ## *** Need to make this for theta 1D as well. No AGHQ needed in that case.
         findMarginalPosteriorDensity = function(pIndex = integer(),
-                                                nPts = integer(0, default = 3),
+                                                nPts = integer(0, default = 5),
                                                 nQuad = integer(0, default = 3),
                                                 gridTransformMethod = character(0, default = "spectral")) {
             one_time_fixes()
