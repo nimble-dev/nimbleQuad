@@ -56,14 +56,18 @@ apply(out[,10:ncol(out)][ , c(1,9,17,2,10,18,3,11,19,4,12,20,5,13,21,6,14,22,7,1
 quantile(log(out[,'sigma']),qpts)
 
 
-mLaplace <- buildLaplace(model = m)
 cm <- compileNimble(m)
+
+mLaplace <- buildLaplace(model = m)
+
 cmLaplace <- compileNimble(mLaplace, project = m)
 
 MLE <- cmLaplace$findMLE()
 cmLaplace$summary(MLE) 
-cmLaplace$summary(MLE, originalScale=FALSE) 
-runLaplace(cmLaplace)  
+cmLaplace$summary(MLE, originalScale=FALSE)  # names not on transformed scale
+runLaplace(cmLaplace)
+
+runLaplace(cmLaplace,originalScale=FALSE)
 
 apply(out, 2, quantile, qpts)  # REs and sigma seem good; Q values rather off both transformed and untransformed.
 

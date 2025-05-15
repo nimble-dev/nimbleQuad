@@ -2076,6 +2076,10 @@ buildAGHQ <- nimbleFunction(
     pTransform_length <- paramsTransform$getTransformedLength()
     if(pTransform_length > 1) pTransform_indices <- 1:pTransform_length
     else pTransform_indices <- c(1, -1)
+
+    thetaNodeNames <- paste0("param", seq_len(pTransform_length))
+    if(pTransform_length == 1)
+        thetaNodeNames <- c(thetaNodeNames, "_EXTRA_")
     
     ## Indicator for removing the redundant index -1 in pTransform_indices
     one_time_fixes_done <- FALSE
@@ -2970,7 +2974,9 @@ buildAGHQ <- nimbleFunction(
           }
         }
       }
-      pres$names <- paramNodesAsScalars_vec
+      if(originalScale) {
+          pres$names <- paramNodesAsScalars_vec
+      } else pres$names <- thetaNodeNames
       ranres$names <- reNodesAsScalars_vec
       ans$params <- pres
       ans$randomEffects <- ranres
