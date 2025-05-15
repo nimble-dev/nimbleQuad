@@ -1,7 +1,6 @@
 ## INLA/BUGS-examples Dirichlet case
 ## https://inla.r-inla-download.org/r-inla.org/doc/likelihood/pom.pdf
 
-ln('adn1')
 library(nimbleQuad)
 
 qpts <- c(.025,.25,.5,.75,.975)
@@ -100,3 +99,29 @@ inla.priors.used(inla_pom)
 
 ## inla_pom$summary.random  ## none present
 
+## Laplace
+
+m <- nimbleModel(code, data = list(rating = inhaler$rating),inits = list(psi = rep(.25, 4), beta_int = 0, beta_treat = 0, beta_period = 0, beta_carry = 0),
+                 constants = list(K = K, n = nrow(inhaler), period = inhaler$period, carry = inhaler$carry, treat = inhaler$treat, threes = rep(3, K)), buildDerivs = TRUE)
+
+mLaplace <- buildLaplace(model = m, paramNodes = 'psi[1:4]', randomEffectsNodes = c('beta_int','beta_treat','beta_period','beta_carry'))
+
+cm <- compileNimble(m)
+cmLaplace <- compileNimble(mLaplace, project = m)
+
+MLE <- cmLaplace$findMLE()
+cmLaplace$summary(MLE) # Looks fine.
+
+runLaplace(cmLaplace)  # Looks fine.
+
+
+m <- nimbleModel(code, data = list(rating = inhaler$rating),inits = list(psi = rep(.25, 4), beta_int = 0, beta_treat = 0, beta_period = 0, beta_carry = 0),
+                 constants = list(K = K, n = nrow(inhaler), period = inhaler$period, carry = inhaler$carry, treat = inhaler$treat, threes = rep(3, K)), buildDerivs = TRUE)
+
+mLaplace <- buildLaplace(model = m)
+cm <- compileNimble(m)
+cmLaplace <- compileNimble(mLaplace, project = m)
+
+MLE <- cmLaplace$findMLE()
+cmLaplace$summary(MLE) # 8 params; SE messed up
+runLaplace(cmLaplace)  # dim issue
