@@ -129,7 +129,7 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
     if(is(approx, "nestedApprox")) 
         Rapprox <- approx else Rapprox <- approx$Robject
 
-    nParamTrans <- Rapprox$theta_length
+    nParamTrans <- Rapprox$nParamTrans
 
     marginalsRaw <- list()
     length(marginalsRaw) <- nParamTrans
@@ -179,8 +179,8 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
         marginalsRaw, indivParamTransforms, originalScale, marginalLogLik, NA, NULL,
         NULL)
 
-    ## With only one parameter, computations should not be so slow, so go ahead
-    ## and use better marginal and logLik estimates.
+    ## With only one parameter, computations will not be slow unless number of latents is large,
+    ## so go ahead and use better marginal and logLik estimates.
     if (nParamTrans == 1) {
         improveParamMarginals(summary, ifelse(originalScale, Rapprox$paramNodesComponents[1], 1))
         summary$marginalLogLikImproved <- approx$calcMarginalLogLikQuad()
@@ -230,7 +230,7 @@ improveParamMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad = 3) 
 
     if(missing(nodes))
         nodes <- ifelse(originalScale, Rapprox$innerMethods$paramNodes,
-                        seq_len(Rapprox$theta_length))
+                        seq_len(Rapprox$nParamTrans))
     
     if(originalScale) {
         if(!is.character(nodes))
@@ -292,7 +292,7 @@ sampleParams <- function(summary, n = 1000, matchMarginals = TRUE) {
     ## Should we compile such that we can used compiled $paramsTransform?
     if (originalScale) {
         samples <- t(apply(samplesTrans, 1, Rapprox$innerMethods$paramsTransform$inverseTransform))
-        if(Rapprox$theta_length == 1)
+        if(Rapprox$nParamTrans == 1)
             samples <- matrix(samples, ncol = 1)
         colnames(samples) <- Rapprox$model$expandNodeNames(Rapprox$innerMethods$paramNodes,
                                                            returnScalarComponents = TRUE)
@@ -328,7 +328,7 @@ sampleLatents <- function(summary, n = 1000, includeParams = FALSE) {
         paramSamples <- paramValues[samples[, "index"], , drop = FALSE]
         if(summary$originalScale) {
             colnames(paramSamples) <- Rapprox$paramNodesComponents
-        } else colnames(paramSamples) <- paste0('param', seq_len(Rapprox$theta_length))
+        } else colnames(paramSamples) <- paste0('param', seq_len(Rapprox$nParamTrans))
         samples <- cbind(samples, paramSamples)
     }
     summary$samples <- samples[, -1, drop = FALSE]
