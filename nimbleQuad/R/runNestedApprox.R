@@ -1,8 +1,5 @@
 ## Code for main user interface for NIMBLE's nested approximation.
 
-## NOTE: none of this code has yet been run on any examples and there will be
-## various bugs.
-
 ## Uses core algorithm code in `approxPosterior.R` and code for marginal
 ## summaries in `approxSummaries.R`.
 
