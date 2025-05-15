@@ -75,8 +75,7 @@ approxSummary <- R6Class("approxSummary",
                 self$marginalLogLik, "(*)\n")
             if (!is.na(self$marginalLogLikImproved))
                 cat("Marginal log-likelihood (grid-based): ", self$marginalLogLikImproved, "(*)\n")
-            cat("(*) Marginal log-likelihood is invalid for improper priors and may not be useful\n    for non-informative priors.\n")
-            
+            cat("(*) Marginal log-likelihood is invalid for improper priors and may not be useful\nfor non-informative priors.\n")
             invisible(self)
         },
         improveParamMarginals = function(nodes, nMarginalGrid = 5, nQuad = 3) {
