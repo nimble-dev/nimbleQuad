@@ -229,11 +229,14 @@ improveMarginals <- function(summary, nodes, nMarginalGrid = 3, nQuad = 3) {
     Rapprox <- summary$approx$Robject
 
     originalScale <- summary$originalScale
+
+    if(missing(nodes))
+        nodes <- ifelse(originalScale, Rapprox$innerMethods$paramNodes,
+                        seq_len(Rapprox$theta_length))
+    
     if(originalScale) {
         if(!is.character(nodes))
             stop("Results are being reported on the original scale as specified in the model. `nodes` must contain model node(s) or variable(s).")
-        
-
     }
     if(!originalScale && is.character(nodes))
         stop("Results are being reported on the transformed (unconstrained) scale. `nodes` must contain one or more integer values indicating the transformed parameters.")
