@@ -180,7 +180,7 @@ buildNestedApprox <- nimbleFunction(
         covTrans <- matrix(0, nrow = nParamTrans, ncol = nParamTrans)
         cholNegHess <- matrix(0, nParamTrans, nParamTrans)
         A_spectral <- matrix(0, nParamTrans, nParamTrans)
-        Ainverse_spectral <- matrix(0, nParamTrans, nParamTrans)
+        AinverseTrans_spectral <- matrix(0, nParamTrans, nParamTrans)
         eigenCached <- FALSE
         cholCached <- FALSE
 
