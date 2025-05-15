@@ -62,7 +62,7 @@ quadGridListDef <- nimbleList(
 #' @export
 AGHQ1D <- nimbleFunction(run = function(nQuad = integer(0, default = 1)) {
     odd <- TRUE
-    if (nQuad%%2 == 0)
+    if (nQuad %% 2 == 0)
         odd <- FALSE
 
     res <- matrix(0, nrow = nQuad, ncol = 2)
@@ -335,7 +335,7 @@ quadRule_AGHQ = nimbleFunction(
 #' Generate a d dimension sparse AGHQ grid via a nimble function list.
 #' 
 #' @param d Number of dimensions.
-#' @param nQuad level of polynomial accuracy required.
+#' @param nQuad degree of polynomial accuracy required.
 #'
 #' @details
 #' This function generates a tensor product of sparse AGHQ nodes and weights to generate multivariate quadrature rule.

@@ -33,8 +33,8 @@ approx <- buildNestedApprox(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox, originalScale = FALSE)  # Decent alignment with HMC.
 result 
-result$improveMarginals(1:7, nMarginalGrid = 5) # Better, still a bit off, takes a while with 3^6=792 grid points
-latent_sample <- result$sampleLatentNodes(100000)
+result$improveParamMarginals(1:7, nMarginalGrid = 5) # Better, still a bit off, takes a while with 3^6=792 grid points
+latent_sample <- result$sampleLatents(100000)
 apply(latent_sample,2,quantile,qpts)  # Pretty good.
 
 

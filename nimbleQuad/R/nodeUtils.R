@@ -44,7 +44,7 @@ splitLatents <- function(model, paramNodes, latentNodes, calcNodes, calcNodesOth
 }
 
 nodesToIndices <- function(node, approx) {
-    Rapprox <- ifelse(is(approx, "NestedApprox"), approx, approx$Robject)
+    Rapprox <- ifelse(is(approx, "nestedApprox"), approx, approx$Robject)
     if (!node %in% Rapprox$paramNodesComponents)
         stop("`", node, "` not found in model")
     index <- paramNodesIndices[which(node == paramNodesComponents)]

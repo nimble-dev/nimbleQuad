@@ -29,16 +29,16 @@ m <- nimbleModel(code, data = data, constants = constants,
                  inits = inits, buildDerivs = TRUE)
 
 cm <- compileNimble(m)
-approx <- buildNestedApprox(model = m, hyperParamNodes = c('Tau', 'Tau_re'), latentNodes = c('b', 're'))
+approx <- buildNestedApprox(model = m, paramNodes = c('Tau', 'Tau_re'), latentNodes = c('b', 're'))
 capprox <- compileNimble(approx, project = m)
 
 result <- runNestedApprox(capprox)  # -87.86014
 
 ## Seems somewhat better than INLA.
-result$improveMarginals(nodes = 'Tau_re', nMarginalGrid=7)
-result$improveMarginals(nodes = 'Tau', nMarginalGrid=7)
+result$improveParamMarginals(nodes = 'Tau_re', nMarginalGrid=7)
+result$improveParamMarginals(nodes = 'Tau', nMarginalGrid=7)
 
-smp <- result$sampleLatentNodes(n=100000)
+smp <- result$sampleLatents(n=100000)
 apply(smp, 2, quantile, qpts) # -87.800
 
 ## Use more accurate outer grid, this gets fixed effects well-aligned with MCMC.
@@ -48,11 +48,11 @@ m <- nimbleModel(code, data = data, constants = constants,
                  inits = inits, buildDerivs = TRUE)
 
 cm <- compileNimble(m)
-approx <- buildNestedApprox(model = m, hyperParamNodes = c('Tau', 'Tau_re'), latentNodes = c('b', 're'),
+approx <- buildNestedApprox(model = m, paramNodes = c('Tau', 'Tau_re'), latentNodes = c('b', 're'),
                             control = list(nQuadOuter=7))
 capprox <- compileNimble(approx, project = m)
 
-smp <- result$sampleLatentNodes(n=100000)
+smp <- result$sampleLatents(n=100000)
 apply(smp, 2, quantile, qpts)
 
 

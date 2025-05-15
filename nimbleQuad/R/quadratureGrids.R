@@ -141,7 +141,7 @@ configureQuadGrid <- nimbleFunction(
     name = "quadGridClass",
     setup = function(d = 1, nQuad_ = 3, quadRule = "AGHQ", control = list()) {
         ## Can list all possible quad rules here and set it.
-        possibleRules <- c("AGHQ", "CCD", "AGHQSPRSE", "USER")
+        possibleRules <- c("AGHQ", "CCD", "AGHQSPARSE", "USER")
         
         quadRules <- extractControlElement(control, "quadRules", quadRule)
         
@@ -159,7 +159,7 @@ configureQuadGrid <- nimbleFunction(
         quadGridCache_nfl <- nimbleFunctionList(QUAD_CACHE_BASE)
         quadRule_nfl <- nimbleFunctionList(QUAD_RULE_BASE)
 
-        I_AGHQ <- I_CCD <- I_USER <- I_AGHQSPRSE <- 1
+        I_AGHQ <- I_CCD <- I_USER <- I_AGHQSPARSE <- 1
         I_RULE <- which(quadRules == quadRule)[1]
 
         for (i in seq_along(quadRules)) {
@@ -172,8 +172,8 @@ configureQuadGrid <- nimbleFunction(
                 I_CCD <- i
                 quadRule_nfl[[i]] <- quadRule_CCD()
             }
-            if (quadRules[i] == "AGHQSPRSE") {
-                I_AGHQSPRSE <- i
+            if (quadRules[i] == "AGHQSPARSE") {
+                I_AGHQSPARSE <- i
                 quadRule_nfl[[i]] <- quadRule_AGHQSPARSE()
             }
             if (quadRules[i] == "USER") {
@@ -189,10 +189,9 @@ configureQuadGrid <- nimbleFunction(
     run = function() {
     },
     methods = list(
-        ## NOCHNG means keep it as is, and nQuad = -1.
-        buildGrid = function(method = character(0, default = "NOCHNG"),
+        buildGrid = function(method = character(0, default = "NULL"),
                              nQuad = integer(0, default = -1)) {
-            if (method != "NOCHNG") setRule(method)
+            if (method != "NULL") setRule(method)
             if (nQuad != -1) nQuad_ <<- nQuad
             if (!quadGridCache_nfl[[I_RULE]]$checkGrid(nQuad_, prune_) | !gridBuilt) {
                 newgrid <- quadGridList_internal$new()
@@ -225,7 +224,7 @@ configureQuadGrid <- nimbleFunction(
         setRule = function(method = character(0, default = "AGHQ")) {
             if (method == "AGHQ") I_RULE <<- I_AGHQ
             if (method == "CCD") I_RULE <<- I_CCD
-            if (method == "AGHQSPRSE") I_RULE <<- I_AGHQSPRSE
+            if (method == "AGHQSPARSE") I_RULE <<- I_AGHQSPARSE
             if (method == "USER") I_RULE <<- I_USER
         },
         setDim = function(ndim = integer(0, default = 1)) {
@@ -370,7 +369,7 @@ INNER_CACHE_BASE <- nimbleFunctionVirtual(
     run = function() {
     },
     methods = list(
-        buildCache = function(nGridUpdate = integer(), nLatentNodes = integer()) {},
+        buildCache = function(nGridUpdate = integer(), nLatents = integer()) {},
         cache_weights = function(weight = double(), indx = integer()) {},
         cache_inner_mode = function(mode = double(1), indx = integer()) {},
         cache_inner_negHessChol = function(negHessChol = double(2), indx = integer()) {},
@@ -389,29 +388,29 @@ INNER_CACHE_BASE <- nimbleFunctionVirtual(
 ## point:
 inner_cache_methods = nimbleFunction(
     contains = INNER_CACHE_BASE,
-    setup = function(nre = 0, nGrid = 0, condIndptSets = NULL, nCondIndptSets = 1) {
+    setup = function(nre = 0, nGrid = 0, condIndepSets = NULL, nCondIndepSets = 1) {
         innerMode <- matrix(0, nrow = 1, ncol = 1)
         innerNegHessChol <- array(0, c(1, 1, 1))
         wgtsDens <- c(1, -1)
         cacheBuilt <- FALSE
-        if (is.null(condIndptSets)) {
-            condIndptSets <- nre  ## Assuming all one set.
-            nCondIndptSets <- 1  ## If NULL then this is not relevant.
+        if (is.null(condIndepSets)) {
+            condIndepSets <- nre  ## Assuming all one set.
+            nCondIndepSets <- 1  ## If NULL then this is not relevant.
         }
-        if (length(condIndptSets) == 1) {
-            condIndptSets <- c(condIndptSets, -1)  ##  Make sure it's a vector.
+        if (length(condIndepSets) == 1) {
+            condIndepSets <- c(condIndepSets, -1)  ##  Make sure it's a vector.
         }
     },
     run = function() {
     },
     methods = list(
-        buildCache = function(nGridUpdate = integer(0, default = -1), nLatentNodes = integer()) {
-            nre <<- nLatentNodes
+        buildCache = function(nGridUpdate = integer(0, default = -1), nLatents = integer()) {
+            nre <<- nLatents
             ## If the cond indpt sets don't match up, don't use.
-            if (nre != sum(condIndptSets[1:nCondIndptSets])) {
+            if (nre != sum(condIndepSets[1:nCondIndepSets])) {
                 print("  Warning: Not able to simulate latent effects from conditionally independent sets.")
-                condIndptSets <<- numeric(value = nre, length = 1)
-                nCondIndptSets <<- 1
+                condIndepSets <<- numeric(value = nre, length = 1)
+                nCondIndepSets <<- 1
             }
 
             if (nGridUpdate > 0 & nGridUpdate != nGrid) {
@@ -452,13 +451,13 @@ inner_cache_methods = nimbleFunction(
                 k <- rcat(1, prob = simwgt)
                 val[i, 1] <- k
                 jStart <- 1
-                for (j in 1:nCondIndptSets) {
-                    val[i, (jStart + 1):(jStart + condIndptSets[j])] <-
-                        rmnorm_chol(n = 1, mean = innerMode[k, jStart:(jStart + condIndptSets[j] - 1)],
-                                    cholesky = innerNegHessChol[k, jStart:(jStart + condIndptSets[j] - 1),
-                                                                jStart:(jStart + condIndptSets[j] - 1)],
+                for (j in 1:nCondIndepSets) {
+                    val[i, (jStart + 1):(jStart + condIndepSets[j])] <-
+                        rmnorm_chol(n = 1, mean = innerMode[k, jStart:(jStart + condIndepSets[j] - 1)],
+                                    cholesky = innerNegHessChol[k, jStart:(jStart + condIndepSets[j] - 1),
+                                                                jStart:(jStart + condIndepSets[j] - 1)],
                                     prec_param = TRUE)
-                    jStart <- jStart + condIndptSets[j]
+                    jStart <- jStart + condIndepSets[j]
                 }
             }
             returnType(double(2))

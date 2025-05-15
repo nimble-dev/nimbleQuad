@@ -19,7 +19,7 @@ test_that("Error trapping for invalid models", {
     m <- nimbleModel(code, data = list(y = rnorm(n)), constants = list(n=n, x=rnorm(n)))
     
     expect_error(buildNestedApprox(m), "No latent nodes detected in model")
-    expect_error(buildNestedApprox(m, hyperParamNodes = c('b0','b1')), "No latent nodes detected in model")
+    expect_error(buildNestedApprox(m, paramNodes = c('b0','b1')), "No latent nodes detected in model")
     expect_error(buildNestedApprox(m, latentNodes = c('b0','b1')), "No parameter nodes detected in model")
 
     ## Missing priors
@@ -34,7 +34,7 @@ test_that("Error trapping for invalid models", {
     n <- 50
     m <- nimbleModel(code, data = list(y = rnorm(n)), constants = list(n=n, x=rnorm(n)))
     
-    expect_error(buildNestedApprox(m, latentNodes = c('b0','b1'), hyperParamNodes = 'sigma'),
+    expect_error(buildNestedApprox(m, latentNodes = c('b0','b1'), paramNodes = 'sigma'),
                  "do not have prior distributions")
 
 })

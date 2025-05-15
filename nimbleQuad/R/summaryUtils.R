@@ -22,9 +22,9 @@ fitMarginalSpline <- function(gridded, normalize = TRUE, xnew = NULL) {
         if(!is.null(xnew))
             logPDFnew <- as.numeric(stats::predict(ss, xnew)$y)
     }
-    ## Normalize the PDF:
+    ## Normalize the PDF.
     pdf <- exp(logPDF)
-    trapezoids <- diff(finegrid) * (pdf[-length(pdf)] + pdf[-1])/2  # trapezoidal rule (could use Simpson as (2M+T)/3
+    trapezoids <- diff(finegrid) * (pdf[-length(pdf)] + pdf[-1])/2  # Trapezoidal rule (could use Simpson as (2M+T)/3).
     if (normalize)
         norm <- sum(trapezoids) else norm <- 1
     pdf <- pdf/norm
@@ -33,9 +33,6 @@ fitMarginalSpline <- function(gridded, normalize = TRUE, xnew = NULL) {
     if(is.null(xnew))
         return(cbind(finegrid, pdf, cdf)) else return(logPDFnew - log(norm))
 }
-## TODO: should we refine the grid based on excluding portions with negligible
-## mass?
-
 
 
 estimateQuantiles <- function(marginalApprox, transform = NULL,
@@ -43,9 +40,9 @@ estimateQuantiles <- function(marginalApprox, transform = NULL,
     finegridTrans <- marginalApprox[, "finegrid"]
     cdf <- marginalApprox[, "cdf"]
 
-    ## For now use smoothing spline on quantile function on transformed (theta)
-    ## scale.
-    used <- cdf > 0.001 & cdf < 0.999  # Need to avoid cdf values too close together or spline fit will fail.
+    ## For now use smoothing spline on quantile function on transformed (theta) scale.
+    ## Need to avoid cdf values too close together or spline fit will fail.
+    used <- cdf > 0.001 & cdf < 0.999  
     ss <- splines::interpSpline(cdf[used], finegridTrans[used], bSpline = TRUE, sparse = FALSE)
     quantsTrans <- stats::predict(ss, quantiles)$y
     if (!is.null(transform)) {
@@ -63,7 +60,7 @@ runTrapezRule <- function(grid, pdf, functional) {
 }
 
 
-## functionals should be a named list of functions.  if user wants any of their
+## `functionals` should be a named list of functions.  If user wants any of their
 ## functionals to take additional args, all of them must take ...
 estimateExpectations <- function(marginalApprox, transform = NULL, functional = NULL, ...) {
 
