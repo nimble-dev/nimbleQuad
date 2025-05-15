@@ -272,7 +272,7 @@ buildNestedApprox <- nimbleFunction(
                 setParamGridRule(quadRule)
             trans_grid$buildGrid(method = paramGridRule, nQuad = nQuadOuter)
             nGrid <- trans_grid$gridSize()
-            inner_grid_cache_nfl[[I_GRID]]$buildCache(nGridUpdate = nGrid, nLatentNodes = nre)
+            inner_grid_cache_nfl[[I_GRID]]$buildCache(nGridUpdate = nGrid, nLatents = nre)
             if (!modeCached) findMode(rep(Inf, nParam), hessian = TRUE, parscale = "transformed")
         },
         setParamGridRule = function(quadRule = character(0, default = "AGHQ")) {
