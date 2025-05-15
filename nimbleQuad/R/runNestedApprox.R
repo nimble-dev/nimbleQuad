@@ -121,7 +121,8 @@ approxSummary <- R6Class("approxSummary",
 ## Main user-facing function for running a nested approximation and getting a
 ## results summary.  
 runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975),
-                            originalScale = TRUE, nSamplesLatents = 0, nSamplesParams = 0) {
+                            originalScale = TRUE, improve1d = TRUE,
+                            nSamplesLatents = 0, nSamplesParams = 0) {
     if(is(approx, "nestedApprox")) 
         Rapprox <- approx else Rapprox <- approx$Robject
 
@@ -177,7 +178,7 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
 
     ## With only one parameter, computations will not be slow unless number of latents is large,
     ## so go ahead and use better marginal and logLik estimates.
-    if (nParamTrans == 1) {
+    if (nParamTrans == 1 && improve1d) {
         improveParamMarginals(summary, ifelse(originalScale, Rapprox$paramNodesComponents[1], 1))
         summary$marginalLogLikImproved <- approx$calcMarginalLogLikQuad()
     }
