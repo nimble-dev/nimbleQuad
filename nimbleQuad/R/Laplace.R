@@ -231,10 +231,12 @@ buildOneAGHQuad1D <- nimbleFunction(
     
     ## Convergence check for outer function.
     converged <- 0
+
+    quadTransform_ <- extractControlElement(control, "quadTransform", "cholesky")
     
     ## Build AGHQ grid for 1D:
     ## This is set up to add other quad grids in the future. quadRule := "AGHQ" to start.
-    quadGrid <- configureQuadGrid(d = 1, nQuad_ = nQuad_, quadRule = quadRule_)
+    quadGrid <- configureQuadGrid(d = 1, levels = nQuad_, quadRule = quadRule_)
 
     nodes <-  matrix(0, nrow = nQuad_, ncol = 1)
     wgts <- numeric(nQuad_)
@@ -336,9 +338,9 @@ buildOneAGHQuad1D <- nimbleFunction(
         quadGrid$buildGrid(method = quadRule_, nQuad = nQuad)
         nQuad_ <<- nQuad
       }
-      ## if(quadTransform != "") {
-      ##   quadTransform_ <<- quadTransform
-      ## }
+      if(quadTransform != "NULL") {
+        quadTransform_ <<- quadTransform
+      }
       if(replace_optimControl) {
         optimControl_ <<- optimControl
       }
@@ -741,15 +743,17 @@ buildOneAGHQuad1D <- nimbleFunction(
       wgts <<- quadGrid$weights(0)
       logDensity_quad <<- numeric(value = 0, length = nQ)
 
-      modeIndex <- quadGrid$modeI() ## if even, this is -1
+      modeIndex <- quadGrid$modeIndex() ## if even, this is -1
       ans <- 0
       for(i in 1:nQ) {
         if(i != modeIndex) {
-          nodes[i,] <<- max_inner_logLik_last_argmax + SD*nodes[i,]
+          if(quadTransform_ != "identity")
+            nodes[i,] <<- max_inner_logLik_last_argmax + SD*nodes[i,]
           logDensity_quad[i] <<- joint_logLik(p = p, reTransform = nodes[i,])
           ans <- ans + exp(logDensity_quad[i] - max_inner_logLik_last_value)*wgts[i]
         }else{
-          nodes[i,] <<- max_inner_logLik_last_argmax
+          if(quadTransform_ != "identity")
+            nodes[i,] <<- max_inner_logLik_last_argmax
           logDensity_quad[i] <<- max_inner_logLik_last_value
           ans <- ans + wgts[i]
         }
@@ -836,7 +840,7 @@ buildOneAGHQuad1D <- nimbleFunction(
       }
  
       ## Method 2 implies double taping.
-      modeIndex <- quadGrid$modeI()
+      modeIndex <- quadGrid$modeIndex()
       nQ <- quadGrid$gridSize()
       gr_margLogLik_wrt_p <- numeric(value = 0, length = dim(p)[1])
       wgts_lik <- numeric(value = 0, length = nQ)
@@ -1077,7 +1081,7 @@ buildOneAGHQuad <- nimbleFunction(
 
     ## Build Quadrature grid for any dimension:
     ## This is set up to add other quad grids in the future. quadRule := "AGHQ" to start.
-    quadGrid <- configureQuadGrid(d = nreTrans, nQuad_ = nQuad_, quadRule = quadRule_)
+    quadGrid <- configureQuadGrid(d = nreTrans, levels = nQuad_, quadRule = quadRule_)
     nodes <-  matrix(0, nrow = nQuad_, ncol = nreTrans)
     wgts <- numeric(nQuad_)
     logDensity_quad <- numeric(nQuad_)
@@ -1637,7 +1641,10 @@ buildOneAGHQuad <- nimbleFunction(
             theta[i] <- max_inner_logLik_last_argmax[i] + sum(eigenvec[i,] * z/sqrt(eigenval))
         }
       } else{
-        theta <- max_inner_logLik_last_argmax + backsolve(saved_inner_negHess_chol, z)
+        if(method == "identity")
+          theta <- z
+        else ## Cholesky
+          theta <- max_inner_logLik_last_argmax + backsolve(saved_inner_negHess_chol, z)
       }
       returnType(double(1))
       return(theta)
@@ -1645,7 +1652,7 @@ buildOneAGHQuad <- nimbleFunction(
     calcLogLik_AGHQuad = function(p = double(1)){
       ## AGHQ Approximation:  3 steps. build grid (happens once), transform z to re, save log density.
       quadGrid$buildGrid(method = quadRule_, nQuad = nQuad_)
-      modeIndex <- quadGrid$modeI()
+      modeIndex <- quadGrid$modeIndex()
 
       nQ <- quadGrid$gridSize()
       nodes <<- quadGrid$nodes(0)  ## On standard scale but will be transformed.
@@ -1665,11 +1672,13 @@ buildOneAGHQuad <- nimbleFunction(
       ans <- 0
       for(i in 1:nQ) {
         if(i != modeIndex) {
-          nodes[i,] <<- transformNode(z = nodes[i,], eigenvec = V, eigenval = L, method = quadTransform_)
+          if(quadTransform_ != "identity")
+            nodes[i,] <<- transformNode(z = nodes[i,], eigenvec = V, eigenval = L, method = quadTransform_)
           logDensity_quad[i] <<- joint_logLik(p = p, reTransform = nodes[i,])
           ans <- ans + exp(logDensity_quad[i] - max_inner_logLik_last_value)*wgts[i]
         }else{
-          nodes[i,] <<- max_inner_logLik_last_argmax
+          if(quadTransform_ != "identity")
+            nodes[i,] <<- max_inner_logLik_last_argmax
           logDensity_quad[i] <<- max_inner_logLik_last_value
           ans <- ans + wgts[i]
         }

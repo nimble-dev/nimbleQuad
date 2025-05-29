@@ -84,8 +84,8 @@ approxSummary <- R6Class("approxSummary",
             
             invisible(self)
         },
-        improveMarginals = function(nodes, nMarginalGrid = 5, nQuad = 3) {
-            improveMarginals(self, nodes, nMarginalGrid, nQuad)
+        improveMarginals = function(nodes, nMarginalGrid = 5, nQuad = 3, quadRule = "AGHQ", prune = 0) {
+            improveMarginals(self, nodes, nMarginalGrid, nQuad, quadRule, prune)
         },
         calcMarginalLogLikImproved = function() {
             calcMarginalLogLikImproved(self)
@@ -223,7 +223,7 @@ getNodeIndex <- function(node, Rapprox) {
 ## This uses d-1 dimensional AGHQ to get improved univariate marginal estimates
 ## for parameters.
 ## Should it be called `improveParamMarginals`?
-improveMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad = 3) {
+improveMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad = 3, quadRule = "AGHQ", prune = 0) {
     Rapprox <- summary$approx$Robject
 
     originalScale <- summary$originalScale
@@ -249,7 +249,7 @@ improveMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad = 3) {
             if(is.character(nodes[i])) paramName <- nodes[i] else paramName <- paste0("param", nodes[i])
         
             summary$marginalsRaw[[idx]] <- summary$approx$findMarginalPosteriorDensity(idx,
-                                                                                       nPts = nMarginalGrid, nQuad = nQuad)
+                                                                                       nPts = nMarginalGrid, nQuad = nQuad, quadRule = quadRule, prune = prune)
             summary$marginalsApprox[[idx]] <- fitMarginalSpline(summary$marginalsRaw[[idx]])
             
             summary$quantiles[[paramName]] <- estimateQuantiles(summary$marginalsApprox[[idx]],

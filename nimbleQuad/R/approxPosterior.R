@@ -46,7 +46,7 @@ buildNestedApprox <- nimbleFunction(
        
         ## Configure all grids before calling AGHQ to make sure it builds
         ## correctly.  DO NOT MOVE WHEN THIS IS CALLED
-        allGridRules <- c("CCD", "AGHQ", "AGHQSPRSE", "USER")
+        allGridRules <- c("CCD", "AGHQ", "AGHQSPARSE")
 
         ## Default outer grid to CCD unless low dimensional.
         hyperGridRule <- extractControlElement(control, "hyperGridRule", "none")
@@ -68,7 +68,7 @@ buildNestedApprox <- nimbleFunction(
             messageIfVerbose("  [Note] For computational efficiency, it is recommended to use an odd number of quadrature points\n         for the parameter (outer) grid (`nQuadOuter`).")
         
         ## Default to CCD
-        theta_grid <- configureQuadGrid(d = 1, nQuad_ = nQuadOuter, quadRule = hyperGridRule,
+        theta_grid <- configureQuadGrid(d = 1, levels = nQuadOuter, quadRule = hyperGridRule,
                                         control = list(quadRules = allGridRules))
 
         
@@ -156,8 +156,9 @@ buildNestedApprox <- nimbleFunction(
         I_AGHQ <- theta_grid$I_AGHQ
         inner_grid_cache_nfl[[I_AGHQ]] <- inner_cache_methods(nre = 0, nGrid = 1,
             condIndptSets = lenInternalRENodeSets, nCondIndptSets = nInternalRESets)
-        I_AGHQSPRSE <- theta_grid$I_AGHQSPRSE
-        inner_grid_cache_nfl[[I_AGHQSPRSE]] <- inner_cache_methods(nre = 0, nGrid = 1,
+        ## Note that it is not valid to use a sparse grid here, but will initiate this list for ordering issues.
+        I_AGHQSPARSE <- theta_grid$I_AGHQSPARSE
+        inner_grid_cache_nfl[[I_AGHQSPARSE]] <- inner_cache_methods(nre = 0, nGrid = 1,
             condIndptSets = lenInternalRENodeSets, nCondIndptSets = nInternalRESets)
 
         I_USER <- 1
@@ -170,8 +171,8 @@ buildNestedApprox <- nimbleFunction(
         ## Store the quadrature sums for each grid:
         marginalPostDensity <- rep(-Inf, length(allGridRules))
 
-        theta_marg_grid <- configureQuadGrid(d = theta_length - 1, nQuad_ = 1,
-                                             quadRule = quadRuleMarginal)
+        theta_marg_grid <- configureQuadGrid(d = theta_length - 1, levels = 1,
+                                             quadRule = quadRuleMarginal, control = list(quadRules = c("AGHQ", "AGHQSPARSE")))
         theta1_nodes <- matrix(0, nrow = 1, ncol = 2)
 
         ## Cached values for convenience: For marginal distributions in AGHQ over
@@ -268,13 +269,14 @@ buildNestedApprox <- nimbleFunction(
             returnType(optimResultNimbleList())
         },
         buildHyperGrid = function(quadRule = character(0, default = "NULL"),
-                                  nQuadUpdate = integer(0, default = -1)) {
+                                  nQuadUpdate = integer(0, default = -1),
+                                  prune = double(0, default = -1)) {
             one_time_fixes()
             if(nQuadUpdate != -1)
                 nQuadOuter <<- nQuadUpdate
             if(quadRule != "NULL")
                 setHyperGridRule(quadRule)
-            theta_grid$buildGrid(method = hyperGridRule, nQuad = nQuadOuter)
+            theta_grid$buildGrid(method = hyperGridRule, nQuad = nQuadOuter, prune = prune)
             nGrid <- theta_grid$gridSize()
             inner_grid_cache_nfl[[I_GRID]]$buildCache(nGridUpdate = nGrid, nLatentNodes = nre)
             if (!modeCached) posteriorMode(rep(Inf, npar), hessian = TRUE, parscale = "transformed")
@@ -285,7 +287,8 @@ buildNestedApprox <- nimbleFunction(
             ## Default to AGHQ and change if requested.
             I_GRID <<- I_AGHQ
             if (quadRule == "CCD") I_GRID <<- I_CCD
-            if (quadRule == "AGHQSPRSE") I_GRID <<- I_AGHQSPRSE
+            if (quadRule == "USER") I_GRID <<- I_USER
+            if (quadRule == "AGHQSPARSE") I_GRID <<- I_AGHQSPARSE
         },
         calcEigen = function() {
             E <- eigen(thetaNegHess, symmetric = TRUE)  ## Should be symmetric...
@@ -323,7 +326,10 @@ buildNestedApprox <- nimbleFunction(
                     theta[i] <- postMode[i] + sum(A[i,] * z) 
                 }
             } else {
-                theta <- postMode + backsolve(A, z)
+                if(method == "identity")
+                  theta <- z
+                else
+                  theta <- postMode + backsolve(A, z)
             }
             returnType(double(1))
             return(theta)
@@ -340,7 +346,10 @@ buildNestedApprox <- nimbleFunction(
                     z[i] <- sum(A[,i] * theta_mean)
                 }
             } else {
-                z <- (A %*% (theta - postMode))[, 1]
+                if(method == "identity")
+                  z <- theta
+                else
+                  z <- (A %*% (theta - postMode))[, 1]
             }
             returnType(double(1))
             return(z)
@@ -396,7 +405,7 @@ buildNestedApprox <- nimbleFunction(
             for (i in 1:nGrid) {
                 nimCat(".")
                 ## Operations at the mode:
-                if (i == theta_grid$modeI()) {
+                if (i == theta_grid$modeIndex()) {
                     wgt <- theta_grid$weights(indx = i)[1]
                     inner_grid_cache_nfl[[I_GRID]]$cache_inner_mode(
                         mode = innerMethods$get_inner_mode(atOuterMode = 1), indx = i)
@@ -457,10 +466,13 @@ buildNestedApprox <- nimbleFunction(
         findMarginalPosteriorDensity = function(pIndex = integer(),
                                                 nPts = integer(0, default = 5),
                                                 nQuad = integer(0, default = 3),
-                                                gridTransformMethod = character(0, default = "spectral")) {
+                                                gridTransformMethod = character(0, default = "spectral"),
+                                                quadRule = character(0, default = "NULL"),
+                                                prune = double(0, default = -1)) {
             one_time_fixes()
+                                  
             ## Build the quadrature grid points:
-            if (dim(theta1_nodes)[1] != nPts) theta1_nodes <<- AGHQ1D(nQuad = nPts)
+            if (dim(theta1_nodes)[1] != nPts) theta1_nodes <<- quadGH(levels = nPts, type = "GHe")
 
             if(theta_length == 1) {
                 ## d-1 dimensional AGHQ not needed; just evaluate inner approximation.
@@ -479,7 +491,7 @@ buildNestedApprox <- nimbleFunction(
             ## Grid for additional theta.
             ## Build marginal AGHQ grid to compute the hyperparameter marginals
             ## (integrate over pT-1 theta values).            
-            theta_marg_grid$buildGrid(nQuad = nQuad)  
+            theta_marg_grid$buildGrid(method = quadRule, nQuad = nQuad, prune = prune)  
 
             nQuadGrid <- theta_marg_grid$gridSize()
 
@@ -532,7 +544,7 @@ buildNestedApprox <- nimbleFunction(
                 nimCat("(", i, ")")
                 for (j in 1:nQuadGrid) {
                     nimCat(".")
-                    if (j != theta_marg_grid$modeI()) {
+                    if (j != theta_marg_grid$modeIndex()) {
                         nodej <- theta_marg_grid$nodes(indx = j)[1, ]
                         theta_tmp <- z_to_theta(z = nodej, postMode = theta_iMode, A = Atransform_i,
                                                 method = gridTransformMethod)
@@ -602,6 +614,8 @@ buildNestedApprox <- nimbleFunction(
         ## return(marginalSplineR(marg_theta[pIndex, , 1], marg_theta[pIndex, , 2]))
         ## },
         simulateLatentEffects = function(n = integer()) {
+            if(I_GRID == I_AGHQSPARSE)
+              stop("Sparse grids can have negative weights and are not valid for simulating the latent effects.")
             if (!hyperGridCached[I_GRID]) calcHyperGrid()
 
             sims <- inner_grid_cache_nfl[[I_GRID]]$simulate(n)

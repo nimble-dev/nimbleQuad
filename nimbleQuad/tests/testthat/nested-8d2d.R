@@ -35,7 +35,7 @@ result
 
 
 # `improveMarginals` is definitely needed and now results pretty close to INLA
-result$improveMarginals(c('mu','tau'), nMarginalGrid = 7) 
+result$improveMarginals(c('mu','tau'), nMarginalGrid = 7, nQuad = 7, quadRule = "AGHQ", prune = 0.2) 
 
 latent_sample <- result$sampleLatentNodes(100000)
 apply(latent_sample, 2, quantile, qpts)

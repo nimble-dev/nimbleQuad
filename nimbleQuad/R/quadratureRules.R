@@ -8,8 +8,8 @@ QUAD_RULE_BASE <- nimbleFunctionVirtual(
     run = function() {
     },
     methods = list(
-        buildGrid = function(nQuad = integer(0, default = 0), d = integer(0, default = 1)) {
-            returnType(quadGridListDef())
+        buildGrid = function(levels = integer(0, default = 0), d = integer(0, default = 1)) {
+            returnType(double(2))
         }
     )
 )
@@ -36,17 +36,15 @@ quadGridListDef <- nimbleList(
     nodes = double(2),
     name = "quadGridList")
 
-#' Adaptive Gauss-Hermite Quadrature Points in one dimension
+#' Gauss-Hermite Quadrature Points in one dimension
 #'
-#' Generates AGHQ quadrature weights and nodes for integrating a general function.
+#' Generates GH quadrature weights and nodes for integrating a general univariate function from -Inf to Inf.
 #' 
-#' @param nQuad How many quadrature points to generate.
+#' @param levels How many quadrature points to generate.
 #'
 #' @details
-#' This function generates AGHQ points and returns a matrix with the first column as weights and
-#' the second nodes. The nodes are adjusted to integrate a general function, adjusting the points by
-#' the sqrt(2) and the weights by sqrt(2*pi) * exp(x^2). Some numerical issues occur in Eigen decomposition 
-#' making the grid weights only accurate up to 35 quadrature nodes.
+#' This function generates Gauss-Hermite points and returns a matrix with the first column as weights and
+#' the second nodes. Some numerical issues occur in Eigen decomposition making the grid weights only accurate up to 35 quadrature nodes.
 #'
 #' @author Paul van Dam-Bates
 #'
@@ -60,46 +58,97 @@ quadGridListDef <- nimbleList(
 #' Jackel, P. (2005). A note on multivariate Gauss-Hermite quadrature. London: ABN-Amro. Re.
 #'
 #' @export
-AGHQ1D <- nimbleFunction(run = function(nQuad = integer(0, default = 1)) {
+quadGH <- nimbleFunction(run = function(levels = integer(0, default = 1), type = character(0,default = "GHe")) {
     odd <- TRUE
-    if (nQuad%%2 == 0)
+    if (levels %% 2 == 0)
         odd <- FALSE
 
-    res <- matrix(0, nrow = nQuad, ncol = 2)
-    if (nQuad == 1) {
+    res <- matrix(0, nrow = levels, ncol = 2)
+    if (levels == 1) {
         ## Laplace Approximation:
-        res[, 2] <- 0
-        res[, 1] <- sqrt(2 * pi)
+        res[1, 2] <- 0
+        res[1, 1] <- 1
     } else {
-        i <- 1:(nQuad - 1)
+        i <- 1:(levels - 1)
         dv <- sqrt(i/2)
         ## Recreate pracma::Diag for this problem.
-        if (nQuad == 2)
+        if (levels == 2)
             fill_diag <- matrix(dv, 1, 1) else fill_diag <- diag(dv)
 
-        y <- matrix(0, nrow = nQuad, ncol = nQuad)
-        y[1:(nQuad - 1), 1:(nQuad - 1) + 1] <- fill_diag
-        y[1:(nQuad - 1) + 1, 1:(nQuad - 1)] <- fill_diag
+        y <- matrix(0, nrow = levels, ncol = levels)
+        y[1:(levels - 1), 1:(levels - 1) + 1] <- fill_diag
+        y[1:(levels - 1) + 1, 1:(levels - 1)] <- fill_diag
         E <- eigen(y, symmetric = TRUE)
         L <- E$values  # Always biggest to smallest.
         V <- E$vectors
-        inds <- numeric(value = 0, length = nQuad)
-        for (j in seq_along(L)) inds[j] <- nQuad - j + 1  ## Is this an efficient way to do it?
+        inds <- numeric(value = 0, length = levels)
+        for (j in seq_along(L)) inds[j] <- levels - j + 1  ## Is this an efficient way to do it?
         x <- L[inds]
         ## Make mode hard zero. We know nQ is odd and > 1.
         if (odd)
-            x[ceiling(nQuad/2)] <- 0
+            x[ceiling(levels/2)] <- 0
         V <- t(V[, inds])
-        ## Update nodes and weights in terms of z = x/sqrt(2) and include
-        ## Gaussian kernel in weight to integrate an arbitrary function.
-        w <- V[, 1]^2 * sqrt(2 * pi) * exp(x^2)
-        x <- sqrt(2) * x
+
+        w <- V[, 1]^2
+        
         res[, 1] <- w
         res[, 2] <- x
     }
+    ## For GHN
+    ## Update nodes and weights in terms of z = x/sqrt(2) and include
+    ## Gaussian kernel in weight to integrate an arbitrary function. (i.e. excludes normal distr)
+    if(type == "GHe"){
+      res[,1] <- res[,1] * sqrt(2 * pi) * exp(res[,2]^2)
+      res[,2] <- res[,2] * sqrt(2)
+    }
+
     returnType(double(2))
     return(res)
 })
+
+#' Gauss-Hermite Quadrature Rule for Laplace and Approx Posteriors
+#'
+#' Generate a 1 dimension GHQ grid via a nimble function list.
+#' 
+#' @param levels Length of GHQ
+#'
+#' @details
+#' This function a 1D Gauss-Hermite Quadrature Grid (nodes and weights). When choosing `type = "GHe"`, 
+#' the nodes are adjusted to integrate a general function, adjusting the points by
+#' the sqrt(2) and the weights by sqrt(2*pi) * exp(x^2). It cannot be compiled without being
+#' included within a virtual nimble list "QUAD_RULE_BASE".
+#'
+#' @author Paul van Dam-Bates
+#'
+#' @references
+#'
+#' Jackel, P. (2005). A note on multivariate Gauss-Hermite quadrature. London: ABN-Amro. Re.
+#'
+#' @export
+quadRule_GH = nimbleFunction(
+    contains = QUAD_RULE_BASE,
+    name = "quadRule_GH",
+    setup = function(type = "GHe") {},
+    run = function() {},
+    methods = list(
+        buildGrid = function(levels = integer(0, default = 0), d = integer(0, default = 1)) {
+            returnType(double(2))
+
+            if (levels > 35) {
+                print("Warning:  More than 35 quadrature nodes per dimension is not supported. Setting levels to 35.")
+                levels <- 35
+            }
+            if (levels == 0) {
+                print("Warning:  No default number of quadrature points given. Assuming levels = 3 per dimension.")
+                levels <- 3
+            }
+            nodes <- quadGH(levels, type)
+                
+            return(nodes)
+        }
+      )
+    )
+
 
 #' Drop Algorithm to generate permutations of dimension d with a fixed sum.
 #'
@@ -153,251 +202,6 @@ drop_algorithm <- nimbleFunction(run = function(d = double(), order = double()) 
     return(fs)
 })
 
-#' AGHQ Tensor product of dimension d with lengths nQuad
-#'
-#' Generates the tensor product of AGHQ nodes and weights for multivariate AGHQ.
-#' 
-#' @param d Number of dimensions.
-#' @param nQuad Length of AGHQ in each dimension d.
-#'
-#' @details
-#' This function generates a tensor product of AGHQ nodes and weights to generate multivariate quadrature rule.
-#'
-#' @author Paul van Dam-Bates
-#'
-#' @export
-tensor_product = nimbleFunction(run = function(d = double(), nQuad = double(1)) {
-    nQ <- prod(nQuad)
-    nodes_wgts <- matrix(1, nrow = nQ, ncol = d + 1)
-
-    ## Get quad grid
-    nodes <- matrix(0, nrow = d, ncol = max(nQuad))
-    weights <- matrix(0, nrow = d, ncol = max(nQuad))
-    for (i in 1:d) {
-        nodesi <- AGHQ1D(nQuad[i])
-        nodes[i, 1:nQuad[i]] <- nodesi[, 2]
-        weights[i, 1:nQuad[i]] <- nodesi[, 1]
-    }
-
-    swp <- nimNumeric(value = 0, length = d)
-    swp[1] <- 1
-    for (ii in 2:d) swp[ii] <- prod(nQuad[1:(ii - 1)])
-
-    ## Do Product Rule: Repeat x for each dimension swp times.
-    for (j in 1:d) {
-        indx <- 1
-        for (ii in 1:nQ) {
-            nodes_wgts[ii, j + 1] <- nodes[j, indx]
-            nodes_wgts[ii, 1] <- nodes_wgts[ii, 1] * weights[j, indx]
-            k <- ii%%swp[j]
-            if (k == 0)
-                indx <- indx + 1
-            if (indx > nQuad[j])
-                indx <- 1
-        }
-    }
-    returnType(double(2))
-    return(nodes_wgts)
-})
-
-#' Smolyak Algorithm for Sparse Grid AGHQ
-#'
-#' Generate a sparse grid AGHQ 
-#' 
-#' @param d Number of dimensions.
-#' @param nQuad Length of AGHQ in each dimension d.
-#'
-#' @details
-#' This function generates a tensor product of AGHQ nodes and weights to generate multivariate quadrature rule.
-#'
-#' @author Paul van Dam-Bates
-#'
-#' @references
-#'
-#' Heiss, F. and Winschel, V. (2008). Likelihood approximation by numerical integration on sparse grids. 
-#' Econometrics 23 (144): 62.
-#'
-#' @export
-smolyak_aghq <- nimbleFunction(run = function(d = double(), nQuad = double()) {
-    minq <- max(0, nQuad - d)
-    maxq <- nQuad - 1
-
-    noSubGrids <- sum(factorial(minq:maxq + d - 1) / (factorial(minq:maxq) * factorial(d - 1)))
-
-    gridCombos <- matrix(0, nrow = noSubGrids, ncol = d)
-    start <- 1
-    for (q in minq:maxq) {
-        tmpCombos <- drop_algorithm(d, d + q)
-        nq <- dim(tmpCombos)[1]
-        gridCombos[start:(start + nq - 1), ] <- tmpCombos
-        start <- start + nq
-    }
-
-    totalPts <- 0
-    for (i in 1:noSubGrids) {
-        totalPts <- totalPts + prod(gridCombos[i, ])
-    }
-    nodes_wgts <- matrix(0, nrow = totalPts, ncol = d + 1)
-
-    cnt <- 1
-    for (i in 1:noSubGrids) {
-        q <- sum(gridCombos[i, ]) - d
-        wgtadj <- (-1)^(maxq - q) * factorial(d - 1) / (factorial(d + q - nQuad) *
-            factorial(nQuad - q - 1))
-
-        nodes_prod <- tensor_product(d = d, nQuad = gridCombos[i, ])
-        nodes_wgts[cnt:(cnt + dim(nodes_prod)[1] - 1), 1] <- nodes_prod[, 1] * wgtadj
-        nodes_wgts[cnt:(cnt + dim(nodes_prod)[1] - 1), 2:(d + 1)] <- nodes_prod[, 2:(d + 1)]
-
-        cnt <- cnt + dim(nodes_prod)[1]
-    }
-    return(nodes_wgts)
-    returnType(double(2))
-})
-
-#' Adaptive Gauss-Hermite Quadrature Rule for Laplace and Approx Posteriors
-#'
-#' Generate a d dimension AGHQ grid via a nimble function list.
-#' 
-#' @param d Number of dimensions.
-#' @param nQuad Length of AGHQ in each dimension d.
-#'
-#' @details
-#' This function generates a tensor product of AGHQ nodes and weights to generate multivariate quadrature rule.
-#'
-#' @author Paul van Dam-Bates
-#'
-#' @references
-#'
-#' Jackel, P. (2005). A note on multivariate Gauss-Hermite quadrature. London: ABN-Amro. Re.
-#'
-#' @export
-quadRule_AGHQ = nimbleFunction(
-    contains = QUAD_RULE_BASE,
-    name = "quadRule_AGHQ",
-    setup = function() {},
-    run = function() {},
-    methods = list(
-        buildGrid = function(nQuad = integer(0, default = 0), d = integer(0, default = 1)) {
-            returnType(quadGridListDef())
-            output <- quadGridListDef$new()
-
-            if (nQuad > 35) {
-                print("Warning:  More than 35 quadrature nodes per dimension is not supported. Setting nQuad to 35.")
-                nQuad <- 35
-            }
-            if (nQuad == 0) {
-                print("Warning:  No default number of quadrature points given. Assuming nQuad = 3 per dimension.")
-                nQuad <- 3
-            }
-            odd <- TRUE
-            if (nQuad%%2 == 0) odd <- FALSE
-
-            nQ <- nQuad^d
-
-            if (nQuad == 1) {
-                ## Laplace Approximation:
-                output$wgts <- numeric(value = exp(0.5 * d * log(2 * pi)), length = 1)
-                output$nodes <- matrix(0, nrow = 1, ncol = d)
-                output$modeIndex <- 1L
-            } else {
-                ## If d = 1, then we are done.
-                if (d == 1) {
-                    nodes_prod <- AGHQ1D(nQuad)
-                } else {
-                    ## Build the multivariate quadrature rule.
-                    nQuad_num <- numeric(value = nQuad, length = d)
-                    nodes_prod <- tensor_product(d = d, nQuad = nQuad_num)
-                }
-                ## Assuming mode index is the middle number.
-                if (odd) {
-                    modeIndex <- ceiling(nQ/2)
-                    ## Just in case that goes horribly wrong...
-                    if (sum(abs(nodes_prod[modeIndex, 2:(d + 1)])) != 0) {
-                        for (ii in 1:nQ) {
-                            if (sum(abs(nodes_prod[ii, 2:(d + 1)])) == 0) modeIndex <- ii
-                        }
-                    }
-                } else {
-                    modeIndex <- -1  ## No mode is present.
-                }
-                output$wgts <- nodes_prod[, 1]
-                output$nodes <- nodes_prod[, 2:(d + 1)]
-                output$modeIndex <- as.integer(modeIndex)
-            }
-            return(output)
-        }
-    )
-)
-
-#' Sparse Adaptive Gauss-Hermite Quadrature Rule for Laplace and Approx Posteriors
-#'
-#' Generate a d dimension sparse AGHQ grid via a nimble function list.
-#' 
-#' @param d Number of dimensions.
-#' @param nQuad level of polynomial accuracy required.
-#'
-#' @details
-#' This function generates a tensor product of sparse AGHQ nodes and weights to generate multivariate quadrature rule.
-#'
-#' @author Paul van Dam-Bates
-#'
-#' @references
-#'
-#' Heiss, F. and Winschel, V. (2008). Likelihood approximation by numerical integration on sparse grids. 
-#' Econometrics 23 (144): 62.
-#'
-#' @export
-quadRule_AGHQSPARSE = nimbleFunction(
-    contains = QUAD_RULE_BASE,
-    name = "quadRule_AGHQSPARSE",
-    setup = function() {},
-    run = function() {},
-    methods = list(
-        buildGrid = function(nQuad = integer(0, default = 0), d = integer(0, default = 1)) {
-            returnType(quadGridListDef())
-            output <- quadGridListDef$new()
-
-            if (nQuad > 35) {
-                print("Warning:  More than 35 quadrature nodes per dimension is not supported. Setting nQuad to 35.")
-                nQuad <- 35
-            }
-            if (nQuad == 0) {
-                print("Warning:  No default number of quadrature points given. Assuming nQuad = 3 per dimension.")
-                nQuad <- 3
-            }
-
-            if (nQuad == 1) {
-                ## Laplace Approximation:
-                output$wgts <- numeric(value = exp(0.5 * d * log(2 * pi)), length = 1)
-                output$nodes <- matrix(0, nrow = 1, ncol = d)
-                output$modeIndex <- 1L
-            } else {
-                ## If d = 1, it is regular AGHQ.
-                if (d == 1) {
-                    nodes_prod <- AGHQ1D(nQuad)
-                } else {
-                    ## Build the sparse grid
-                    nodes_prod <- smolyak_aghq(d = d, nQuad = nQuad)
-                }
-                ## Smolyak always has a mode. Right?
-                nQ <- dim(nodes_prod)[1]
-                modeIndex <- ceiling(nQ/2)
-                ## Just in case that goes horribly wrong...
-                if (sum(abs(nodes_prod[modeIndex, 2:(d + 1)])) != 0) {
-                    for (ii in 1:nQ) {
-                        if (sum(abs(nodes_prod[ii, 2:(d + 1)])) == 0) modeIndex <- ii
-                    }
-                }
-                output$wgts <- nodes_prod[, 1]
-                output$nodes <- nodes_prod[, 2:(d + 1)]
-                output$modeIndex <- as.integer(modeIndex)
-            }
-            return(output)
-        }
-    )
-)
-
 #' Central Composite Design (CCD) used for approximate posterior distributions.
 #'
 #' Generate a d dimension CCD grid via a nimble function list.
@@ -406,19 +210,22 @@ quadRule_AGHQSPARSE = nimbleFunction(
 #' @param nQuad Ignored.
 #'
 #' @details
-#' This function generates a CCD grid to be used in approximate posteriors.
+#' This function generates a CCD grid to be used in approximate posteriors. It cannot be compiled without being
+#' included within a virtual nimble list "QUAD_RULE_BASE".
 #'
 #' @author Paul van Dam-Bates
 #'
 #' @references
 #'
-#' Jackel, P. (2005). A note on multivariate Gauss-Hermite quadrature. London: ABN-Amro. Re.
+#' Rue, H., Martino, S., and Chopin, N. (2009). Approximate Bayesian Inference for Latent Gaussian Models by Using 
+#' Integrated Nested Laplace Approximations. Journal of the Royal Statistical Society, Series B 71 (2): 319–92.
+#'
 #'
 #' @export
 quadRule_CCD <- nimbleFunction(
     contains = QUAD_RULE_BASE,
     name = "quadRule_CCD",
-    setup = function() {
+    setup = function(f0 = 1.1) {
         ## Walsh Index Assignments for Resolution V Fractional Factorials
         index <- c(1, 2, 4, 8, 15, 16, 32, 51, 64, 85, 106, 128, 150, 171, 219, 237,
             247, 256, 279, 297, 455, 512, 537, 557, 594, 643, 803, 863, 998, 1024,
@@ -441,7 +248,7 @@ quadRule_CCD <- nimbleFunction(
         ## However, we do scaled design following INLA such that z*zT = 1
         ## from https://github.com/hrue/r-inla/blob/devel/gmrflib/design.c
         ## Can't update nQuad here but makes it general.
-        buildGrid = function(nQuad = integer(0, default = 0), d = integer(0, default = 1)) {
+        buildGrid = function(levels = integer(0, default = 0), d = integer(0, default = 1)) {
             if ((d > 120 | d < 1)) stop("Dimension of Theta must be in [1,120]")
             
             ## Number of grid points for different dimensions of theta.
@@ -477,7 +284,7 @@ quadRule_CCD <- nimbleFunction(
             ## See
             ## https://github.com/hrue/r-inla/blob/devel/gmrflib/approx-inference.c#L1894
             ## w = 1.0 / ((design->nexperiments - 1.0) * (1.0 + exp(-0.5 * SQR(f)) * (SQR(f) / nhyper - 1.0)));
-            f0 <- 1.1
+            # f0 <- 1.1
             ## From INLA: z_local[i] = f * design->experiment[k][i] where f = f0*sqrt(d)
             design <- design * sqrt(d) * f0
 
@@ -494,11 +301,10 @@ quadRule_CCD <- nimbleFunction(
             wgt[1] <- wgt0
             wgt[2:nQ] <- rep(wgts, nQ - 1)
 
-            returnType(quadGridListDef())
-            output <- quadGridListDef$new()
-            output$modeIndex <- 1L
-            output$wgts <- wgt
-            output$nodes <- design
+            returnType(double(2))
+            output <- matrix(0, nrow = nQ, ncol = d+1)
+            output[,1] <- wgt
+            output[,2:(d+1)] <- design
             return(output)
         },
         ## fast Walsh transform taken from Wood MGCV inla.
@@ -532,27 +338,28 @@ quadRule_CCD <- nimbleFunction(
 #' @param nQuad Ignored.
 #'
 #' @details
-#' This function is a placeholder for a user supplied grid.
+#' This function is a placeholder for a user supplied grid. 
 #'
 #' @author Paul van Dam-Bates
 #'
 #' @export
-quadRule_USER <- nimbleFunction(
-    contains = QUAD_RULE_BASE,
-    name = "quadRule_Custom",
-    setup = function() {},
-    run = function() {},
-    methods = list(
-        buildGrid = function(nQuad = integer(0, default = 0), d = integer(0, default = 1)) {
-            ## This will be a place holder for something others may choose to add.
-            ## Can look for quadRule_Custom and check if it's implemented. If it is
-            ## will try and use it...
-            returnType(quadGridListDef())
-            output <- quadGridListDef$new()
-            output$modeIndex <- 1L
-            output$wgts <- numeric(nQuad)
-            output$nodes <- matrix(0, nrow = nQuad, d)
-            return(output)
-        }
-    )
-)
+# quadRule_USER <- nimbleFunction(
+    # contains = QUAD_RULE_BASE,
+    # name = "quadRule_USER",
+    # setup = function() {
+    # },
+    # run = function() {},
+    # methods = list(
+        # buildGrid = function(levels = integer(0, default = 0), d = integer(0, default = 1)) {
+            # This will be a place holder for something others may choose to add.
+            # Can look for quadRule_Custom and check if it's implemented. If it is
+            # will try and use it...
+            # output <- matrix(0, nrow = levels,  ncol = d+1)
+            # output[,1] <- numeric(value = 0, length = levels)
+            # output[,2:(d+1)] <- matrix(0, nrow = levels, d)
+            # returnType(double(2))
+            # return(output)
+        # }
+    # )
+# )
+
