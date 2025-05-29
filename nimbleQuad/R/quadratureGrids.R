@@ -148,7 +148,7 @@ configureQuadGrid <- nimbleFunction(
         ## Can list all possible quad rules here and set it.
         possibleRules <- c("AGHQ", "CCD", "AGHQSPARSE", "USER", "USERSPARSE", "USERMULTI")
         
-        quadRules <- extractControlElement(control, "quadRules", quadRule)
+        quadRules <- extractControlElement(control, "quadRules", NULL)
         ccd_f0 <- extractControlElement(control, "CCD_f0", 1.1)
 
         prune_ <- extractControlElement(control, "prune", 0)
