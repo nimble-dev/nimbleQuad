@@ -69,17 +69,17 @@ Available methods include
   \item \code{innerOptimMethod}. Optimization method to be used in 
         \code{optim} for the inner optimization. See 'Details' of 
         \code{\link{optim}}. Currently \code{optim} in NIMBLE supports: 
-        "\code{Nelder-Mead}", "\code{BFGS}", "\code{CG}", and 
-        "\code{L-BFGS-B}". By default, method "\code{CG}" is used when 
-        marginalizing over a single (scalar) random effect, and "\code{BFGS}" 
+        '\code{Nelder-Mead}', '\code{BFGS}', '\code{CG}', and 
+        '\code{L-BFGS-B}'. By default, method '\code{CG}' is used when 
+        marginalizing over a single (scalar) random effect, and '\code{BFGS}' 
         is used for multiple random effects being jointly marginalized over.
 
   \item \code{innerOptimStart}. Choice of starting values for the inner 
-        optimization. This could be \code{"last"}, \code{"last.best"}, or a 
-        vector of user provided values. \code{"last"} means the most recent 
+        optimization. This could be \code{'last'}, \code{'last.best'}, or a 
+        vector of user provided values. \code{'last'} means the most recent 
         random effects values left in the model will be used. When finding 
         the MLE, the most recent values will be the result of the most recent 
-        inner optimization for Laplace. \code{"last.best"} means the random 
+        inner optimization for Laplace. \code{'last.best'} means the random 
         effects values corresponding to the largest Laplace likelihood (from 
         any call to the \code{calcLaplace} or \code{calcLogLik} method, 
         including during an MLE search) will be used (even if it was not the 

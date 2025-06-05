@@ -162,3 +162,59 @@ test_that("AGHQ Pruning works.", {
 # })
 
 ## Need to write a test for the "inner_cache_methods"
+
+## Make some plots:
+# quadGrid <- configureQuadGrid(d=2, levels=3, quadRule = "AGHQ", control = list(quadRules = c("AGHQ", "AGHQSPARSE", "CCD")))
+# quadGrid$buildGrid()
+# nodes_aghq <- quadGrid$nodes()
+# quadGrid$buildGrid(nQuad = 5)
+# nodes_aghq2 <- quadGrid$nodes()
+
+# quadGrid$buildGrid(method = "CCD")
+# nodes_ccd <- quadGrid$nodes()
+# quadGrid$buildGrid(method = "AGHQSPARSE", nQuad = 2)
+# nodes_sparse <- quadGrid$nodes()
+# quadGrid$buildGrid(method = "AGHQSPARSE", nQuad = 3)
+# nodes_sparse2 <- quadGrid$nodes()
+
+# par(mfrow = c(1,3))
+# plot(nodes_aghq, xlab = expression(z[1]), ylab = expression(z[2]), pch = 16, col = 'black', main = "AGHQ", xlim = c(-3,3), ylim = c(-3,3))
+# points(nodes_aghq2, pch = 3, col = 'red')
+
+# plot(nodes_sparse, xlab = expression(z[1]), ylab = expression(z[2]), pch = 16, col = 'black', main = "AGHQ Sparse", xlim = c(-3,3), ylim = c(-3,3))
+# points(nodes_sparse2, pch = 3, col = 'red')
+
+# plot(nodes_ccd, xlab = expression(z[1]), ylab = expression(z[2]), pch = 16, col = 'black', main = "CCD", xlim = c(-3,3), ylim = c(-3,3))
+
+# C <- rbind(c(1.5, 0.75), c(0.75, 1.75))
+# eC <- eigen(C)
+# x     <- seq(-5, 5, 0.25)
+# y     <- seq(-5, 5, 0.25)
+# cholC <- chol(C)
+# f     <- function(x, y) apply(cbind(x,y), 1, FUN = function(z) dmnorm_chol(z, c(0,0), cholesky = cholC, prec_param = FALSE) )
+# fz     <- outer(x, y, f)
+
+# z <- nodes
+# zChol <- t(cholC %*% t(z))
+# zEigen <- t(eC$vectors %*% diag(sqrt(eC$values)) %*% t(z))
+
+# ycond <- C[1,2]/C[1,1]*x
+# xcond <- C[2,1]/C[2,2]*y
+
+# contour(x, y, fz, main = "", xlab = expression(theta[1]), ylab = expression(theta[2]))
+# points(zChol, pch = 16, col = 'blue')
+# points(zEigen, pch = 16, col = 'red')
+# legend('bottomright', legend = c('Spectral Transformation', 'Cholesky Transformation'), 
+	# col = c('red', 'blue'), pch = 16) 
+
+# par(mfrow=c(1,2))
+# contour(x, y, fz, main = "Cholesky Transformation", xlab = expression(theta[1]), ylab = expression(theta[2]))
+# points(zChol, pch = 16, col = 'red')
+# contour(x, y, fz, main = "Spectral Transformation", xlab = expression(theta[1]), ylab = expression(theta[2]))
+# points(zEigen, pch = 16, col = 'red')
+
+
+# z <- nodes_ccd
+# zChol <- t(cholC %*% t(z))
+# contour(x, y, fz, xlab = expression(theta[1]), ylab = expression(theta[2]))
+# points(zChol, pch = 16, col = 'red')

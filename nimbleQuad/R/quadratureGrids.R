@@ -89,6 +89,8 @@ quadGridCache <- nimbleFunction(
         }
         if (indx == -1 & modeIndex_cached > 0)
             return(matrix(nodes_cached[modeIndex_cached, ], nrow = 1))
+        if(indx > nGrid_cached)
+          stop("Asking for more quadrature points than available.")
         return(nodes_cached)
     },
     weights = function(indx = integer(0, default = 0)) {
@@ -99,6 +101,8 @@ quadGridCache <- nimbleFunction(
         }
         if (indx == -1 & modeIndex_cached > 0)
             return(numeric(value = weights_cached[modeIndex_cached], length = 1))
+        if(indx > nGrid_cached)
+          stop("Asking for more quadrature points than available.")
         return(weights_cached)
     },
     modeIndex = function() {
