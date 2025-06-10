@@ -14,6 +14,7 @@ buildNestedApprox <- nimbleFunction(
         nQuadOuter <- extractControlElement(control, "nQuadOuter", 3)
         nQuadInner <- extractControlElement(control, "nQuadInner", 1)
         quadRuleMarginal <- extractControlElement(control, "marginalGridRule", "AGHQ")
+        pruneMargGrid <- extractControlElement(control, "marginalGridPrune", 0)
 
         transformMethod <- extractControlElement(control, "quadTransform", "spectral")
 
@@ -50,6 +51,7 @@ buildNestedApprox <- nimbleFunction(
 
         ## Default outer grid to CCD unless low dimensional.
         hyperGridRule <- extractControlElement(control, "hyperGridRule", "none")
+        prunehyperGrid <- extractControlElement(control, "hyperGridPrune", 0)
         if(hyperGridRule == "none")
             hyperGridRule <- ifelse(theta_length >= 3, "CCD", "AGHQ")
 
@@ -276,7 +278,9 @@ buildNestedApprox <- nimbleFunction(
                 nQuadOuter <<- nQuadUpdate
             if(quadRule != "NULL")
                 setHyperGridRule(quadRule)
-            theta_grid$buildGrid(method = hyperGridRule, nQuad = nQuadOuter, prune = prune)
+            if(prune != -1) 
+                pruneHyperGrid <<- prune
+            theta_grid$buildGrid(method = hyperGridRule, nQuad = nQuadOuter, prune = pruneHyperGrid)
             nGrid <- theta_grid$gridSize()
             inner_grid_cache_nfl[[I_GRID]]$buildCache(nGridUpdate = nGrid, nLatentNodes = nre)
             if (!modeCached) posteriorMode(rep(Inf, npar), hessian = TRUE, parscale = "transformed")
@@ -371,6 +375,8 @@ buildNestedApprox <- nimbleFunction(
                 logDens2Pos <- innerMethods$calcLogDens_pTransformed(pTransform = theta)
                 skewedStdDev[i, 2] <<- sqrt(2/(2 * (logPostProbMode - logDens2Pos)))  ## numerator (-sqrt(2)) ^2
                 logSkewedWgt <<- logSkewedWgt + log(sum(skewedStdDev[i, ]/2))
+                if(any(skewedStdDev[i,] < 0.3) | any(skewedStdDev[i,] < 3.333))
+                  print("  [Warning] Skewness in posterior of the hyperparameters is extreme and is a potential sign of an issue for these approximations.")
             }
             skewedSDCached <<- TRUE
         },
@@ -490,8 +496,10 @@ buildNestedApprox <- nimbleFunction(
 
             ## Grid for additional theta.
             ## Build marginal AGHQ grid to compute the hyperparameter marginals
-            ## (integrate over pT-1 theta values).            
-            theta_marg_grid$buildGrid(method = quadRule, nQuad = nQuad, prune = prune)  
+            ## (integrate over pT-1 theta values).      
+            if( pruneMargGrid != -1)
+              pruneMargGrid <<- prune
+            theta_marg_grid$buildGrid(method = quadRule, nQuad = nQuad, prune = pruneMargGrid)  
 
             nQuadGrid <- theta_marg_grid$gridSize()
 
