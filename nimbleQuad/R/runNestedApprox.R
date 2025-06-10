@@ -354,14 +354,14 @@ rmarginal <- function(summary, node, n = 1000) {
 
 dmarginal <- function(summary, node, x, log = FALSE) {
     Rapprox <- summary$approx$Robject
-    jac <- 0
+    logDetJac <- 0
     if(is.character(node)) {
         paramTransform  <- parameterTransform(Rapprox$model, node)
         x <- sapply(x, paramTransform$transform)
-        jac <- sapply(x, paramTransform$logDetJacobian)
+        logDetJac <- sapply(x, paramTransform$logDetJacobian)
     }
     idx <- getNodeIndex(node, Rapprox)
-    logPDF <- fitMarginalSpline(summary$marginalsRaw[[idx]], xnew = x) - jac
+    logPDF <- fitMarginalSpline(summary$marginalsRaw[[idx]], xnew = x) - logDetJac
 
     if(log) return(logPDF) else return(exp(logPDF))
 }
