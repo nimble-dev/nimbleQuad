@@ -400,10 +400,13 @@ buildNestedApprox <- nimbleFunction(
         ## Calculate theta on the quadrature grid points. AGHQ or CCD.
         ## Stores all values we need for simulation inference on the latent nodes.
         calcHyperGrid = function(skew = logical(0, default = TRUE)) {
+            if(I_GRID == I_AGHQSPARSE)
+                print("  [Note] Sparse grids cannot be used to simulate latent effects which is the main reason to compute posterior on the hyper grid.")
+
             buildHyperGrid()
             setTransformations(transformMethod)
             nGrid <- theta_grid$gridSize()
-
+            
             if (!skewedSDCached & skew) calcSkewedSD()
             ans <- 0
             ## Now fill in the grid values.
