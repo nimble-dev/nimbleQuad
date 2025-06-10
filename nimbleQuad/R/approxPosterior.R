@@ -51,7 +51,7 @@ buildNestedApprox <- nimbleFunction(
 
         ## Default outer grid to CCD unless low dimensional.
         hyperGridRule <- extractControlElement(control, "hyperGridRule", "none")
-        prunehyperGrid <- extractControlElement(control, "hyperGridPrune", 0)
+        pruneHyperGrid <- extractControlElement(control, "hyperGridPrune", 0)
         if(hyperGridRule == "none")
             hyperGridRule <- ifelse(theta_length >= 3, "CCD", "AGHQ")
 
@@ -375,8 +375,8 @@ buildNestedApprox <- nimbleFunction(
                 logDens2Pos <- innerMethods$calcLogDens_pTransformed(pTransform = theta)
                 skewedStdDev[i, 2] <<- sqrt(2/(2 * (logPostProbMode - logDens2Pos)))  ## numerator (-sqrt(2)) ^2
                 logSkewedWgt <<- logSkewedWgt + log(sum(skewedStdDev[i, ]/2))
-                if(any(skewedStdDev[i,] < 0.3) | any(skewedStdDev[i,] < 3.333))
-                  print("  [Warning] Skewness in posterior of the hyperparameters is extreme and is a potential sign of an issue for these approximations.")
+                if(any(skewedStdDev[i,] < 0.3) | any(skewedStdDev[i,] > 3.333))
+                    nimCat("  [Warning] Skewness in posterior of the hyperparameters in dimension ", i, " is large and a potential sign of an issue for these approximations.\n")
             }
             skewedSDCached <<- TRUE
         },
