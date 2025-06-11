@@ -602,13 +602,20 @@ inner_cache_methods = nimbleFunction(
         },
         ## Note to self, this wgt will be density*wgt, strictly for simulating.
         cache_weights = function(weight = double(), indx = integer()) {
+            if(indx > nGrid)
+              stop("Trying to cache weights larger than we expect the quadrature grid to be.")
             wgtsDens[indx] <<- weight
         },
         cache_inner_mode = function(mode = double(1), indx = integer()) {
+            if(indx > nGrid)
+              stop("Trying to cache latent mode larger than we expect the quadrature grid to be.")
             innerMode[indx, ] <<- mode
         },
         ## Note potentially storing a lot of zeros here. Could break it into a list of cond indpt sets.
         cache_inner_negHessChol = function(negHessChol = double(2), indx = integer()) {
+            if(indx > nGrid)
+              stop("Trying to cache latent hessian larger than we expect the quadrature grid to be.")
+        
             innerNegHessChol[indx, , ] <<- negHessChol
         },
         weights = function() {

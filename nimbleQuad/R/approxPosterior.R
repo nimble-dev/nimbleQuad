@@ -587,9 +587,13 @@ buildNestedApprox <- nimbleFunction(
         ## so that we have covTheta.
         ## Should also ensure that if they plan to skew the grid that is also done.
         findMarginalHyperIntFree = function(pIndex = integer()) {
+            ## Error Trapping:
+            if(pIndex <= 0 | pIndex > theta_length)
+                stop("Transformed parameter index requested is larger than available.")
+                
             ## Requires running `calcSkewedSD()` first.
             if (!skewedSDCached) calcSkewedSD()
-
+            
             stdDev <- sqrt(covTheta[pIndex, pIndex])
             thetai <- numeric(value = 0, length = theta_length)
             setTransformations(transformMethod)
@@ -625,6 +629,8 @@ buildNestedApprox <- nimbleFunction(
         ## return(marginalSplineR(marg_theta[pIndex, , 1], marg_theta[pIndex, , 2]))
         ## },
         simulateLatentEffects = function(n = integer()) {
+            if(n < 0)
+              stop("Cannot simulate less than 1 values.")
             if(I_GRID == I_AGHQSPARSE)
               stop("Sparse grids can have negative weights and are not valid for simulating the latent effects.")
             if (!hyperGridCached[I_GRID]) calcHyperGrid()
@@ -635,6 +641,9 @@ buildNestedApprox <- nimbleFunction(
         },
         ## Simulation method for theta marginal on the skewed multivariate normal.
          simulateHyperParams = function(n = integer()) {
+            if(n < 0)
+              stop("Cannot simulate less than 1 values.")
+
             sims <- matrix(0, nrow = n, ncol = theta_length)
             if (!skewedSDCached) calcSkewedSD()
 
