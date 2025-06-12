@@ -2577,6 +2577,8 @@ buildAGHQ <- nimbleFunction(
       if(!one_time_fixes_done) one_time_fixes() ## Otherwise summary will look bad.
       if(multiSetsCheck & nQuad_ > 1) stop("Currently only Laplace (`nQuad = 1`) is supported for maximization when integrations have more than one dimension at a time. Use `updateSettings(nQuad = 1)` to change.")
       if(any(abs(pStart) == Inf)) pStart <- values(model, paramNodes)
+      ## Catch for a model that hasn't been initiated...
+      if(any(is.na(pStart))) pStart <- numeric(value = 0, length = npar)
       if(length(pStart) != npar) {
         print("  [Warning] For maximization, `pStart` should be length ", npar, " but is length ", length(pStart), ".")
         ans <- optimResultNimbleList$new()

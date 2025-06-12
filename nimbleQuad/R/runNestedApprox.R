@@ -111,8 +111,8 @@ approxSummary <- R6Class("approxSummary",
         emarginal = function(node, functional, ...) {
             emarginal(self, node, functional, ...)
         },
-        plotMarginal = function(node, x, log = FALSE){
-            plotMarginal(self, node, x, log)
+        plotMarginal = function(node, x, log = FALSE, add = FALSE, ...){
+            plotMarginal(self, node, x, log, add = add, ...)
         },
         approx = NULL,
         quantiles = NULL,
@@ -388,7 +388,7 @@ emarginal <- function(summary, node, functional, ...) {
     return(expectation)
 }
 
-plotMarginal <- function(summary, node, log = FALSE){
+plotMarginal <- function(summary, node, log = FALSE, add = FALSE, ...){
     minmax <- summary$qmarginal(node, c(.001, 0.999))
     x <- seq(minmax[1], minmax[2], length = 200)
     y <- summary$dmarginal(node, x, log)
@@ -396,5 +396,8 @@ plotMarginal <- function(summary, node, log = FALSE){
       ylab <- "Log Posterior Density"
     else
       ylab <- "Posterior Density"
-    plot(x, y, type = 'l', xlab = node, ylab = ylab)
+    if(!add)
+      plot(x, y, type = 'l', xlab = node, ylab = ylab,...)
+    else
+      lines(x, y, xlab = xlab, ylab = ylab,...)
 }

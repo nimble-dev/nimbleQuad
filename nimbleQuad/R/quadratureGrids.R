@@ -51,7 +51,6 @@ logSumExp = nimbleFunction(run = function(log1 = double(), log2 = double()) {
 quadGridCache <- nimbleFunction(
     contains = QUAD_CACHE_BASE,
     setup = function() {
-        quadGridList_internal <- quadGridListDef
         nodes_cached <- matrix(0, nrow = 1, ncol = 1)
         weights_cached <- c(0, 0)
         modeIndex_cached <- -1
@@ -211,12 +210,13 @@ configureQuadGrid <- nimbleFunction(
           gridBuilt <- c(gridBuilt, FALSE)
           nGrid <- c(nGrid, 0)
           quadRules <- c(quadRules, "NULL")
-        }        
+          modeI <- c(modeI, -1)
+        }
     },
     run = function() {
     },
     methods = list(
-        ## NOCHNG means keep it as is, and nQuad = -1.
+        ## NULL means keep it as is, and nQuad = -1.
         buildGrid = function(method = character(0, default = "NULL"),
                              nQuad = integer(0, default = -1), 
                              prune = double(0, default = -1)) {

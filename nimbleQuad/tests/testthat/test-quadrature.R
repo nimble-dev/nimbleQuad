@@ -4,6 +4,29 @@ library(testthat)
 source("../../R/quadratureRules.R")
 source("../../R/quadratureGrids.R")
 
+test_that("Returns Laplace when nQuad = 1, and one rule is passed.", {
+  ## 1D Case
+  quadGrid <- configureQuadGrid(d=1, levels=1, quadRule = "AGHQ")
+  cquadGrid <- compileNimble(quadGrid)
+  cquadGrid$buildGrid()
+  expect_equal(cquadGrid$modeIndex(), 1)
+  nodes <- cquadGrid$nodes()
+  expect_equal(nodes[1,1], 0)
+  wgts <- cquadGrid$weights()
+  expect_equal(wgts[1], sqrt(2*pi))
+  ans <- sum(dnorm(nodes)*wgts)
+  expect_equal(ans, 1, tol = 1e-14)
+
+  ## Increase number of nodes:
+  cquadGrid$buildGrid(nQuad = 11)
+  nodes <- cquadGrid$nodes()
+  wgts <- cquadGrid$weights()
+  nw <- mvQuad::createNIGrid(dim=1, type="GHe", level=11)
+  expect_equal(wgts, nw$weights[,1], tol = 1e-12)
+  expect_equal(nodes, nw$nodes, tol = 1e-12)
+})
+
+
 test_that("Quadrature Grid Configures Correctly", {
   
   ## 1D Case
@@ -112,54 +135,56 @@ test_that("AGHQ Pruning works.", {
 ## *** NEED TO ASK CHRIS about how to get this function recognized by the configureQuadGrid function in testthat environment.
 # test_that("User provided quadratuture rule.", {
   ## Try to include a user defined quadrature rule:
-  RmvQuad <- function(levels, d) {
-    out <- mvQuad::createNIGrid(dim=d, type = "GLe", level=levels)
-    out <- cbind(out$weights, out$nodes)
-  }
-  nimMVQuad <- nimbleRcall(function(levels = double(), d = double()){}, Rfun = "RmvQuad", returnType = double(2))
-  quadRule_USER <- nimbleFunction(
-      contains = QUAD_RULE_BASE,
-      name = "quadRule_USER",
-      setup = function() {},
-      run = function() {},
-      methods = list(
-          buildGrid = function(levels = integer(0, default = 0), d = integer(0, default = 1)) {
-              output <- nimMVQuad(levels, d)
-              returnType(double(2))
-              return(output)
-          }
-      )
-  )
+  # RmvQuad <- function(levels, d) {
+    # out <- mvQuad::createNIGrid(dim=d, type = "GLe", level=levels)
+    # out <- cbind(out$weights, out$nodes)
+  # }
+  # nimMVQuad <- nimbleRcall(function(levels = double(), d = double()){}, Rfun = "RmvQuad", returnType = double(2))
+  # quadRule_USER <- nimbleFunction(
+      # contains = QUAD_RULE_BASE,
+      # name = "quadRule_USER",
+      # setup = function() {},
+      # run = function() {},
+      # methods = list(
+          # buildGrid = function(levels = integer(0, default = 0), d = integer(0, default = 1)) {
+              # output <- nimMVQuad(levels, d)
+              # returnType(double(2))
+              # return(output)
+          # }
+      # )
+  # )
 
-  quadGrid_user <- configureQuadGrid(d=2, levels=3, quadRule = "USER", control = list(quadRules = c("USER", "USERMULTI", "USERSPARSE")))
-  cquadGrid_user <- compileNimble(quadGrid_user)
-  cquadGrid_user$buildGrid(method = "USER")
-  nodes <- cquadGrid_user$nodes()
-  wgts <- cquadGrid_user$weights()
-  nw <- mvQuad::createNIGrid(dim=2, type="GLe", level=3, ndConstruction = "product")
-  ord1 <- do.call(order, data.frame(nodes))
-  ord2 <- do.call(order, data.frame(nw$nodes))
-  expect_equal(wgts[ord1], nw$weights[ord2,1], tol = 1e-12)
-  expect_equal(matrix(nodes[ord1,]), matrix(nw$nodes[ord2,]), tol = 1e-12)
+  # quadGrid_user <- configureQuadGrid(d=2, levels=3, quadRule = "USER", control = list(quadRules = c("USER", "USERMULTI", "USERSPARSE")))
+  # cquadGrid_user <- compileNimble(quadGrid_user)
+  # cquadGrid_user$buildGrid(method = "USER")
+  # nodes <- cquadGrid_user$nodes()
+  # wgts <- cquadGrid_user$weights()
+  # nw <- mvQuad::createNIGrid(dim=2, type="GLe", level=3, ndConstruction = "product")
+  # ord1 <- do.call(order, data.frame(nodes))
+  # ord2 <- do.call(order, data.frame(nw$nodes))
+  # expect_equal(wgts[ord1], nw$weights[ord2,1], tol = 1e-12)
+  # expect_equal(matrix(nodes[ord1,]), matrix(nw$nodes[ord2,]), tol = 1e-12)
 
-  cquadGrid_user$buildGrid(method = "USERMULTI")
-  nodes2 <- cquadGrid_user$nodes()
-  wgts2 <- cquadGrid_user$weights()
-  expect_equal(wgts, wgts2, tol = 1e-15)
-  expect_equal(nodes, nodes2, tol = 1e-15)
+  # cquadGrid_user$buildGrid(method = "USERMULTI")
+  # nodes2 <- cquadGrid_user$nodes()
+  # wgts2 <- cquadGrid_user$weights()
+  # expect_equal(wgts, wgts2, tol = 1e-15)
+  # expect_equal(nodes, nodes2, tol = 1e-15)
   
-  cquadGrid_user$buildGrid(method = "USERSPARSE") 
-  nodes <- cquadGrid_user$nodes()
-  wgts <- cquadGrid_user$weights()
-  dup <- duplicated(nodes)
-  nodes <- nodes[!dup,]
-  wgts <- wgts[!dup]
-  nw <- mvQuad::createNIGrid(dim=2, type="GLe", level=3, ndConstruction = "sparse")
-  ord1 <- do.call(order, data.frame(nodes))
-  ord2 <- do.call(order, data.frame(nw$nodes))
-  # expect_equal(wgts[ord1], nw$weights[ord2,1], tol = 1e-12) ## Inefficient combination of repeated values possible. May need to check duplicates... Is that faster? I don't know.
-  expect_equal(matrix(nodes[ord1,]), matrix(nw$nodes[ord2,]), tol = 1e-12)
+  # cquadGrid_user$buildGrid(method = "USERSPARSE") 
+  # nodes3 <- cquadGrid_user$nodes()
+  # wgts3 <- cquadGrid_user$weights()
+  # dup <- duplicated(nodes3)
+  # nodes3 <- nodes3[!dup,]
+  # wgts3 <- wgts3[!dup]
+  # nw <- mvQuad::createNIGrid(dim=2, type="GLe", level=3, ndConstruction = "sparse")
+  # ord1 <- do.call(order, data.frame(nodes3))
+  # ord2 <- do.call(order, data.frame(nw$nodes))
+  ## expect_equal(wgts[ord1], nw$weights[ord2,1], tol = 1e-12) ## Inefficient combination of repeated values possible. May need to check duplicates... Is that faster? I don't know.
+  # expect_equal(matrix(nodes3[ord1,]), matrix(nw$nodes[ord2,]), tol = 1e-12)
 # })
+
+## Write a buildGridTest
 
 ## Need to write a test for the "inner_cache_methods"
 

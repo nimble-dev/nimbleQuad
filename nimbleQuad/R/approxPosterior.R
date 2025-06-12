@@ -276,23 +276,30 @@ buildNestedApprox <- nimbleFunction(
             one_time_fixes()
             if(nQuadUpdate != -1)
                 nQuadOuter <<- nQuadUpdate
-            if(quadRule != "NULL")
-                setHyperGridRule(quadRule)
-            if(prune != -1) 
+            if(quadRule != "NULL" )
+              setHyperGridRule(quadRule)
+            if(prune != -1)
                 pruneHyperGrid <<- prune
             theta_grid$buildGrid(method = hyperGridRule, nQuad = nQuadOuter, prune = pruneHyperGrid)
             nGrid <- theta_grid$gridSize()
             inner_grid_cache_nfl[[I_GRID]]$buildCache(nGridUpdate = nGrid, nLatentNodes = nre)
             if (!modeCached) posteriorMode(rep(Inf, npar), hessian = TRUE, parscale = "transformed")
         },
-        setHyperGridRule = function(quadRule = character(0, default = "AGHQ")) {
-            ## Add a rule check here to make sure it's valid.
-            hyperGridRule <<- quadRule
-            ## Default to AGHQ and change if requested.
-            I_GRID <<- I_AGHQ
-            if (quadRule == "CCD") I_GRID <<- I_CCD
-            if (quadRule == "USER") I_GRID <<- I_USER
-            if (quadRule == "AGHQSPARSE") I_GRID <<- I_AGHQSPARSE
+        setHyperGridRule = function(quadRule = character(0, default = "NULL")) {
+            valid_rule <- TRUE
+            if(quadRule == "AGHQ"){
+              I_GRID <<- I_AGHQ
+            }else if(quadRule == "CCD"){
+              I_GRID <<- I_CCD
+            }else if(quadRule == "USER"){
+              I_GRID <<- I_USER
+            }else if(quadRule == "AGHQSPARSE"){
+              I_GRID <<- I_AGHQSPARSE
+            }else{
+              valid_rule <- FALSE
+            }
+            if(valid_rule)
+              hyperGridRule <<- quadRule
         },
         calcEigen = function() {
             E <- eigen(thetaNegHess, symmetric = TRUE)  ## Should be symmetric...
