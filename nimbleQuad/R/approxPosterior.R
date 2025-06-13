@@ -67,7 +67,7 @@ buildNestedApprox <- nimbleFunction(
         if(hyperGridRule == "AGHQ" && nQuadOuter %% 2 == 0)
             messageIfVerbose("  [Note] For computational efficiency, it is recommended to use an odd number of quadrature points\n         for the parameter (outer) grid (`nQuadOuter`).")
         
-        ## Default to CCD
+        ## Default to CCD (in which case `nQuadOuter` is ignored).
         theta_grid <- configureQuadGrid(d = 1, nQuad_ = nQuadOuter, quadRule = hyperGridRule,
                                         control = list(quadRules = allGridRules))
 
