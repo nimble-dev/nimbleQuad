@@ -225,8 +225,8 @@ buildNestedApprox <- nimbleFunction(
 
         ## Other cached values:
         skewedSDCached <- FALSE
-        ## Must be cached for each grid: Up to 3 currently.
-        hyperGridCached <- c(FALSE, FALSE, FALSE)
+        ## Must be cached for each grid: Up to 4 currently.
+        hyperGridCached <- c(FALSE, FALSE, FALSE, FALSE)
 
         ## Indicator for removing the redundant index -1 in theta_indices
         one_time_fixes_done <- FALSE
@@ -282,7 +282,10 @@ buildNestedApprox <- nimbleFunction(
                 pruneHyperGrid <<- prune
             theta_grid$buildGrid(method = hyperGridRule, nQuad = nQuadOuter, prune = pruneHyperGrid)
             nGrid <- theta_grid$gridSize()
+            nCache <- inner_grid_cache_nfl[[I_GRID]]$gridSize()
             inner_grid_cache_nfl[[I_GRID]]$buildCache(nGridUpdate = nGrid, nLatentNodes = nre)
+            ## If grid changed, then need to update here that we have to calcHyperGrid again too.
+            if(nGrid != nCache) hyperGridCached[I_GRID] <<- FALSE
             if (!modeCached) posteriorMode(rep(Inf, npar), hessian = TRUE, parscale = "transformed")
         },
         setHyperGridRule = function(quadRule = character(0, default = "NULL")) {
@@ -414,6 +417,10 @@ buildNestedApprox <- nimbleFunction(
             setTransformations(transformMethod)
             nGrid <- theta_grid$gridSize()
             
+            ## Check to make sure cache is working correctly:
+            if(length(inner_grid_cache_nfl[[I_GRID]]$weights()) != nGrid)
+                stop("The grid cache system does not match the quadrature grid being calculated.")
+            
             if (!skewedSDCached & skew) calcSkewedSD()
             ans <- 0
             ## Now fill in the grid values.
@@ -470,7 +477,7 @@ buildNestedApprox <- nimbleFunction(
         calcMarginalLogLikQuad = function() {
             if (I_GRID == I_CCD)
                 print("  [Note]: Estimating marginal log-likelihood based on CCD grid.\n           Estimation based on an AGHQ grid may be more accurate (but more computationally expensive).")
-            if(!hyperGridCached[I_GRID])
+            if( !hyperGridCached[I_GRID] )
                 calcHyperGrid()
             returnType(double())
             return(marginalPostDensity[I_GRID])

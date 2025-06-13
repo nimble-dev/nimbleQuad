@@ -16,6 +16,7 @@ test_that("Returns Laplace when nQuad = 1, and one rule is passed.", {
   expect_equal(wgts[1], sqrt(2*pi))
   ans <- sum(dnorm(nodes)*wgts)
   expect_equal(ans, 1, tol = 1e-14)
+  expect_equal(cquadGrid$gridSize(), length(wgts))
 
   ## Increase number of nodes:
   cquadGrid$buildGrid(nQuad = 11)
@@ -24,19 +25,22 @@ test_that("Returns Laplace when nQuad = 1, and one rule is passed.", {
   nw <- mvQuad::createNIGrid(dim=1, type="GHe", level=11)
   expect_equal(wgts, nw$weights[,1], tol = 1e-12)
   expect_equal(nodes, nw$nodes, tol = 1e-12)
+  expect_equal(cquadGrid$gridSize(), length(wgts))
+  expect_equal(length(wgts), nrow(nodes))
 })
-
 
 test_that("Quadrature Grid Configures Correctly", {
   
   ## 1D Case
-  quadGrid <- configureQuadGrid(d=1, levels=3, quadRule = "AGHQ", control = list(quadRules = c("AGHQ", "CCD", "AGHQSPARSE")))
-  cquadGrid <- compileNimble(quadGrid)
-  cquadGrid$buildGrid()
-  nodes <- cquadGrid$nodes()
-  wgts <- cquadGrid$weights()
+  quadGrid1 <- configureQuadGrid(d=1, levels=3, quadRule = "AGHQ", control = list(quadRules = c("AGHQ", "CCD", "AGHQSPARSE")))
+  cquadGrid1 <- compileNimble(quadGrid1)
+  cquadGrid1$buildGrid()
+  nodes <- cquadGrid1$nodes()
+  wgts <- cquadGrid1$weights()
   ans <- sum(dnorm(nodes)*wgts)
   expect_equal(ans, 1, tol = 1e-14)
+  expect_equal(cquadGrid1$gridSize(), length(wgts))
+  expect_equal(length(wgts), nrow(nodes))
 
   ## Check against mvQuad
   nw <- mvQuad::createNIGrid(dim=1, type="GHe", level=3)
@@ -44,12 +48,14 @@ test_that("Quadrature Grid Configures Correctly", {
   expect_equal(nodes, nw$nodes, tol = 1e-14)
 
   ## Now change the dimension:
-  cquadGrid$setDim(2)
-  cquadGrid$buildGrid()
-  nodes <- cquadGrid$nodes()
-  wgts <- cquadGrid$weights()
+  cquadGrid1$setDim(2)
+  cquadGrid1$buildGrid()
+  nodes <- cquadGrid1$nodes()
+  wgts <- cquadGrid1$weights()
   ans <- sum(dnorm(nodes[,1])*dnorm(nodes[,2])*wgts) ## Weights and nodes should sum to 1 on mvnorm.
   expect_equal(ans, 1, tol = 1e-14)
+  expect_equal(cquadGrid1$gridSize(), length(wgts))
+  expect_equal(length(wgts), nrow(nodes))
 
   ## Check against mvQuad
   nw <- mvQuad::createNIGrid(dim=2, type="GHe", level=3)
@@ -57,17 +63,33 @@ test_that("Quadrature Grid Configures Correctly", {
   expect_equal(nodes, nw$nodes, tol = 1e-14)
 
   ## Increase number of nodes:
-  cquadGrid$buildGrid(nQuad = 11)
-  nodes <- cquadGrid$nodes()
-  wgts <- cquadGrid$weights()
+  cquadGrid1$buildGrid(nQuad = 11)
+  nodes <- cquadGrid1$nodes()
+  wgts <- cquadGrid1$weights()
   nw <- mvQuad::createNIGrid(dim=2, type="GHe", level=11)
   expect_equal(wgts, nw$weights[,1], tol = 1e-12)
   expect_equal(nodes, nw$nodes, tol = 1e-12)
+  expect_equal(cquadGrid1$gridSize(), length(wgts))
+  expect_equal(length(wgts), nrow(nodes))
+  modei <- cquadGrid1$modeIndex()
+  expect_equal(nodes[modei,], c(0,0))
+
+  ## Check even number:
+  cquadGrid1$buildGrid(nQuad = 6)
+  nodes <- cquadGrid1$nodes()
+  wgts <- cquadGrid1$weights()
+  nw <- mvQuad::createNIGrid(dim=2, type="GHe", level=6)
+  expect_equal(wgts, nw$weights[,1], tol = 1e-12)
+  expect_equal(nodes, nw$nodes, tol = 1e-12)
+  expect_equal(cquadGrid1$gridSize(), length(wgts))  ## Make sure cache is correct:
+  expect_equal(length(wgts), nrow(nodes))
+  modei <- cquadGrid1$modeIndex()
+  expect_equal(modei, -1)
 
   ## Check against a sparse grid:
-  cquadGrid$buildGrid(method = "AGHQSPARSE", nQuad = 3)
-  nodes <- cquadGrid$nodes()
-  wgts <- cquadGrid$weights()
+  cquadGrid1$buildGrid(method = "AGHQSPARSE", nQuad = 3)
+  nodes <- cquadGrid1$nodes()
+  wgts <- cquadGrid1$weights()
   nw <- mvQuad::createNIGrid(dim=2, type="GHe", level=3, ndConstruction = "sparse")
   nw$nodes[abs(nw$nodes) < 1e-15] <- 0  ## Make some hard zeros to align, otherwise not in same order.
   ord1 <- do.call(order, data.frame(nodes))
@@ -81,10 +103,10 @@ test_that("Quadrature Grid Configures Correctly", {
   f0 <- 1.1
   d <- 2
   ccddesign1 <- ccddesign1*f0
-  cquadGrid$buildGrid(method = "CCD")
-  nodes <- cquadGrid$nodes()
-  wgts <- cquadGrid$weights()
-  ## Manually cacl weights:
+  cquadGrid1$buildGrid(method = "CCD")
+  nodes <- cquadGrid1$nodes()
+  wgts <- cquadGrid1$weights()
+  ## Manually caclulate weights:
   nQ <- nrow(nodes)
   wgts_ <- c(0, rep(1/((nQ - 1) * f0^2 * (2 * pi)^(-d/2) * exp(-d * f0^2/2)), nQ-1))
   wgts_[1] <- (2 * pi)^(d/2) * (1 - f0^-2)
@@ -92,6 +114,11 @@ test_that("Quadrature Grid Configures Correctly", {
   ord1 <- do.call(order, data.frame(ccddesign1))
   ord2 <- do.call(order, data.frame(nodes))
   expect_equal(ccddesign1[ord1,], nodes[ord2,], tol = 1e-5) ## Not totally accurate as INLA just saves in text.
+
+  expect_equal(cquadGrid1$gridSize(), length(wgts))  ## Make sure cache is correct:
+  expect_equal(length(wgts), nrow(nodes))
+  modei <- cquadGrid1$modeIndex()
+  expect_equal(modei, 1)  ## CCD mode should be first value I think.
 })
 
 ## Should separate CCD test and add a higher dimension example.
@@ -107,6 +134,11 @@ test_that("AGHQ Pruning works.", {
   expect_equal(nQ, nrow(nodes))
   expect_equal(nodes[cquadGrid2$modeIndex(),], numeric(3))
 
+  expect_equal(cquadGrid2$gridSize(), length(wgts))  ## Make sure cache is correct:
+  expect_equal(length(wgts), nrow(nodes))
+  modei <- cquadGrid2$modeIndex()
+  expect_equal(nodes[modei,], c(0,0,0))
+
   cquadGrid2$buildGrid(prune = 0.2)
   nodes.p <- cquadGrid2$nodes()
   wgts.p <- cquadGrid2$weights()
@@ -118,6 +150,11 @@ test_that("AGHQ Pruning works.", {
   q <- quantile(wgts.adj, 0.2) + 1e-16
   expect_equal(sum(wgts.adj > q)/nQ, nQp/nQ, tol = 1e-14)
   expect_equal(wgts[wgts.adj > q], wgts.p)
+
+  expect_equal(cquadGrid2$gridSize(), length(wgts))  ## Make sure cache is correct:
+  expect_equal(length(wgts), nrow(nodes))
+  modei <- cquadGrid2$modeIndex()
+  expect_equal(nodes.p[modei,], c(0,0,0))
  
   cquadGrid2$buildGrid(prune = 0)
   nodes.up <- cquadGrid2$nodes()
@@ -125,6 +162,11 @@ test_that("AGHQ Pruning works.", {
   ## Ensures that the pruning is removed.
   expect_equal(nodes, nodes.up, tol = 1e-16)
   expect_equal(wgts, wgts.up, tol = 1e-16)
+
+  expect_equal(cquadGrid2$gridSize(), length(wgts))  ## Make sure cache is correct:
+  expect_equal(length(wgts), nrow(nodes))
+  modei <- cquadGrid2$modeIndex()
+  expect_equal(nodes[modei,], c(0,0,0))
 
   ## Error checks:
   expect_error(cquadGrid2$buildGrid(prune = 0.999), "Will not prune to less than 3 quadrature points. Choose another pruning proportion or switch to Laplace, one quadrature node.")
