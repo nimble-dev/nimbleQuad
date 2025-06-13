@@ -84,8 +84,11 @@ approxSummary <- R6Class("approxSummary",
             
             invisible(self)
         },
-        improveMarginals = function(nodes, nMarginalGrid = 5, nQuad = 3) {
-            improveMarginals(self, nodes, nMarginalGrid, nQuad)
+        setParamGrid = function(summary, quadRule = "NULL", nQuad = -1, prune = -1){
+            setParamGrid(self, quadRule, nQuad, prune)
+        },
+        improveMarginals = function(nodes, nMarginalGrid = 5, nQuad = 3, quadRule = "NULL", prune = -1, transform = "spectral") {
+            improveMarginals(self, nodes, nMarginalGrid, nQuad, quadRule, prune, transform)
         },
         calcMarginalLogLikImproved = function() {
             calcMarginalLogLikImproved(self)
@@ -107,6 +110,9 @@ approxSummary <- R6Class("approxSummary",
         },
         emarginal = function(node, functional, ...) {
             emarginal(self, node, functional, ...)
+        },
+        plotMarginal = function(node, x, log = FALSE, add = FALSE, ...){
+            plotMarginal(self, node, x, log, add = add, ...)
         },
         approx = NULL,
         quantiles = NULL,
@@ -202,6 +208,11 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
     return(summary)
 }
 
+## Add option for the user to change the parameter grid in the wrapper.
+setParamGrid <- function(summary, quadRule = "NULL", nQuad = -1, prune = -1){
+  summary$approx$buildHyperGrid(quadRule, nQuad, prune)
+}
+
 ## Helper function that takes either a character string for an original node element
 ## and returns transformed parameter index (if in a 1:1 transformation)
 ## or simply checks that the index of the transformed parameter is valid.
@@ -223,7 +234,8 @@ getNodeIndex <- function(node, Rapprox) {
 ## This uses d-1 dimensional AGHQ to get improved univariate marginal estimates
 ## for parameters.
 ## Should it be called `improveParamMarginals`?
-improveMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad = 3) {
+## Note that quadRule = "NULL" makes sure the default is orginal user choice.
+improveMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad = 3, quadRule = "NULL", prune = -1, transform = "spectral") {
     Rapprox <- summary$approx$Robject
 
     originalScale <- summary$originalScale
@@ -249,7 +261,8 @@ improveMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad = 3) {
             if(is.character(nodes[i])) paramName <- nodes[i] else paramName <- paste0("param_trans", nodes[i])
         
             summary$marginalsRaw[[idx]] <- summary$approx$findMarginalPosteriorDensity(idx,
-                                                                                       nPts = nMarginalGrid, nQuad = nQuad)
+                                                                                       nPts = nMarginalGrid, nQuad = nQuad, gridTransformMethod = transform, 
+                                                                                       quadRule = quadRule, prune = prune)
             summary$marginalsApprox[[idx]] <- fitMarginalSpline(summary$marginalsRaw[[idx]])
             
             summary$quantiles[[paramName]] <- estimateQuantiles(summary$marginalsApprox[[idx]],
@@ -364,13 +377,15 @@ rmarginal <- function(summary, node, n = 1000) {
 
 dmarginal <- function(summary, node, x, log = FALSE) {
     Rapprox <- summary$approx$Robject
+    logDetJac <- 0
     if(is.character(node)) {
         paramTransform  <- parameterTransform(Rapprox$model, node)
         x <- sapply(x, paramTransform$transform)
+        logDetJac <- sapply(x, paramTransform$logDetJacobian)
     }
     idx <- getNodeIndex(node, Rapprox)
+    logPDF <- fitMarginalSpline(summary$marginalsRaw[[idx]], xnew = x) - logDetJac
 
-    logPDF <- fitMarginalSpline(summary$marginalsRaw[[idx]], xnew = x)
     if(log) return(logPDF) else return(exp(logPDF))
 }
 
@@ -381,4 +396,18 @@ emarginal <- function(summary, node, functional, ...) {
     idx <- getNodeIndex(node, Rapprox)
     expectation <- estimateExpectations(summary$marginalsApprox[[idx]], paramTransform, functional, ...)
     return(expectation)
+}
+
+plotMarginal <- function(summary, node, log = FALSE, add = FALSE, ...){
+    minmax <- summary$qmarginal(node, c(.001, 0.999))
+    x <- seq(minmax[1], minmax[2], length = 200)
+    y <- summary$dmarginal(node, x, log)
+    if(log) 
+      ylab <- "Log Posterior Density"
+    else
+      ylab <- "Posterior Density"
+    if(!add)
+      plot(x, y, type = 'l', xlab = node, ylab = ylab,...)
+    else
+      lines(x, y, xlab = xlab, ylab = ylab,...)
 }
