@@ -245,7 +245,7 @@ improveMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad = 3) {
     for (i in seq_along(nodes)) {
         ## Improve marginal and insert into raw and summary objects.
         idx <- getNodeIndex(nodes[i], Rapprox)
-        if(idx > 0) {
+        if(!originalScale || idx > 0) {
             if(is.character(nodes[i])) paramName <- nodes[i] else paramName <- paste0("param_trans", nodes[i])
         
             summary$marginalsRaw[[idx]] <- summary$approx$findMarginalPosteriorDensity(idx,
