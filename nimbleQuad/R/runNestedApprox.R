@@ -157,7 +157,7 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
             quantileEsts[[i]] <- estimateQuantiles(marginalsApprox[[i]], NULL, quantiles)
             expectations[[i]] <- estimateExpectations(marginalsApprox[[i]], NULL)
             names(indivParamTransforms) <- names(quantileEsts) <- names(expectations) <-
-                paste0("param", seq_len(nParamTrans))
+                paste0("param_trans", seq_len(nParamTrans))
         }
     }
 
@@ -169,9 +169,9 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
             if(idx > 0) {  # 1:1 case
                 cnt <- cnt + 1
                 indivParamTransforms[[cnt]] <- parameterTransform(Rapprox$model, Rapprox$paramNodesComponents[i])
-                quantileEsts[[cnt]] <- estimateQuantiles(marginalsApprox[[idx]], indivParamTransforms[[i]],
+                quantileEsts[[cnt]] <- estimateQuantiles(marginalsApprox[[idx]], indivParamTransforms[[cnt]],
                                                          quantiles)
-                expectations[[cnt]] <- estimateExpectations(marginalsApprox[[idx]], indivParamTransforms[[i]])
+                expectations[[cnt]] <- estimateExpectations(marginalsApprox[[idx]], indivParamTransforms[[cnt]])
             }
         }
         names(quantileEsts) <- names(expectations) <- names(indivParamTransforms) <-
@@ -223,7 +223,7 @@ getNodeIndex <- function(node, Rapprox) {
             stop("node `", nodes[i], "` is not a parameter element or is not involved in a 1:1 parameter transformation, so marginals cannot be estimated by analytic approximation. In the latter case, use `sampleParamNodes` for inference.")
         idx <- Rapprox$paramNodesIndices[mtch]
     } else {
-        if(node > Rapprox$innerMethods$pTransform_length)
+        if(node > Rapprox$innerMethods$nparTrans)
             stop("Numeric index value ", node, " exceeds number of transformed parameters")
         idx <- node
     }
@@ -257,8 +257,8 @@ improveMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad = 3, quadR
     for (i in seq_along(nodes)) {
         ## Improve marginal and insert into raw and summary objects.
         idx <- getNodeIndex(nodes[i], Rapprox)
-        if(idx > 0) {
-            if(is.character(nodes[i])) paramName <- nodes[i] else paramName <- paste0("param", nodes[i])
+        if(!originalScale || idx > 0) {
+            if(is.character(nodes[i])) paramName <- nodes[i] else paramName <- paste0("param_trans", nodes[i])
         
             summary$marginalsRaw[[idx]] <- summary$approx$findMarginalPosteriorDensity(idx,
                                                                                        nPts = nMarginalGrid, nQuad = nQuad, gridTransformMethod = transform, 
@@ -311,7 +311,7 @@ sampleParamNodes <- function(summary, n = 1000, matchMarginals = TRUE) {
                                                            returnScalarComponents = TRUE)
     } else {
         samples <- samplesTrans
-        colnames(samples) <- paste0("param", seq_len(ncol(samples)))
+        colnames(samples) <- paste0("param_trans", seq_len(ncol(samples)))
     }
 
     ## TODO: check that INLA's improve.marginals does nothing for non 1:1
@@ -323,15 +323,25 @@ sampleParamNodes <- function(summary, n = 1000, matchMarginals = TRUE) {
 ## Potentially called from runNestedApprox or independently.
 sampleLatentNodes <- function(summary, n = 1000, includeParams = FALSE) {
     Rapprox <- summary$approx$Robject
+    originalScale <- summary$originalScale
+
     samples <- summary$approx$simulateLatentEffects(n)
 
     ## Grid-based marginal log-likelihood comes "for free" if simulate parameters.
     summary$marginalLogLik_improved <- summary$approx$calcMarginalLogLikQuad()
 
-    nms <- Rapprox$innerMethods$reNodesAsScalars_vec
+    if(originalScale) {
+        nms <- Rapprox$innerMethods$reNodesAsScalars_vec
+    } else nms <- paste0("latent_trans", seq_len(Rapprox$nreTrans))
     if(dim(samples)[2] == 2) 
         nms <- nms[1]
+
+    if(originalScale) {
+        samplesTrans <- t(apply(samples[ , -1], 1, Rapprox$innerMethods$reTransform$inverseTransform))
+        samples <- cbind(samples[ , 1], samplesTrans)
+    }
     colnames(samples) <- c("index", nms)
+    
     if (includeParams) {
         paramValues <- summary$approx$getParamGrid()
         if(summary$originalScale) {
@@ -342,7 +352,7 @@ sampleLatentNodes <- function(summary, n = 1000, includeParams = FALSE) {
         paramSamples <- paramValues[samples[, "index"], , drop = FALSE]
         if(summary$originalScale) {
             colnames(paramSamples) <- Rapprox$paramNodesComponents
-        } else colnames(paramSamples) <- paste0('param', seq_len(Rapprox$theta_length))
+        } else colnames(paramSamples) <- paste0('param_trans', seq_len(Rapprox$theta_length))
         samples <- cbind(samples, paramSamples)
     }
     summary$samples <- samples[, -1, drop = FALSE]

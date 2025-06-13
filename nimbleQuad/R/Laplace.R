@@ -37,6 +37,7 @@ AGHQuad_BASE <- nimbleFunctionVirtual(
       returnType(double(2))
     },
     reset_outer_logLik = function(){},
+    get_reTransLength = function(){returnType(double(0))},
     save_outer_logLik = function(logLikVal = double()){},
     get_param_value = function(atOuterMode = integer(0, default = 0)){
       returnType(double(1))
@@ -54,14 +55,14 @@ AGHQuad_BASE <- nimbleFunctionVirtual(
       returnType(double())
     },
     updateSettings = function(optimMethod = character(0, default="NULL"),
-                               optimStart = character(0, default="NULL"),
-                               optimStartValues = double(1, default=Inf),
-                               optimWarning = integer(0, default = -1),
-                               useInnerCache = integer(0, default=-1),
-                               nQuad = integer(0, default=-1),
-                               quadTransform = character(0, default="NULL"),
-                               optimControl = optimControlNimbleList(default=nimOptimDefaultControl()),
-                               replace_optimControl = logical(0, default=FALSE)) {
+                              optimStart = character(0, default="NULL"),
+                              optimStartValues = double(1, default=Inf),
+                              optimWarning = integer(0, default = -1),
+                              useInnerCache = integer(0, default=-1),
+                              nQuad = integer(0, default=-1),
+                              quadTransform = character(0, default="NULL"),
+                              optimControl = optimControlNimbleList(default=nimOptimDefaultControl()),
+                              replace_optimControl = logical(0, default=FALSE)) {
     },
     ## set_nQuad = function(nQUpdate = integer()){},
     ## set_transformation = function(transformation = character()){},
@@ -193,9 +194,6 @@ buildOneAGHQuad1D <- nimbleFunction(
     joint_updateNodes   <- joint_derivsInfo$updateNodes
     joint_constantNodes <- joint_derivsInfo$constantNodes
     
-    ## Automated transformation for random effects to ensure range of (-Inf, Inf) 
-    ## reTrans <- parameterTransform(model, randomEffectsNodes)
-    
     ## The following are used for caching values and gradient in the Laplace3 system
     logLik3_saved_value <- -Inf # numeric(1)
     logLik3_saved_gr <- if(npar > 1) numeric(npar) else as.numeric(c(1, -1))
@@ -293,14 +291,14 @@ buildOneAGHQuad1D <- nimbleFunction(
       one_time_fixes_done <<- TRUE
     },
     updateSettings = function(optimMethod = character(0, default="NULL"),
-                               optimStart = character(0, default="NULL"),
-                               optimStartValues = double(1, default=Inf),
-                               optimWarning = integer(0, default = -1),
-                               useInnerCache = integer(0, default=-1),
-                               nQuad = integer(0, default=-1),
-                               quadTransform = character(0, default="NULL"),
-                               optimControl = optimControlNimbleList(default=nimOptimDefaultControl()),
-                               replace_optimControl = logical(0, default=FALSE)) {
+                              optimStart = character(0, default="NULL"),
+                              optimStartValues = double(1, default=Inf),
+                              optimWarning = integer(0, default = -1),
+                              useInnerCache = integer(0, default=-1),
+                              nQuad = integer(0, default=-1),
+                              quadTransform = character(0, default="NULL"),
+                              optimControl = optimControlNimbleList(default=nimOptimDefaultControl()),
+                              replace_optimControl = logical(0, default=FALSE)) {
       # Checking should have been done already. Or, if this is being called directly,
       # it will be for development or advanced uses and we can skip checking.
       if(optimMethod != "NULL") optimMethod_ <<- optimMethod
@@ -326,8 +324,9 @@ buildOneAGHQuad1D <- nimbleFunction(
           }
         }
       }
-      if((!one_time_fixes_done) & (length(constant_init_par) == 1))
+      if((!one_time_fixes_done) & (length(constant_init_par) == 1)) {
          constant_init_par <<- c(constant_init_par, -1)
+      }
       if(optimWarning != -1) {
         warn_optim <<- optimWarning != 0
       }
@@ -359,6 +358,11 @@ buildOneAGHQuad1D <- nimbleFunction(
       }
       return(ans)
       returnType(double(1))
+    },
+    get_reTransLength = function() {
+      returnType(double(0))
+      nreTrans <- 1
+      return(nreTrans)
     },
     ## Joint log-likelihood with values of parameters fixed: used only for inner optimization
     inner_logLik = function(reTransform = double(1)) {
@@ -1128,14 +1132,14 @@ buildOneAGHQuad <- nimbleFunction(
       one_time_fixes_done <<- TRUE
     },
     updateSettings = function(optimMethod = character(0, default="NULL"),
-                               optimStart = character(0, default="NULL"),
-                               optimStartValues = double(1, default=Inf),
-                               optimWarning = integer(0, default = -1),
-                               useInnerCache = integer(0, default=-1),
-                               nQuad = integer(0, default=-1),
-                               quadTransform = character(0, default="NULL"),
-                               optimControl = optimControlNimbleList(default=nimOptimDefaultControl()),
-                               replace_optimControl = logical(0, default=FALSE)) {
+                              optimStart = character(0, default="NULL"),
+                              optimStartValues = double(1, default=Inf),
+                              optimWarning = integer(0, default = -1),
+                              useInnerCache = integer(0, default=-1),
+                              nQuad = integer(0, default=-1),
+                              quadTransform = character(0, default="NULL"),
+                              optimControl = optimControlNimbleList(default=nimOptimDefaultControl()),
+                              replace_optimControl = logical(0, default=FALSE)) {
       # Checking should have been done already. Or, if this is being called directly,
       # it will be for development or advanced uses and we can skip checking.
       if(optimMethod != "NULL") optimMethod_ <<- optimMethod
@@ -1253,7 +1257,7 @@ buildOneAGHQuad <- nimbleFunction(
     he_inner_logLik = function(reTransform = double(1)) {
       ans <- derivs(he_inner_logLik_internal_as_vec(reTransform), wrt = reTrans_indices_inner, order = 0, model = model,
                     updateNodes = inner_updateNodes, constantNodes = inner_constantNodes)
-      res <- matrix(value = ans$value, nrow = length(reTransform), ncol = length(reTransform))
+      res <- matrix(value = ans$value, nrow = nreTrans, ncol = nreTrans)
       return(res)
       returnType(double(2))
     },
@@ -1466,7 +1470,7 @@ buildOneAGHQuad <- nimbleFunction(
       #  and re-constituting as a matrix when needed.
       joint_logLik_res <- derivs(joint_logLik(p, reTransform), wrt = p_and_reTrans_indices, order = c(1, 2),
                                  model = model, updateNodes = joint_updateNodes, constantNodes = joint_constantNodes)
-      negHessUpper <- matrix(init = FALSE, nrow = nre, ncol = nreTrans)
+      negHessUpper <- matrix(init = FALSE, nrow = nreTrans, ncol = nreTrans)
       for(i in 1:nreTrans){
         for(j in i:nreTrans){
           negHessUpper[i,j] <- -joint_logLik_res$hessian[npar + i, npar + j, 1]
@@ -1475,7 +1479,7 @@ buildOneAGHQuad <- nimbleFunction(
       # for(i in 1:nreTrans) negHessUpper[i,i:nreTrans] <- -joint_logLik_res$hessian[npar + i, npar + i:nreTrans, 1]
       cholNegHess <- chol(negHessUpper)
       logdetNegHessAns <- 2 * sum(log(diag(cholNegHess)))
-      hess_wrt_p_wrt_re <- matrix(init = FALSE, nrow = npar, ncol = nre)
+      hess_wrt_p_wrt_re <- matrix(init = FALSE, nrow = npar, ncol = nreTrans)
       for(i in 1:npar){
         for(j in 1:nreTrans){
           hess_wrt_p_wrt_re[i, j] <- joint_logLik_res$hessian[i, npar + j, 1]
@@ -1530,7 +1534,7 @@ buildOneAGHQuad <- nimbleFunction(
       ind <- ind + npar
       gr_logdetNegHess_wrt_re_v <- ans$value[(ind):(ind + nreTrans - 1)]
       
-      if( nQuad_ == 1) {
+      if(nQuad_ == 1) {
         ## Laplace Approximation
         logLik_saved_value <<- maxValue - 0.5 * logdetNegHessian + 0.5 * nreTrans * log(2*pi)
       }else{
@@ -1638,7 +1642,7 @@ buildOneAGHQuad <- nimbleFunction(
       if(method == "spectral"){
         theta <- numeric(value = 0, length = nreTrans)
         for( i in 1:nreTrans ){
-            theta[i] <- max_inner_logLik_last_argmax[i] + sum(eigenvec[i,] * z/sqrt(eigenval))
+          theta[i] <- max_inner_logLik_last_argmax[i] + sum(eigenvec[i,] * z/sqrt(eigenval))
         }
       } else{
         if(method == "identity")
@@ -1668,7 +1672,6 @@ buildOneAGHQuad <- nimbleFunction(
         L <- numeric(0, length = 1)
         V <- matrix(0, nrow = 1, ncol = 1)
       }
-
       ans <- 0
       for(i in 1:nQ) {
         if(i != modeIndex) {
@@ -1752,7 +1755,11 @@ buildOneAGHQuad <- nimbleFunction(
       if(!cache_inner_max) return(numeric(value = Inf, length = npar))
       if(atOuterMode) return(outer_param_max)
       return(max_inner_logLik_previous_p)
-    },    
+    },  
+    get_reTransLength = function(){
+      returnType(double(0))
+      return(nreTrans)
+    },
     ## Need to reset every call optim to recache.
     reset_outer_logLik = function(){
       max_outer_logLik <<- -Inf
@@ -1947,12 +1954,11 @@ buildAGHQ <- nimbleFunction(
     if(nre > 0){
       ## Record the order of random effects processed internally
       internalRandomEffectsNodes <- NULL
-      lenInternalRENodeSets <- NULL
+      ## lenInternalRENodeSets <- NULL
       if(isFALSE(split)) { ## Do all randomEffectsNodes in one set
         internalRandomEffectsNodes <- randomEffectsNodes
-        lenInternalRENodeSets <- nre
+        ## lenInternalRENodeSets <- nre
         reNodesAsScalars <- model$expandNodeNames(internalRandomEffectsNodes, returnScalarComponents = TRUE)
-
         # old default was "model". new default is "last.best" with values=0
         # Essentially the following steps will now b done in buildOneAGHQuad[1D]
         ## if(is.null(control$innerOptimStart)) innerOptimStart <- values(model, randomEffectsNodes)
@@ -1965,19 +1971,19 @@ buildAGHQ <- nimbleFunction(
         ## ## In case random effects are not properly initialized
         ## if(!any(innerOptimStart %in% c("last", "last.best")) & any(is.infinite(innerOptimStart) | is.na(innerOptimStart) | is.nan(innerOptimStart))){
         ##   all_reTransform <- parameterTransform(model, randomEffectsNodes)
-        ##   all_reTransform_length <- all_reTransform$getTransformedLength()
-        ##   innerOptimStart <- all_reTransform$inverseTransform(rep(0, all_reTransform_length))
+        ##   all_nreTrans <- all_reTransform$getTransformedLength()
+        ##   innerOptimStart <- all_reTransform$inverseTransform(rep(0, all_nreTrans))
         ## }
         ## Build AGHQuad
         if(nre > 1 | isTRUE(control[['force_nDim']])) {
           AGHQuad_nfl[[1]] <- buildOneAGHQuad(model, nQuad = nQuad_, paramNodes, randomEffectsNodes,
-                                              calcNodes,
-                                              innerControlList)
+                                              calcNodes, innerControlList)
           multiSetsCheck <- TRUE
-        } else AGHQuad_nfl[[1]] <- buildOneAGHQuad1D(model, nQuad = nQuad_, paramNodes, randomEffectsNodes,
-                                                     calcNodes,
-                                                     innerControlList)
+        } else {
+          AGHQuad_nfl[[1]] <- buildOneAGHQuad1D(model, nQuad = nQuad_, paramNodes, randomEffectsNodes,
+                                                calcNodes, innerControlList)
         }
+      }
       else {## Split randomEffectsNodes into conditionally independent sets
         reSets <- MargNodes$randomEffectsSets
         num_reSets <- length(reSets)
@@ -1987,7 +1993,9 @@ buildAGHQ <- nimbleFunction(
         }
         if(length(reSets) > 1) {
             messageIfVerbose("Building individual AGHQ/Laplace approximations (one dot for each): ", appendLF = FALSE) 
-        } else messageIfVerbose("Building AGHQ/Laplace approximation.")
+        } else {
+          messageIfVerbose("Building AGHQ/Laplace approximation.")
+        }
         for(i in seq_along(reSets)){
           ## Work with one conditionally independent set of latent states
           these_reNodes <- reSets[[i]]
@@ -1999,9 +2007,8 @@ buildAGHQ <- nimbleFunction(
           these_reNodesAsScalars <- model$expandNodeNames(these_reNodes, returnScalarComponents = TRUE)
           reNodesAsScalars <- c(reNodesAsScalars, these_reNodesAsScalars)
           nre_these <- length(these_reNodesAsScalars)
-          lenInternalRENodeSets <- c(lenInternalRENodeSets, nre_these)
+          ## lenInternalRENodeSets <- c(lenInternalRENodeSets, nre_these)
           ## Process start values for inner optimisation
-
           if(is.numeric(innerOptimStartValues) && (length(innerOptimStartValues) == nre)) {
             # input was a vector of all REs, so we must split it accordingly
             if(is.null(names(innerOptimStartValues))) {
@@ -2017,9 +2024,9 @@ buildAGHQ <- nimbleFunction(
                 messageIfVerbose("  [Warning] There appears to be an incorrect name in `control$innerOptimStartValues`.")
             }
             these_innerOptimStartValues <- innerOptimStartValues[these_reNodes_inds]
-          } else
+          } else {
             these_innerOptimStartValues <- innerOptimStartValues
-
+          }
           ## if(is.null(control$innerOptimStart)) innerOptimStart <- values(model, these_reNodes)
           ## else {
           ##   providedStart <- control$innerOptimStart
@@ -2033,40 +2040,46 @@ buildAGHQ <- nimbleFunction(
           ## ## In case random effects are not properly initialized
           ## if(!any(innerOptimStart %in% c("last", "last.best")) & any(is.infinite(innerOptimStart) | is.na(innerOptimStart) | is.nan(innerOptimStart))){
           ##   these_reTransform <- parameterTransform(model, these_reNodes)
-          ##   these_reTransform_length <- these_reTransform$getTransformedLength()
-          ##   innerOptimStart <- these_reTransform$inverseTransform(rep(0, these_reTransform_length))
+          ##   these_nreTrans <- these_reTransform$getTransformedLength()
+          ##   innerOptimStart <- these_reTransform$inverseTransform(rep(0, these_nreTrans))
           ## }
           ## Build AGHQuad for each set
+          ## **** WZ below the innerControlList is still the full one I do not know why the code above was commented out
           if(nre_these > 1 | isTRUE(control[['force_nDim']])){
             AGHQuad_nfl[[i]] <- buildOneAGHQuad(model, nQuad = nQuad_, paramNodes, these_reNodes, these_calcNodes,
-                                               innerControlList)
-            #innerOptimControl_, innerOptimMethod, innerOptimStart, these_innerOptimStartValues)
+                                                innerControlList)
             multiSetsCheck <- TRUE
           }
-          else AGHQuad_nfl[[i]] <- buildOneAGHQuad1D(model, nQuad = nQuad_, paramNodes, these_reNodes, these_calcNodes,
-                                                     innerControlList)
-                                        #innerOptimControl_, innerOptimMethod, innerOptimStart, these_innerOptimStartValues)
+          else {
+            AGHQuad_nfl[[i]] <- buildOneAGHQuad1D(model, nQuad = nQuad_, paramNodes, these_reNodes, these_calcNodes,
+                                                  innerControlList)
+          }
           if(length(reSets) > 1) messageIfVerbose(".", appendLF = FALSE)
         }
         if(length(reSets) > 1) messageIfVerbose("")
       }
-      if(length(lenInternalRENodeSets) == 1) lenInternalRENodeSets <- c(lenInternalRENodeSets, -1)
+      
+      ## if(length(lenInternalRENodeSets) == 1) lenInternalRENodeSets <- c(lenInternalRENodeSets, -1)
       reTransform <- parameterTransform(model, internalRandomEffectsNodes)
-      reTransform_length <- reTransform$getTransformedLength()
-      if(reTransform_length > 1) reTransform_indices <- 1:reTransform_length
+      nreTrans <- reTransform$getTransformedLength()
+      if(nreTrans > 1) reTransform_indices <- 1:nreTrans
       else reTransform_indices <- c(1, -1)
       
       reNodesAsScalars_vec <- reNodesAsScalars
       if(nre == 1) reNodesAsScalars_vec <- c(reNodesAsScalars, "_EXTRA_")
       reNodesAsScalars_first <- reNodesAsScalars[1]
+      ## When transformed, put "_trans" to the end of the random effects names
+      reTransNodeNames <- paste0("re_trans_", 1:nreTrans)
+      if(nreTrans == 1) reTransNodeNames <- c(reTransNodeNames, "_EXTRA_")
     }
     else{
       ## No random effects
-      lenInternalRENodeSets <- numeric(2)
+      ## lenInternalRENodeSets <- numeric(2)
       reTransform <- parameterTransform(model, paramNodes[1], control = list(allowDeterm = FALSE)) ## Won't be needed at all
       reTransform_indices <- numeric(2)
       reNodesAsScalars_vec <- character(0)
       reNodesAsScalars_first <- character(1)
+      reTransNodesNames <- character(1)
       if(num_calcNodesOther == 0)
         stop("buildAGHQ: Both `calcNodesOther` and `randomEffectsNodes` are empty for Laplace or AGHQ for the given model")
     }
@@ -2082,13 +2095,12 @@ buildAGHQ <- nimbleFunction(
     
     ## Automated transformation for parameters
     paramsTransform <- parameterTransform(model, paramNodes, control = list(allowDeterm = FALSE))
-    pTransform_length <- paramsTransform$getTransformedLength()
-    if(pTransform_length > 1) pTransform_indices <- 1:pTransform_length
+    nparTrans <- paramsTransform$getTransformedLength()
+    if(nparTrans > 1) pTransform_indices <- 1:nparTrans
     else pTransform_indices <- c(1, -1)
 
-    thetaNodeNames <- paste0("param", seq_len(pTransform_length))
-    if(pTransform_length == 1)
-        thetaNodeNames <- c(thetaNodeNames, "_EXTRA_")
+    paramTransNodeNames <- paste0("param_trans_", seq_len(nparTrans))
+    if(nparTrans == 1) paramTransNodeNames <- c(paramTransNodeNames, "_EXTRA_")
     
     ## Indicator for removing the redundant index -1 in pTransform_indices
     one_time_fixes_done <- FALSE
@@ -2106,13 +2118,19 @@ buildAGHQ <- nimbleFunction(
     pTransform_fixed <- 0
     pTransform_index_fixed <- 1
     pTransform_indices_other <- numeric(2)
-#    test_ptrans_values <- numeric(2)
 
     ## The nimbleList definitions AGHQuad_params and AGHQuad_summary
     ## have moved to predefined nimbleLists.
   },## End of setup
   run = function(){},
   methods = list(
+    getREtransLength = function() {
+      numre <- numeric(num_reSets)
+      for(i in seq_along(AGHQuad_nfl)) 
+        numre[i] <- AGHQuad_nfl[[i]]$get_reTransLength()
+      returnType(double(1))
+      return(numre)
+    },
     getNodeNamesVec = function(returnParams = logical(0, default = TRUE)) {
       one_time_fixes()
       returnType(character(1))
@@ -2125,19 +2143,19 @@ buildAGHQ <- nimbleFunction(
       else return(reNodesAsScalars_first)
     },
     updateSettings = function(innerOptimMethod = character(0, default="NULL"),
-                               innerOptimStart = character(0, default="NULL"),
-                               innerOptimStartValues = double(1, default=Inf),
-                               innerOptimWarning = integer(0, default = -1),
-                               useInnerCache = integer(0, default=-1),
-                               nQuad = integer(0, default=-1),
-                               quadTransform = character(0, default="NULL"),
-                               innerOptimControl = optimControlNimbleList(default=nimOptimDefaultControl()),
-                               outerOptimMethod = character(0, default="NULL"),
-                               replace_innerOptimControl = logical(0, default=FALSE),
-                               outerOptimControl = optimControlNimbleList(default=nimOptimDefaultControl()),
-                               replace_outerOptimControl = logical(0, default=FALSE),
-                               computeMethod = integer(0, default=-1)
-                               ) {
+                              innerOptimStart = character(0, default="NULL"),
+                              innerOptimStartValues = double(1, default=Inf),
+                              innerOptimWarning = integer(0, default = -1),
+                              useInnerCache = integer(0, default=-1),
+                              nQuad = integer(0, default=-1),
+                              quadTransform = character(0, default="NULL"),
+                              innerOptimControl = optimControlNimbleList(default=nimOptimDefaultControl()),
+                              outerOptimMethod = character(0, default="NULL"),
+                              replace_innerOptimControl = logical(0, default=FALSE),
+                              outerOptimControl = optimControlNimbleList(default=nimOptimDefaultControl()),
+                              replace_outerOptimControl = logical(0, default=FALSE),
+                              computeMethod = integer(0, default=-1)
+                              ) {
       # checks
       if(innerOptimStart != "NULL") {
         if(innerOptimStart=="zero") {
@@ -2157,8 +2175,9 @@ buildAGHQ <- nimbleFunction(
         if(nQuad > 35) stop("updateSettings: currently only a maximum of 35 quadrature points is allowed")
         threshold <- log(50000) # in text below too
         for(i in seq_along(AGHQuad_nfl)) {
-          if(nQuad * log(lenInternalRENodeSets[i]) > threshold) {
-              print("updateSettings: choice of `nQuad` would yield >50000 nodes for ", lenInternalRENodeSets[i], " integration dimensions in conditionally independent set ", i, ".")
+          numre <- AGHQuad_nfl[[i]]$get_reTransLength()
+          if(nQuad * log(numre) > threshold) {
+              print("updateSettings: choice of `nQuad` would yield >50000 nodes for ", numre, " integration dimensions in conditionally independent set ", i, ".")
               stop("too many integration nodes")
           }
         }
@@ -2178,18 +2197,19 @@ buildAGHQ <- nimbleFunction(
       iStart <- 1
       for(i in seq_along(AGHQuad_nfl)) {
         if(length(innerOptimStartValues) > 1) {
-          these_values <- innerOptimStartValues[iStart:(iStart + lenInternalRENodeSets[i] - 1)]
-          iStart <- iStart + lenInternalRENodeSets[i]
+          numre <- AGHQuad_nfl[[i]]$get_reTransLength()
+          these_values <- innerOptimStartValues[iStart:(iStart + numre - 1)]
+          iStart <- iStart + numre
         }
         AGHQuad_nfl[[i]]$updateSettings(optimMethod = innerOptimMethod,
-                                         optimStart = innerOptimStart,
-                                         optimStartValues = innerOptimStartValues,
-                                         optimWarning = innerOptimWarning,
-                                         useInnerCache = useInnerCache,
-                                         nQuad = nQuad_,
-                                         quadTransform = quadTransform,
-                                         optimControl = innerOptimControl,
-                                         replace_optimControl = replace_innerOptimControl)
+                                        optimStart = innerOptimStart,
+                                        optimStartValues = innerOptimStartValues,
+                                        optimWarning = innerOptimWarning,
+                                        useInnerCache = useInnerCache,
+                                        nQuad = nQuad_,
+                                        quadTransform = quadTransform,
+                                        optimControl = innerOptimControl,
+                                        replace_optimControl = replace_innerOptimControl)
       }
       # TO-DO: create useInnerCache_ and allow control arg.
       if(useInnerCache != -1) useInnerCache_ <<- useInnerCache != 0
@@ -2203,7 +2223,7 @@ buildAGHQ <- nimbleFunction(
     },
     one_time_fixes = function() {
       if(one_time_fixes_done) return()
-      if(pTransform_length == 1){
+      if(nparTrans == 1){
         if(length(pTransform_indices) == 2){
           pTransform_indices <<- numeric(length = 1, value = 1)
         }
@@ -2260,9 +2280,9 @@ buildAGHQ <- nimbleFunction(
       if(!one_time_fixes_done) one_time_fixes()
       checkInterrupt()
       if(trans) {
-          if(length(p) != pTransform_length) {
+          if(length(p) != nparTrans) {
               ## We cannot have variables in a nimStop.
-              print("For `calcLogLik` (or `calcLaplace`) with `trans = TRUE`, `p` should be length ", pTransform_length, " but was provided with length ", length(p), ".")
+              print("For `calcLogLik` (or `calcLaplace`) with `trans = TRUE`, `p` should be length ", nparTrans, " but was provided with length ", length(p), ".")
               stop("incorrect length for `p`")
           }
           p <- paramsTransform$inverseTransform(p)
@@ -2296,8 +2316,8 @@ buildAGHQ <- nimbleFunction(
     gr_logLik = function(p = double(1), trans = logical(0, default=FALSE)) {
       if(!one_time_fixes_done) one_time_fixes()
       if(trans) {
-        if(length(p) != pTransform_length) {
-            print("for `gr_logLik` (or `gr_Laplace`) with `trans = TRUE`, `p` should be length ", pTransform_length, " but was provided with length ", length(p), ".")
+        if(length(p) != nparTrans) {
+            print("for `gr_logLik` (or `gr_Laplace`) with `trans = TRUE`, `p` should be length ", nparTrans, " but was provided with length ", length(p), ".")
             stop("incorrect length for `p`")
         }
         pDerivs <- derivs_pInverseTransform(p, c(0, 1))
@@ -2403,16 +2423,12 @@ buildAGHQ <- nimbleFunction(
       ans <- 0
       if(trans) {
         pstar <- paramsTransform$inverseTransform(p)  ## Just want to do this once.
-        if(includeJacobian)
-          ans <- ans + logDetJacobian(p)  ## p is transformed, add Jacobian here.
+        if(includeJacobian) ans <- ans + logDetJacobian(p)  ## p is transformed, add Jacobian here.
       }else{
         pstar <- p
       }
-      
       ans <- ans + calcLogLik(pstar, FALSE)
-
-      if(includePrior)
-        ans <- ans + calcPrior_p(pstar)
+      if(includePrior) ans <- ans + calcPrior_p(pstar)
       
       returnType(double())
       return(ans)
@@ -2430,8 +2446,6 @@ buildAGHQ <- nimbleFunction(
     },
     calcLogDens_pTransformedFix1 = function(pTransform = double(1)){
       pTransform_star <- replaceOneVec(pTransform)
-#      test_ptrans_values <<- pTransform_star
-
       ans <- calcLogDens(pTransform_star, trans = TRUE, 
                          includeJacobian = includeJacobian_, 
                          includePrior = includePrior_)
@@ -2449,31 +2463,28 @@ buildAGHQ <- nimbleFunction(
     },
     ## Gradient of prior distribution.
     gr_prior = function(p = double(1)){
-        ans <- derivs(calcPrior_p(p), wrt = p_indices, order = 1, model = model,
-                      updateNodes = calcPrior_updateNodes, constantNodes = calcPrior_constantNodes)
+      ans <- derivs(calcPrior_p(p), wrt = p_indices, order = 1, model = model,
+                    updateNodes = calcPrior_updateNodes, constantNodes = calcPrior_constantNodes)
       return(ans$jacobian[1,])
       returnType(double(1))
     },
     ## Gradient of posterior density on the transformed scale.
     gr_LogDens = function(p = double(1), trans = logical(0, default = FALSE), 
-                           includeJacobian = logical(0, default = TRUE), 
-                           includePrior = logical(0, default = TRUE)){
+                          includeJacobian = logical(0, default = TRUE), 
+                          includePrior = logical(0, default = TRUE)){
       if(trans) {
         pDerivs <- derivs_pInverseTransform(p, c(0, 1))
         pstar <- pDerivs$value
-      }else{
+      }else {
         pstar <- p
       }
       ## Gradient of log likelihood:
       ans <- gr_logLik(pstar, FALSE)
-
-      if(includePrior)
-        ans <- ans + gr_prior(pstar)
+      if(includePrior) ans <- ans + gr_prior(pstar)
 
       if(trans){
         ans <- (ans %*% pDerivs$jacobian)[1,]
-        if(includeJacobian)
-          ans <- ans + gr_logDetJacobian(p)
+        if(includeJacobian) ans <- ans + gr_logDetJacobian(p)
       }
       
       return(ans)
@@ -2481,17 +2492,16 @@ buildAGHQ <- nimbleFunction(
     },
     gr_LogDens_pTransformed = function(pTransform = double(1)){
       ans <- gr_LogDens(pTransform, trans = TRUE, 
-                           includeJacobian = includeJacobian_, 
-                           includePrior = includePrior_)
+                        includeJacobian = includeJacobian_, 
+                        includePrior = includePrior_)
       return(ans)
       returnType(double(1))
     },
     gr_LogDens_pTransformedFix1 = function(pTransform = double(1)){
       pTransform_star <- replaceOneVec(pTransform)
-#      test_ptrans_values <<- pTransform_star
       ans <- gr_LogDens(pTransform_star, trans = TRUE, 
-                           includeJacobian = includeJacobian_, 
-                           includePrior = includePrior_)
+                        includeJacobian = includeJacobian_, 
+                        includePrior = includePrior_)
 
       return(ans[pTransform_indices_other])
       returnType(double(1))
@@ -2511,10 +2521,10 @@ buildAGHQ <- nimbleFunction(
     findMLE = function(pStart  = double(1, default = Inf),
                        hessian = logical(0, default = TRUE) ){
       mleRes <- optimize(pStart  = pStart,
-                       includePrior = FALSE,
-                       includeJacobian = FALSE,
-                       hessian = hessian,
-                       parscale = "real") 
+                         includePrior = FALSE,
+                         includeJacobian = FALSE,
+                         hessian = hessian,
+                         parscale = "real")
       return(mleRes)
       returnType(optimResultNimbleList())
     },
@@ -2522,58 +2532,52 @@ buildAGHQ <- nimbleFunction(
     findMAP = function(pStart  = double(1, default = Inf),
                        hessian = logical(0, default = TRUE) ){
       mapRes <- optimize(pStart  = pStart,
-                       includePrior = TRUE,
-                       includeJacobian = TRUE,
-                       hessian = hessian,
-                       parscale = "real")
+                         includePrior = TRUE,
+                         includeJacobian = TRUE,
+                         hessian = hessian,
+                         parscale = "real")
       return(mapRes)
       returnType(optimResultNimbleList())
     },
     replaceOneVec = function(pTransform = double(1)){
-      pTransform_star <- numeric(value = 0, length = pTransform_length)
+      pTransform_star <- numeric(value = 0, length = nparTrans)
       pTransform_star[pTransform_index_fixed] <- pTransform_fixed
-      pTransform_star[pTransform_indices_other] <- pTransform[1:(pTransform_length-1)]
+      pTransform_star[pTransform_indices_other] <- pTransform[1:(nparTrans-1)]
       returnType(double(1))
       return(pTransform_star)
     },
-    findMax_fixedp = function(pStartTransform = double(1, default = Inf),
-                       pTransformIndex = integer(),
-                       pTransformValue = double(), 
-                       includePrior = logical(0, default = FALSE),
-                       includeJacobian = logical(0, default = FALSE),
-                       hessian = logical(0, default = TRUE)){
-
+    findMax_fixedp = function(pStartTransform = double(1, default = Inf), 
+                              pTransformIndex = integer(),
+                              pTransformValue = double(), 
+                              includePrior = logical(0, default = FALSE),
+                              includeJacobian = logical(0, default = FALSE),
+                              hessian = logical(0, default = TRUE)){
       pTransform_index_fixed <<- pTransformIndex
       pTransform_fixed <<- pTransformValue
       pTransform_indices_other <<- pTransform_indices[pTransform_indices != pTransform_index_fixed]
 
-      if(length(pStartTransform) == (pTransform_length-1)) {
+      if(length(pStartTransform) == (nparTrans-1)) {
         pStartTransform_star <- replaceOneVec(pStartTransform)
         pStart <- paramsTransform$inverseTransform(pStartTransform_star)
       }else{
-        if(length(pStartTransform) == pTransform_length)
-          pStart <- paramsTransform$inverseTransform(pStartTransform)
-        else
-          pStart <- numeric(value = Inf, length = 1)
+        if(length(pStartTransform) == nparTrans) pStart <- paramsTransform$inverseTransform(pStartTransform)
+        else pStart <- numeric(value = Inf, length = 1)
       }
-
       keepOneFixed_ <<- TRUE
-
-      maxRes <- optimize(pStart  = pStart,
-                       includePrior = includePrior,
-                       includeJacobian = includeJacobian,
-                       hessian = hessian,
-                       parscale = "transformed")
-
+      maxRes <- optimize(pStart = pStart,
+                         includePrior = includePrior,
+                         includeJacobian = includeJacobian,
+                         hessian = hessian,
+                         parscale = "transformed")
       return(maxRes)
       returnType(optimResultNimbleList())                       
     },
     ## General Maximization Function
     optimize = function(pStart = double(1, default = Inf),
-                       includePrior = logical(0, default = FALSE),
-                       includeJacobian = logical(0, default = FALSE),
-                       hessian = logical(0, default = TRUE),
-                       parscale = character(0, default = "transformed")) {
+                        includePrior = logical(0, default = FALSE),
+                        includeJacobian = logical(0, default = FALSE),
+                        hessian = logical(0, default = TRUE),
+                        parscale = character(0, default = "transformed")) {
       if(!one_time_fixes_done) one_time_fixes() ## Otherwise summary will look bad.
       if(multiSetsCheck & nQuad_ > 1) stop("Currently only Laplace (`nQuad = 1`) is supported for maximization when integrations have more than one dimension at a time. Use `updateSettings(nQuad = 1)` to change.")
       if(any(abs(pStart) == Inf)) pStart <- values(model, paramNodes)
@@ -2607,7 +2611,7 @@ buildAGHQ <- nimbleFunction(
             optRes <- optim(pStartTransform, calcLogDens_pTransformed, gr_LogDens_pTransformed, 
                             method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
         } else optRes <- optim(pStartTransform, calcLogDens_pTransformed, 
-                            method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
+                               method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
         p <- paramsTransform$inverseTransform(optRes$par)
         if(parscale == "real") optRes$par <- p
       } else {
@@ -2615,7 +2619,7 @@ buildAGHQ <- nimbleFunction(
             optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, gr_LogDens_pTransformedFix1, 
                             method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
         } else optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, 
-                            method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
+                               method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
         fullpar <- replaceOneVec(optRes$par)
         p <- paramsTransform$inverseTransform(fullpar)
       }
@@ -2653,13 +2657,11 @@ buildAGHQ <- nimbleFunction(
       pTransform_indices_other <<- pTransform_indices[pTransform_indices != pTransform_index_fixed]
 
       keepOneFixed_ <<- TRUE
-
       maxRes <- optimize(pStart = pStart,
-                       includePrior = includePrior,
-                       includeJacobian = includeJacobian,
-                       hessian = FALSE,
-                       parscale = "transformed")
-
+                         includePrior = includePrior,
+                         includeJacobian = includeJacobian,
+                         hessian = FALSE,
+                         parscale = "transformed")
       ans <- maxRes$value - maxLogDens + limit/2
       return(ans)
       returnType(double())
@@ -2685,10 +2687,11 @@ buildAGHQ <- nimbleFunction(
     ## Grab the inner Cholesky from the cached last values.
     get_inner_cholesky = function(atOuterMode = integer(0, default = 0)){
       if(nre == 0) stop("no random effects in the model")
-      cholesky <- matrix(value = 0, nrow = nre, ncol = nre)
+      cholesky <- matrix(value = 0, nrow = nreTrans, ncol = nreTrans)
       tot <- 0
       for(i in seq_along(AGHQuad_nfl)){
-        numre <- lenInternalRENodeSets[i]
+        ## numre <- lenInternalRENodeSets[i]
+        numre <- AGHQuad_nfl[[i]]$get_reTransLength()
         cholesky[(tot+1):(tot+numre), (tot+1):(tot+numre)] <- AGHQuad_nfl[[i]]$get_inner_negHessian_chol(atOuterMode)
         tot <- tot + numre
       }
@@ -2698,10 +2701,11 @@ buildAGHQ <- nimbleFunction(
     ## Grab the inner mode from the cached last values.
     get_inner_mode = function(atOuterMode = integer(0, default = 0)){
       if(nre == 0) stop("no random effects in the model")
-      raneff <- numeric(nre)
+      raneff <- numeric(nreTrans)
       tot <- 0
       for(i in seq_along(AGHQuad_nfl)){
-        numre <- lenInternalRENodeSets[i]
+        ## numre <- lenInternalRENodeSets[i]
+        numre <- AGHQuad_nfl[[i]]$get_reTransLength()
         raneff[(tot+1):(tot+numre)] <- AGHQuad_nfl[[i]]$get_inner_mode(atOuterMode)
         tot <- tot + numre
       }
@@ -2712,8 +2716,8 @@ buildAGHQ <- nimbleFunction(
     optimRandomEffects = function(pTransform = double(1)){
       if(nre == 0) stop("No random effects in the model")
       p <- paramsTransform$inverseTransform(pTransform)
-      raneff <- numeric(nre)
-      tmp <- numeric(nre) ## Not sure this is needed. 
+      raneff <- numeric(nreTrans)
+      tmp <- numeric(nreTrans) ## Not sure this is needed. 
       tot <- 0
 
       computeMethod <- -1
@@ -2742,7 +2746,7 @@ buildAGHQ <- nimbleFunction(
     ## Inverse of the negative Hessian of log-likelihood wrt transformed random effects
     inverse_negHess = function(p = double(1), reTransform = double(1)){
       if(nre == 0) stop("no random effects in the model")
-      invHess <- matrix(value = 0, nrow = nre, ncol = nre)
+      invHess <- matrix(value = 0, nrow = nreTrans, ncol = nreTrans)
       tot <- 0
 
       outer_mode_case <- -1
@@ -2755,7 +2759,8 @@ buildAGHQ <- nimbleFunction(
       }
 
       for(i in seq_along(AGHQuad_nfl)){
-        numre <- lenInternalRENodeSets[i]
+        ## numre <- lenInternalRENodeSets[i]
+        numre <- AGHQuad_nfl[[i]]$get_reTransLength()
         if(outer_mode_case == -1){
           tmp <- AGHQuad_nfl[[i]]$negHess(p, reTransform[(tot+1):(tot+numre)])
         }else{
@@ -2771,10 +2776,11 @@ buildAGHQ <- nimbleFunction(
     ## Hessian of joint log-likelihood wrt parameters and (transformed) random effects
     hess_logLik_wrt_p_wrt_re = function(p = double(1), reTransform = double(1)){
       if(nre == 0) stop("no random effects in the model")
-      ans <- matrix(value = 0, nrow = npar, ncol = nre)
+      ans <- matrix(value = 0, nrow = npar, ncol = nreTrans)
       tot <- 0
       for(i in seq_along(AGHQuad_nfl)){
-        numre <- lenInternalRENodeSets[i]
+        ## numre <- lenInternalRENodeSets[i]
+        numre <- AGHQuad_nfl[[i]]$get_reTransLength()
         if(computeMethod_ == 1) tmp <- AGHQuad_nfl[[i]]$hess_joint_logLik_wrt_p_wrt_re_internal(p, reTransform[(tot+1):(tot+numre)])
         else tmp <- AGHQuad_nfl[[i]]$hess_joint_logLik_wrt_p_wrt_re(p, reTransform[(tot+1):(tot+numre)])
         ans[1:npar, (tot+1):(tot+numre)] <- tmp
@@ -2842,12 +2848,11 @@ buildAGHQ <- nimbleFunction(
         ## Random effects
         optreTransform <- optimRandomEffects(pTransform)  ## *** Replace this with cached inner modes.
         optre <- reInverseTransform(optreTransform)
-        ntot <- npar + nre
+        ntot <- npar + nreTrans
         if(jointCovariance) {
           ## Inverse of the negative Hessian of log-likelihood wrt transformed random effects at MLEs
           inv_negHess <- inverse_negHess(p, optreTransform)   ## *** Replace this with cached inner modes.
           jointInvNegHessZero <- matrix(0, nrow = ntot, ncol = ntot)
-          #jointInvNegHessZero[1:nre, 1:nre] <- inv_negHess
           jointInvNegHessZero[(npar+1):ntot, (npar+1):ntot] <- inv_negHess
           ## Hessian of log-likelihood wrt to params and transformed random effects
           hessLoglikwrtpre <- hess_logLik_wrt_p_wrt_re(p, optreTransform)
@@ -2857,25 +2862,24 @@ buildAGHQ <- nimbleFunction(
           ## Jacobian of optimized random effects wrt transformed parameters
           JacobOptreWrtParams <- inv_negHess %*% t(hessLoglikwrtpre) %*% JacobpInvTransform
           jointJacob <- matrix(init = FALSE, nrow = ntot, ncol = npar)
-          #jointJacob[1:nre, 1:npar] <- JacobOptreWrtParams
           jointJacob[(npar+1):ntot, 1:npar] <- JacobOptreWrtParams
-          #jointJacob[(nre+1):ntot, 1:npar] <- diag(npar)
           jointJacob[1:npar, 1:npar] <- diag(npar)
           ## Joint covariance matrix on transformed scale
           vcov_Transform <- jointInvNegHessZero + jointJacob %*% vcov_pTransform %*% t(jointJacob)
           if(originalScale){
             derivs_reInvTransform <- derivs_reInverseTransform(optreTransform, c(0, 1))
             Jacob_reInvTransform  <- derivs_reInvTransform$jacobian
-            Jacob_JointInvTransform <- matrix(0, nrow = ntot, ncol = ntot)
-            #Jacob_JointInvTransform[1:nre, 1:nre] <- Jacob_reInvTransform
-            Jacob_JointInvTransform[(npar+1):ntot, (npar+1):ntot] <- Jacob_reInvTransform
-            #Jacob_JointInvTransform[(nre+1):ntot, (nre+1):ntot] <- JacobpInvTransform
+            ## In case the number of random effects differs after transformation
+            ntot2 <- npar + nre 
+            Jacob_JointInvTransform <- matrix(0, nrow = ntot2, ncol = ntot)
+            Jacob_JointInvTransform[(npar+1):ntot2, (npar+1):ntot] <- Jacob_reInvTransform
             Jacob_JointInvTransform[1:npar, 1:npar] <- JacobpInvTransform
             vcov <- Jacob_JointInvTransform %*% vcov_Transform %*% t(Jacob_JointInvTransform)
+            
             stdErr_p_re <- sqrt(diag(vcov))
             stdErr_p <- stdErr_p_re[1:npar]
             if(randomEffectsStdError){
-              ranres$stdError <- stdErr_p_re[(npar+1):ntot]
+              ranres$stdError <- stdErr_p_re[(npar+1):ntot2]
             }
             else{
               ranres$stdError <- numeric(0)
@@ -2963,8 +2967,8 @@ buildAGHQ <- nimbleFunction(
             ans$vcov <- vcov_pTransform
             if(randomEffectsStdError){
               inv_negHess <- inverse_negHess(p, optreTransform)
-              jointInvNegHessZero <- matrix(0, nrow = ntot, ncol = ntot)
-              jointInvNegHessZero[1:nre, 1:nre] <- inv_negHess
+              ## jointInvNegHessZero <- matrix(0, nrow = ntot, ncol = ntot)
+              ## jointInvNegHessZero[1:nreTrans, 1:nreTrans] <- inv_negHess
               ## Hessian of log-likelihood wrt to params and transformed random effects
               hessLoglikwrtpre <- hess_logLik_wrt_p_wrt_re(p, optreTransform)
               ## Derivative of inverse transformation for params
@@ -2972,8 +2976,8 @@ buildAGHQ <- nimbleFunction(
               JacobpInvTransform   <- derivspInvTransform$jacobian
               ## Jacobian of optimized random effects wrt transformed parameters
               JacobOptreWrtParams <- inv_negHess %*% t(hessLoglikwrtpre) %*% JacobpInvTransform
-              stdErr_reTransform <- numeric(nre)
-              for(i in 1:nre){
+              stdErr_reTransform <- numeric(nreTrans)
+              for(i in 1:nreTrans){
                 var_reTransform_i <- inv_negHess[i, i] + (JacobOptreWrtParams[i,,drop=FALSE] %*% vcov_pTransform %*% t(JacobOptreWrtParams[i,,drop=FALSE]))[1,1]
                 stdErr_reTransform[i] <- sqrt(var_reTransform_i)
               }
@@ -2987,8 +2991,11 @@ buildAGHQ <- nimbleFunction(
       }
       if(originalScale) {
           pres$names <- paramNodesAsScalars_vec
-      } else pres$names <- thetaNodeNames
-      ranres$names <- reNodesAsScalars_vec
+          ranres$names <- reNodesAsScalars_vec
+      } else {
+        pres$names <- paramTransNodeNames
+        ranres$names <- reTransNodeNames
+      }
       ans$params <- pres
       ans$randomEffects <- ranres
       ans$originalScale <- originalScale
@@ -3185,8 +3192,7 @@ runLaplace <- function(laplace, pStart,
                        randomEffectsStdError = TRUE,
                        jointCovariance = FALSE) {
   if(missing(pStart)) pStart <- Inf # code to use values in model
-  runAGHQ(AGHQ = laplace, pStart, originalScale, randomEffectsStdError,
-            jointCovariance)
+  runAGHQ(AGHQ = laplace, pStart, originalScale, randomEffectsStdError, jointCovariance)
 }
 
 #' @rdname runLaplace

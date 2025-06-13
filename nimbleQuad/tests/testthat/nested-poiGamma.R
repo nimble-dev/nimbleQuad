@@ -23,13 +23,25 @@ y <- matrix(rpois(n*J, mns), ncol = J)
 m <- nimbleModel(code, data = list(y = y), constants = list(n=n, J=J),
                  inits = list(mu = rep(0,J), a=1,b=1), buildDerivs = TRUE)
 
+## Check that Laplace works (i.e., with the RE transformation)
+cm <- compileNimble(m)
+mLaplace <- buildLaplace(model = m)
+cmLaplace <- compileNimble(mLaplace, project = m)
+result <- runLaplace(cmLaplace, jointCovariance = TRUE)
+result <- runLaplace(cmLaplace, jointCovariance = TRUE, originalScale = FALSE)
+result$summary
+
 approx <- buildNestedApprox(m, latentNodes = c('mu'), hyperParamNodes = c('a','b'))
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox) # -139.9048
 
-latent_sample <- result$sampleLatentNodes(100)
+latent_sample <- result$sampleLatentNodes(100, includeParams = TRUE)
 result  # -139.8688
+
+result <- runNestedApprox(capprox, originalScale = FALSE)
+latent_sample_trans <- result$sampleLatentNodes(100, includeParams = TRUE)
+
 
 approx <- buildNestedApprox(m, latentNodes = c('mu'), hyperParamNodes = c('a','b'),
                             control = list(nQuadOuter = 7))
