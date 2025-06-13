@@ -33,8 +33,12 @@ result$summary
 
 ## Does nested approx work with transformed, non-1:1 latents?
 
-approx <- buildNestedApprox(m, latentNodes = c('p'), paramNodes = c('alpha0'))
+approx <- buildNestedApprox(m, latentNodes = c('p'), hyperParamNodes = c('alpha0'))
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
-result <- runNestedApprox(capprox) # Fails with size 3 != 2 error.
+result <- runNestedApprox(capprox) 
 
+latent_sample <- result$sampleLatentNodes(100, includeParams = TRUE)
+
+result <- runNestedApprox(capprox, originalScale = FALSE)
+latent_sample_trans <- result$sampleLatentNodes(100, includeParams = TRUE)

@@ -2115,6 +2115,13 @@ buildAGHQ <- nimbleFunction(
   },## End of setup
   run = function(){},
   methods = list(
+    getREtransLength = function() {
+      numre <- numeric(num_reSets)
+      for(i in seq_along(AGHQuad_nfl)) 
+        numre[i] <- AGHQuad_nfl[[i]]$get_reTransLength()
+      returnType(double(1))
+      return(numre)
+    },
     getNodeNamesVec = function(returnParams = logical(0, default = TRUE)) {
       one_time_fixes()
       returnType(character(1))

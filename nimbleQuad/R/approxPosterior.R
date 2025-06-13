@@ -80,14 +80,13 @@ buildNestedApprox <- nimbleFunction(
 
         theta_indices <- innerMethods$pTransform_indices
         
-        ## Need to check this as it's is now computed in the 'buildAGHQ' function:
-        nre <- innerMethods$nre
+        nreTrans <- innerMethods$nreTrans
 
         ## Simulate from conditionally independent sets.  Do this via number of
         ## sets and the length of each.
-        nInternalRESets <- length(innerMethods$AGHQuad_nfl)
-        lenInternalRENodeSets <- innerMethods$lenInternalRENodeSets
-
+        lenInternalRENodeSets <- innerMethods$getREtransLength()
+        nInternalRESets <- length(lenInternalRENodeSets)
+            
         ## Outer optimization settings
         outerOptimControl_ <- nimOptimDefaultControl()
         optimControlArgNames <- c("trace", "fnscale", "parscale", "ndeps", "maxit", "abstol",
@@ -205,9 +204,6 @@ buildNestedApprox <- nimbleFunction(
         ## Some cached values for summary statistics and reporting:
         marg_P <- matrix(0, nrow = nzMargGrid, ncol = npar)
         marg_theta <- array(0, c(theta_length, nzMargGrid, 2))
-        ## ***Do we want the simulations of the latent effects to be cached or just
-        ## returned? @CJP?
-        post_sims <- matrix(0, nrow = 3, ncol = nre)
 
         ## Optim info:
         modeCached <- FALSE
@@ -276,7 +272,7 @@ buildNestedApprox <- nimbleFunction(
                 setHyperGridRule(quadRule)
             theta_grid$buildGrid(method = hyperGridRule, nQuad = nQuadOuter)
             nGrid <- theta_grid$gridSize()
-            inner_grid_cache_nfl[[I_GRID]]$buildCache(nGridUpdate = nGrid, nLatentNodes = nre)
+            inner_grid_cache_nfl[[I_GRID]]$buildCache(nGridUpdate = nGrid, nLatentNodes = nreTrans)
             if (!modeCached) posteriorMode(rep(Inf, npar), hessian = TRUE, parscale = "transformed")
         },
         setHyperGridRule = function(quadRule = character(0, default = "AGHQ")) {

@@ -31,16 +31,17 @@ result <- runLaplace(cmLaplace, jointCovariance = TRUE)
 result <- runLaplace(cmLaplace, jointCovariance = TRUE, originalScale = FALSE)
 result$summary
 
-
-## Question: are we transforming latents when using nested approx?
-
 approx <- buildNestedApprox(m, latentNodes = c('mu'), hyperParamNodes = c('a','b'))
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox) # -139.9048
 
-latent_sample <- result$sampleLatentNodes(100)
+latent_sample <- result$sampleLatentNodes(100, includeParams = TRUE)
 result  # -139.8688
+
+result <- runNestedApprox(capprox, originalScale = FALSE)
+latent_sample_trans <- result$sampleLatentNodes(100, includeParams = TRUE)
+
 
 approx <- buildNestedApprox(m, latentNodes = c('mu'), hyperParamNodes = c('a','b'),
                             control = list(nQuadOuter = 7))
