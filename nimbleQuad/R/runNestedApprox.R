@@ -163,9 +163,9 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
             if(idx > 0) {  # 1:1 case
                 cnt <- cnt + 1
                 indivParamTransforms[[cnt]] <- parameterTransform(Rapprox$model, Rapprox$paramNodesComponents[i])
-                quantileEsts[[cnt]] <- estimateQuantiles(marginalsApprox[[idx]], indivParamTransforms[[i]],
+                quantileEsts[[cnt]] <- estimateQuantiles(marginalsApprox[[idx]], indivParamTransforms[[cnt]],
                                                          quantiles)
-                expectations[[cnt]] <- estimateExpectations(marginalsApprox[[idx]], indivParamTransforms[[i]])
+                expectations[[cnt]] <- estimateExpectations(marginalsApprox[[idx]], indivParamTransforms[[cnt]])
             }
         }
         names(quantileEsts) <- names(expectations) <- names(indivParamTransforms) <-
