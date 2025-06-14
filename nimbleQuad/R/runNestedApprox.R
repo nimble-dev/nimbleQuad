@@ -229,7 +229,7 @@ getNodeIndex <- function(node, Rapprox) {
 ## This uses d-1 dimensional AGHQ to get improved univariate marginal estimates
 ## for parameters.
 ## Note that quadRule = "NULL" makes sure the default is orginal user choice.
-improveParamMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad = 3, quadRule = "NULL", prune = -1, transform = "spectral") {
+improveParamMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad, quadRule = "NULL", prune = -1, transform = "spectral") {
     Rapprox <- summary$approx$Robject
 
     originalScale <- summary$originalScale
@@ -247,6 +247,9 @@ improveParamMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad = 3, 
     
     if(is.character(nodes)) 
         nodes <- Rapprox$model$expandNodeNames(nodes, returnScalarComponents = TRUE)
+
+    if(missing(nQuad))
+        nQuad <- ifelse(Rapprox$innerMethods$nparTrans == 2, 5, 3)
 
     for (i in seq_along(nodes)) {
         ## Improve marginal and insert into raw and summary objects.

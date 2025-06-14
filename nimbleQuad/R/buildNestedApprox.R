@@ -7,7 +7,6 @@ buildNestedApprox <- nimbleFunction(
         check <- extractControlElement(control, "check", TRUE)
         innerOptimWarning <- extractControlElement(control, "innerOptimWarning", FALSE)
 
-        nQuadOuter <- extractControlElement(control, "nQuadOuter", 3)
         nQuadInner <- extractControlElement(control, "nQuadInner", 1)
         quadRuleMarginal <- extractControlElement(control, "marginalGridRule", "AGHQ")
         pruneMargGrid <- extractControlElement(control, "marginalGridPrune", 0)
