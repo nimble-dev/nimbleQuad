@@ -40,7 +40,8 @@ buildNestedApprox <- nimbleFunction(
         paramsTransform <- parameterTransform(model, paramNodes, control = list(allowDeterm = FALSE))
         nParamTrans <- paramsTransform$getTransformedLength()
 
-       
+        nQuadOuter <- extractControlElement(control, "nQuadOuter", ifelse(nParamTrans == 1, 5, 3))
+        
         ## Configure all grids before calling AGHQ to make sure it builds
         ## correctly.  DO NOT MOVE WHEN THIS IS CALLED
         allGridRules <- c("CCD", "AGHQ", "AGHQSPARSE")
@@ -68,7 +69,6 @@ buildNestedApprox <- nimbleFunction(
         ## Default to CCD (in which case `nQuadOuter` is ignored).
         paramGrid <- configureQuadGrid(d = 1, levels = nQuadOuter, quadRule = paramGridRule, control = list(quadRules = allGridRules))
 
-        
         innerMethods <- buildAGHQ(model, nQuadInner, paramNodes, latentNodes, calcNodes,
                                   calcNodesOther, control)
 

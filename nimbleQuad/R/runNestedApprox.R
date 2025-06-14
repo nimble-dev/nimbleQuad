@@ -218,7 +218,7 @@ getNodeIndex <- function(node, Rapprox) {
             stop("node `", node, "`is not involved in a 1:1 parameter transformation, so marginals cannot be estimated by analytic approximation. Use `sampleParams` for inference.")
                  
     } else {
-        if(node > Rapprox$innerMethods$nparTrans)
+        if(node > Rapprox$innerMethods$nparTrans)  # AGHQ should have a method providing this.
             stop("Numeric index value ", node, " exceeds number of transformed parameters")
         idx <- node
     }
@@ -228,7 +228,6 @@ getNodeIndex <- function(node, Rapprox) {
 
 ## This uses d-1 dimensional AGHQ to get improved univariate marginal estimates
 ## for parameters.
-## Should it be called `improveParamMarginals`?
 ## Note that quadRule = "NULL" makes sure the default is orginal user choice.
 improveParamMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad = 3, quadRule = "NULL", prune = -1, transform = "spectral") {
     Rapprox <- summary$approx$Robject
