@@ -30,15 +30,15 @@ y <- matrix(rgamma(n*J, shape = mns^2/sds^2, rate = mns/sds^2), ncol = J)
 m <- nimbleModel(code, data = list(y = y), constants = list(n=n, J=J),
                  inits = list(eta = rep(0,J), mu = 0, tau=1, sigma = 1), buildDerivs = TRUE)
 
-approx <- buildNestedApprox(m, latentNodes = c('eta'), hyperParamNodes = c('mu','sigma','phi'))
+approx <- buildNestedApprox(m, latentNodes = c('eta'), paramNodes = c('mu','sigma','phi'))
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox)
 result # phi looks good but not the others
 
-result$improveMarginals(c('mu','phi','sigma'), nMarginalGrid = 7)  # These look good.
+result$improveParamMarginals(c('mu','phi','sigma'), nMarginalGrid = 7)  # These look good.
 
-latent_sample <- result$sampleLatentNodes(100000)
+latent_sample <- result$sampleLatents(100000)
 apply(latent_sample, 2, quantile, qpts)  # Not terrible, but a bit off.
 
 ## MCMC
@@ -78,15 +78,15 @@ y <- matrix(rgamma(n*J, shape = mns^2/sds^2, rate = mns/sds^2), ncol = J)
 m <- nimbleModel(code, data = list(y = y), constants = list(n=n, J=J),
                  inits = list(eta = rep(0,J), mu = 0, tau=1, sigma = 1), buildDerivs = TRUE)
 
-approx <- buildNestedApprox(m, latentNodes = c('eta'), hyperParamNodes = c('mu','sigma','phi'))
+approx <- buildNestedApprox(m, latentNodes = c('eta'), paramNodes = c('mu','sigma','phi'))
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox)
 result
 
-result$improveMarginals(c('mu','phi','sigma'), nMarginalGrid = 7)  # good
+result$improveParamMarginals(c('mu','phi','sigma'), nMarginalGrid = 7)  # good
 
-latent_sample <- result$sampleLatentNodes(100000)
+latent_sample <- result$sampleLatents(100000)
 apply(latent_sample, 2, quantile, qpts)  # good
 
 ## MCMC
@@ -132,15 +132,15 @@ y <- matrix(rgamma(n*J, shape = mns^2/sds^2, rate = mns/sds^2), ncol = J)
 m <- nimbleModel(code, data = list(y = y), constants = list(n=n, J=J),
                  inits = list(eta = rep(0,J), mu = 0, tau=1, phi = 1), buildDerivs = TRUE)
 
-approx <- buildNestedApprox(m, latentNodes = c('eta'), hyperParamNodes = c('mu','tau','phi'))
+approx <- buildNestedApprox(m, latentNodes = c('eta'), paramNodes = c('mu','tau','phi'))
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox)
 result
 
-result$improveMarginals(c('mu','phi','tau'), nMarginalGrid = 7)  # 'tau' is unstable and not good
+result$improveParamMarginals(c('mu','phi','tau'), nMarginalGrid = 7)  # 'tau' is unstable and not good
 
-latent_sample <- result$sampleLatentNodes(100000)
+latent_sample <- result$sampleLatents(100000)
 apply(latent_sample, 2, quantile, qpts)
 
 ## MCMC

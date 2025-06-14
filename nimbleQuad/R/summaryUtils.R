@@ -22,9 +22,9 @@ fitMarginalSpline <- function(gridded, normalize = TRUE, xnew = NULL) {
         if(!is.null(xnew))
             logPDFnew <- as.numeric(stats::predict(ss, xnew)$y)
     }
-    ## Normalize the PDF:
+    ## Normalize the PDF.
     pdf <- exp(logPDF)
-    trapezoids <- diff(finegrid) * (pdf[-length(pdf)] + pdf[-1])/2  # trapezoidal rule (could use Simpson as (2M+T)/3
+    trapezoids <- diff(finegrid) * (pdf[-length(pdf)] + pdf[-1])/2  # Trapezoidal rule (could use Simpson as (2M+T)/3.
     if (normalize)
         norm <- sum(trapezoids) else norm <- 1
     pdf <- pdf/norm
@@ -33,9 +33,6 @@ fitMarginalSpline <- function(gridded, normalize = TRUE, xnew = NULL) {
     if(is.null(xnew))
         return(cbind(finegrid, pdf, cdf)) else return(logPDFnew - log(norm))
 }
-## TODO: should we refine the grid based on excluding portions with negligible
-## mass?
-
 
 
 estimateQuantiles <- function(marginalApprox, transform = NULL,
@@ -43,9 +40,9 @@ estimateQuantiles <- function(marginalApprox, transform = NULL,
     finegridTrans <- marginalApprox[, "finegrid"]
     cdf <- marginalApprox[, "cdf"]
 
-    ## For now use smoothing spline on quantile function on transformed (theta)
-    ## scale.
-    used <- cdf > 0.001 & cdf < 0.999  # Need to avoid cdf values too close together or spline fit will fail.
+    ## For now use smoothing spline on quantile function on transformed (theta) scale.
+    ## Need to avoid cdf values too close together or spline fit will fail.
+    used <- cdf > 0.001 & cdf < 0.999  
     ss <- splines::interpSpline(cdf[used], finegridTrans[used], bSpline = TRUE, sparse = FALSE)
     quantsTrans <- stats::predict(ss, quantiles)$y
     if (!is.null(transform)) {
@@ -63,7 +60,7 @@ runTrapezRule <- function(grid, pdf, functional) {
 }
 
 
-## functionals should be a named list of functions.  if user wants any of their
+## `functionals` should be a named list of functions.  If user wants any of their
 ## functionals to take additional args, all of them must take ...
 estimateExpectations <- function(marginalApprox, transform = NULL, functional = NULL, ...) {
 
@@ -102,50 +99,3 @@ estimateExpectations <- function(marginalApprox, transform = NULL, functional = 
 }
 
 
-
-## Original version. May not be used.
-summarizeMarginalOriginal <- function(marginalApprox, transform = inverseTransform,
-    logDetJacobian = logDetJacobian, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975),
-    functionals = NULL, ...) {
-    n <- nrow(marginalApprox)
-
-    finegridTrans <- marginalApprox[, "finegrid"]
-    pdfTrans <- marginalApprox[, "pdf"]
-    cdf <- marginalApprox[, "cdf"]  # same for both scales
-
-    finegrid <- transform(finegridTrans)
-    pdf <- pdfTrans[, "pdf"] * logDetJac(finegrid)
-    # sum(diff(finegrid)*(pdf[-n]+pdf[-1])/2) # trapezoidal rule showing
-    # normalization is preserved
-
-    ## For now use smoothing spline on quantile function on transformed (theta)
-    ## scale.  How do INLA and Stringer/aghq get their quantiles? I think Paul
-    ## and Chris discussed this.
-    used <- cdf > 0.001 & cdf < 0.999
-    ss <- splines::interpSpline(cdf[used], finegridTrans[used], bSpline = TRUE, sparse = FALSE)
-    quantsTrans <- stats::predict(ss, quantiles)$y
-    quants <- transform(quantsTrans)
-
-    ## Posterior expectations: defaults Use pdf on transformed (theta) scale.
-    postMean <- estimateExpectation(finegridTrans, pdfTrans, finegrid, n)
-    functional <- (finegrid - postMean)^2
-    postVar <- estimateExpectation(finegridTrans, pdfTrans, functional, n)
-    postSD <- sqrt(postVar)
-
-    ## transformed scale postMean <-
-    ## sum(diff(finegrid)*(pdf[-n]*finegrid[-n]+pdf[-1]*finegrid[-1])/2)
-    ## functional <- (finegrid - postMean)^2 postVar <-
-    ## sum(diff(finegrid)*(pdf[-n]*functional[-n]+pdf[-1]*functional[-1])/2)
-
-    ## Posterior expectations: user-defined Not sure about use of `...`.
-    if (!is.null(functionals)) {
-        userExpectations <- sapply(functionals, function(fun) {
-            functional <- fun(finegrid, ...)
-            return(estimateExpectation(finegridTrans, pdfTrans, functional, n))
-        })
-    } else userExpectations <- NULL
-    ## Also decide what to return in terms of pdf information. (See
-    ## INLA/Stringer.)
-    return(list(quantiles = quants, postMean = postMean, postVar = postVar, postSD = postSD,
-        userExpectations = userExpectations))
-}

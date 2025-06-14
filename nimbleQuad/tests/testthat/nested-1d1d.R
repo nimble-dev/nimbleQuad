@@ -32,68 +32,68 @@ qpts <- c(.025,.25,.5,.75,.975)
 
 qs <- qinvgamma(qpts,(n-1)/2, scale=(n-1)*var(m$y)/2)
 
-approx <- buildNestedApprox(m, latentNodes = 'mu', hyperParamNodes = 'sigma2')
+approx <- buildNestedApprox(m, latentNodes = 'mu', paramNodes = 'sigma2')
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox)
 
 qs
 result
-result$improveMarginals('sigma2', nMarginalGrid = 5) # already much better
-result$improveMarginals('sigma2', nMarginalGrid = 7)
-result$improveMarginals('sigma2', nMarginalGrid = 9)
-result$improveMarginals('sigma2', nMarginalGrid = 11)
-result$improveMarginals('sigma2', nMarginalGrid = 31) # very good
+result$improveParamMarginals('sigma2', nMarginalGrid = 5) # already much better
+result$improveParamMarginals('sigma2', nMarginalGrid = 7)
+result$improveParamMarginals('sigma2', nMarginalGrid = 9)
+result$improveParamMarginals('sigma2', nMarginalGrid = 11)
+result$improveParamMarginals('sigma2', nMarginalGrid = 31) # very good
 
 
 sigma2_direct <- rinvgamma(10000,(n-1)/2, scale=(n-1)*var(m$y)/2)
-sigma2_sample <- result$sampleParamNodes(10000)
+sigma2_sample <- result$sampleParams(10000)
 qqplot(sigma2_direct, sigma2_sample)
 
 
-mu_sample <- result$sampleLatentNodes(1000)
+mu_sample <- result$sampleLatents(1000)
 mu_direct <- rt_nonstandard(1000, n-1, mean(m$y), sqrt(var(m$y)/n))
 qqplot(mu_direct, mu_sample)
 
-mu_sample <- result$sampleLatentNodes(1000, includeParams = TRUE)
+mu_sample <- result$sampleLatents(1000, includeParams = TRUE)
 
 ## Check results on transformed scale.
 result <- runNestedApprox(capprox, originalScale = FALSE)
 log(qs)
 result  
-result$improveMarginals(1, nMarginalGrid = 5)
-result$improveMarginals(1, nMarginalGrid = 31)
+result$improveParamMarginals(1, nMarginalGrid = 5)
+result$improveParamMarginals(1, nMarginalGrid = 31)
 
-logsigma2_sample <- result$sampleParamNodes(10000)
+logsigma2_sample <- result$sampleParams(10000)
 qqplot(log(sigma2_direct), logsigma2_sample)
 
-mu_sample <- result$sampleLatentNodes(1000, includeParams = TRUE)
+mu_sample <- result$sampleLatents(1000, includeParams = TRUE)
 
 
 ## One doesn't need inner AGHQ here given exact normality for latent, but just make sure it runs.
 
-approx <- buildNestedApprox(m, latentNodes = 'mu', hyperParamNodes = 'sigma2',
+approx <- buildNestedApprox(m, latentNodes = 'mu', paramNodes = 'sigma2',
                             control = list(nQuadInner = 3))
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox)
 
-mu_sample <- result$sampleLatentNodes(100000)
+mu_sample <- result$sampleLatents(100000)
 quantile(mu_sample, qpts)
 qt_nonstandard(qpts, n-1, mean(m$y), sqrt(var(m$y)/n))
 
 ## Use more accurate outer integration.
 ## This could in principle improve inference for latents,
 ## but we'd probably need to knock down the MC simulation
-## by simulating more samples in `sampleLatentNodes`.
+## by simulating more samples in `sampleLatents`.
 
-approx <- buildNestedApprox(m, latentNodes = 'mu', hyperParamNodes = 'sigma2',
+approx <- buildNestedApprox(m, latentNodes = 'mu', paramNodes = 'sigma2',
                             control = list(nQuadOuter = 7))
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox)
 
-mu_sample2 <- result$sampleLatentNodes(100000)
+mu_sample2 <- result$sampleLatents(100000)
 quantile(mu_sample2, qpts)
 
 ## mimic INLA priors to compare to INLA
@@ -111,16 +111,16 @@ n <- 30
 m <- nimbleModel(code, data = list(y = rnorm(n)), constants = list(n=n),
                  inits = list(mu = 0, tau = 1), buildDerivs = TRUE)
 
-approx <- buildNestedApprox(m, latentNodes = 'mu', hyperParamNodes = 'tau')
+approx <- buildNestedApprox(m, latentNodes = 'mu', paramNodes = 'tau')
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox)  # MLL=-55.09768  (-55.0941 by INLA arithmetic)
 
 result
 
-result$improveMarginals('tau', nMarginalGrid = 11)
+result$improveParamMarginals('tau', nMarginalGrid = 11)
 
-mu_sample <- result$sampleLatentNodes(100000)
+mu_sample <- result$sampleLatents(100000)
 apply(mu_sample, 2, quantile, qpts)
 # MLL: -55.0941
 
@@ -166,7 +166,7 @@ y <- rnorm(n)
 m <- nimbleModel(code, data = list(y = y), constants = list(n=n),
                  inits = list(mu = 0, sigma = 1), buildDerivs = TRUE)
 
-approx <- buildNestedApprox(m, latentNodes = 'mu', hyperParamNodes = 'sigma')
+approx <- buildNestedApprox(m, latentNodes = 'mu', paramNodes = 'sigma')
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox)
@@ -205,7 +205,7 @@ n <- 30
 m <- nimbleModel(code, data = list(y = rnorm(n)), constants = list(n=n),
                  inits = list(mu = 0, tau = 1), buildDerivs = TRUE)
 
-approx <- buildNestedApprox(m, latentNodes = 'mu', hyperParamNodes = 'tau')
+approx <- buildNestedApprox(m, latentNodes = 'mu', paramNodes = 'tau')
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox)
@@ -263,26 +263,26 @@ qpts <- c(.025,.25,.5,.75,.975)
 
 qs <- qinvgamma(qpts,(n-1)/2, scale=(n-1)*var(m$y)/2)
 
-approx <- buildNestedApprox(m, latentNodes = 'mu', hyperParamNodes = 'sigma2')
+approx <- buildNestedApprox(m, latentNodes = 'mu', paramNodes = 'sigma2')
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox)
 
 qs
 result
-result$improveMarginals('sigma2', nMarginalGrid = 5) # already much better
-result$improveMarginals('sigma2', nMarginalGrid = 7)
-result$improveMarginals('sigma2', nMarginalGrid = 9)
-result$improveMarginals('sigma2', nMarginalGrid = 11)
-result$improveMarginals('sigma2', nMarginalGrid = 31) # very good
+result$improveParamMarginals('sigma2', nMarginalGrid = 5) # already much better
+result$improveParamMarginals('sigma2', nMarginalGrid = 7)
+result$improveParamMarginals('sigma2', nMarginalGrid = 9)
+result$improveParamMarginals('sigma2', nMarginalGrid = 11)
+result$improveParamMarginals('sigma2', nMarginalGrid = 31) # very good
 
 
 sigma2_direct <- rinvgamma(10000,(n-1)/2, scale=(n-1)*var(m$y)/2)
-sigma2_sample <- result$sampleParamNodes(10000)
+sigma2_sample <- result$sampleParams(10000)
 qqplot(sigma2_direct, sigma2_sample)
 
 
-mu_sample <- result$sampleLatentNodes(1000)
+mu_sample <- result$sampleLatents(1000)
 mu_direct <- rt_nonstandard(1000, n-1, mean(m$y), sqrt(var(m$y)/n))
 qqplot(mu_direct, mu_sample)
 

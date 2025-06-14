@@ -24,7 +24,7 @@ y <- matrix(rpois(n*J, mns), ncol = J)
 m <- nimbleModel(code, data = list(y = y), constants = list(n=n, J=J),
                  inits = list(lambda = rep(0,J), mu = 0, tau=1), buildDerivs = TRUE)
 
-approx <- buildNestedApprox(m, latentNodes = c('lambda'), hyperParamNodes = c('mu','tau'))
+approx <- buildNestedApprox(m, latentNodes = c('lambda'), paramNodes = c('mu','tau'))
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox)  # rather off compared to INLA or truth, more so with Aspectral fix
@@ -34,22 +34,22 @@ result
 ## MLL (INLA): -130.019
 
 
-# `improveMarginals` is definitely needed and now results pretty close to INLA
-result$improveMarginals(c('mu','tau'), nMarginalGrid = 7, nQuad = 7, quadRule = "AGHQ", prune = 0.2) 
+# `improveParamMarginals` is definitely needed and now results pretty close to INLA
+result$improveParamMarginals(c('mu','tau'), nMarginalGrid = 7, nQuad = 7, quadRule = "AGHQ", prune = 0.2) 
 
-latent_sample <- result$sampleLatentNodes(100000)
+latent_sample <- result$sampleLatents(100000)
 apply(latent_sample, 2, quantile, qpts)
 # lambda values not nearly as good as INLA marginals
 ## MLL: -129.9331
 
 ## Do better outer approximation
 
-approx <- buildNestedApprox(m, latentNodes = c('lambda'), hyperParamNodes = c('mu','tau'),
+approx <- buildNestedApprox(m, latentNodes = c('lambda'), paramNodes = c('mu','tau'),
                             control = list(nQuadOuter=5))
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 system.time(result <- runNestedApprox(capprox))  
-latent_sample <- result$sampleLatentNodes(100000)
+latent_sample <- result$sampleLatents(100000)
 apply(latent_sample, 2, quantile, qpts)
 
 
@@ -77,7 +77,7 @@ y <- matrix(rpois(n*J, mns), ncol = J)
 m <- nimbleModel(code, data = list(y = y), constants = list(n=n, J=J),
                  inits = list(lambda = rep(0,J), mu = 0, tau=1), buildDerivs = TRUE)
 
-approx <- buildNestedApprox(m, latentNodes = c('mu','lambda'), hyperParamNodes = c('tau'))
+approx <- buildNestedApprox(m, latentNodes = c('mu','lambda'), paramNodes = c('tau'))
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox)
@@ -85,9 +85,9 @@ result <- runNestedApprox(capprox)
 result  # rather close to INLA than other parameterization/latent-hyper split
 ## MLL: -129.9342
 
-result$improveMarginals('tau', nMarginalGrid = 7)  # definitely needed, now pretty close to INLA
+result$improveParamMarginals('tau', nMarginalGrid = 7)  # definitely needed, now pretty close to INLA
 
-latent_sample <- result$sampleLatentNodes(100000)
+latent_sample <- result$sampleLatents(100000)
 apply(latent_sample, 2, quantile, qpts)  # not all that close to INLA for `mu`, but is close to uncorrected INLA latent samples for 'mu'
 ## lambda values not nearly as good as INLA marginals
 
@@ -97,13 +97,13 @@ reparam <- latent_sample[,2:9] - latent_sample[,1]
 apply(reparam, 2, quantile, qpts)  # These look pretty good.
 
 ## Try better approximation.
-approx <- buildNestedApprox(m, latentNodes = c('mu','lambda'), hyperParamNodes = c('tau'),
+approx <- buildNestedApprox(m, latentNodes = c('mu','lambda'), paramNodes = c('tau'),
                             control = list(nQuadOuter=7))
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox)
 
-latent_sample <- result$sampleLatentNodes(100000)
+latent_sample <- result$sampleLatents(100000)
 apply(latent_sample, 2, quantile, qpts)  
 
 
@@ -192,11 +192,11 @@ y <- matrix(rpois(n*J, mns), ncol = J)
 m <- nimbleModel(code, data = list(y = y), constants = list(n=n, J=J),
                  inits = list(lambda = rep(0,J), mu = 0, tau=1), buildDerivs = TRUE)
 
-approx <- buildNestedApprox(m, latentNodes = c('lambda'), hyperParamNodes = c('mu','tau'),
+approx <- buildNestedApprox(m, latentNodes = c('lambda'), paramNodes = c('mu','tau'),
                             control = list(nQuadOuter=7))
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox)
 
-latent_sample <- result$sampleLatentNodes(100000)
+latent_sample <- result$sampleLatents(100000)
 apply(latent_sample, 2, quantile, qpts) # Not any better.

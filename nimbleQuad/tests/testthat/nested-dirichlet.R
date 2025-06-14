@@ -37,30 +37,30 @@ K <- 4
 m <- nimbleModel(code, data = list(rating = inhaler$rating),inits = list(psi = rep(.25, 4), beta_int = 0, beta_treat = 0, beta_period = 0, beta_carry = 0),
                  constants = list(K = K, n = nrow(inhaler), period = inhaler$period, carry = inhaler$carry, treat = inhaler$treat, threes = rep(3, K)), buildDerivs = TRUE)
 
-approx <- buildNestedApprox(m, latentNodes = c('beta_int','beta_treat','beta_period','beta_carry'), hyperParamNodes = c('psi'))
+approx <- buildNestedApprox(m, latentNodes = c('beta_int','beta_treat','beta_period','beta_carry'), paramNodes = c('psi'))
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox, originalScale = FALSE)  # Use originalScale=FALSE for comparison with INLA. 
-result$improveMarginals(1:3, nMarginalGrid = 7) ## Pretty good.
+result$improveParamMarginals(1:3, nMarginalGrid = 7) ## Pretty good.
 
 ## MLL: -474.3491
 
-latent_sample <- result$sampleLatentNodes(100000)
+latent_sample <- result$sampleLatents(100000)
 
 ## MLL: -474.3335
 
 
 ## AGHQ
-approx2 <- buildNestedApprox(m, latentNodes = c('beta_int','beta_treat','beta_period','beta_carry'), hyperParamNodes = c('psi'), control = list(hyperGridRule='AGHQ',nQuadOuter=5))
+approx2 <- buildNestedApprox(m, latentNodes = c('beta_int','beta_treat','beta_period','beta_carry'), paramNodes = c('psi'), control = list(hyperGridRule='AGHQ',nQuadOuter=5))
 capprox2 <- compileNimble(approx2, project = m)
 result2 <- runNestedApprox(capprox2, originalScale = FALSE) 
 
-latent_sample <- result$sampleLatentNodes(100000)
+latent_sample <- result$sampleLatents(100000)
 apply(latent_sample, 2, quantile, qpts)  
 
 
 result <- runNestedApprox(capprox, originalScale =TRUE)  
-result$improveMarginals('psi', nMarginalGrid = 7)
+result$improveParamMarginals('psi', nMarginalGrid = 7)
 
 ## MCMC
 

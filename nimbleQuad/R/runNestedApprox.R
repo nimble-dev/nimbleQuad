@@ -1,19 +1,16 @@
 ## Code for main user interface for NIMBLE's nested approximation.
 
-## Uses core algorithm code in `approxPosterior.R` and code for marginal
-## summaries in `approxSummaries.R`.
-
 ### Example workflow
 ## Rapprox <- buildNestedApprox(model)
 ## capprox <- compileNimble(Rapprox, project = model)
 ## result <- runNestedApprox(capprox)
-## improveMarginals(result, nodes = 'sigma')
-## paramSamples <- sampleParamNodes(result, n=1000)
-## samples <- sampleLatentNodes(result, n=1000)
+## improveParamMarginals(result, nodes = 'sigma')
+## paramSamples <- sampleParams(result, n=1000)
+## samples <- sampleLatents(result, n=1000)
 
 ## alternatively, with functions converted to class methods:
-## result$improveMarginals(nodes = 'sigma')
-## result$sampleParamNodes(n=1000)
+## result$improveParamMarginals(nodes = 'sigma')
+## result$sampleParams(n=1000)
 
 ## Class for holding nestedApprox object and various outputs/summaries computed
 ## from it when running `runNestedApprox` or individual functions that
@@ -24,7 +21,7 @@ approxSummary <- R6Class("approxSummary",
         initialize = function(approx, quantiles, expectations, marginalsApprox,
                               marginalsRaw, indivParamTransforms,
                               originalScale, marginalLogLik,
-                              marginalLogLik_improved, samples, paramSamples) {
+                              marginalLogLikImproved, samples, paramSamples) {
             self$approx <- approx
             self$quantiles <- quantiles
             self$expectations <- expectations
@@ -33,12 +30,12 @@ approxSummary <- R6Class("approxSummary",
             self$indivParamTransforms <- indivParamTransforms
             self$originalScale <- originalScale
             self$marginalLogLik <- marginalLogLik
-            self$marginalLogLik_improved <- marginalLogLik_improved
+            self$marginalLogLikImproved <- marginalLogLikImproved
             self$samples <- samples
             self$paramSamples <- paramSamples
         },
         generateParamsMatrix = function() {
-            if(is(self$approx, "NestedApprox")) 
+            if(is(self$approx, "nestedApprox")) 
                 Rapprox <- self$approx else Rapprox <- self$approx$Robject
 
             first <- which(!sapply(self$quantiles, is.null))[1]
@@ -54,9 +51,6 @@ approxSummary <- R6Class("approxSummary",
                 names(tmp) <- NULL
                 params[[names(exps)[i]]] <- tmp
             }
-            ## params <- data.frame(mean = sapply(self$marginalsSummary, `[[`,
-            ## 'mean'), sd = sapply(self$marginalsSummary, `[[`, 'sd'), row.names =
-            ## paramNames)
             for (i in seq_along(qs)) {
                 tmp <- sapply(self$quantiles, `[`, i)
                 names(tmp) <- NULL
@@ -73,13 +67,11 @@ approxSummary <- R6Class("approxSummary",
             if (is.null(self$params)) self$params <- self$generateParamsMatrix()
             if(length(self$params)) {
                 print(self$params)
-            } else cat("  No analytic marginals available for non-1:1 transformations; use `sampleParamNodes`.\n")
+            } else cat("  No analytic marginals available for non-1:1 transformations; use `sampleParams`.\n")
             cat("\nMarginal log-likelihood (asymmetric Gaussian approximation): ",
                 self$marginalLogLik, "(*)\n")
-            ## Careful with ref to AGHQ here as we do at the moment allow 'improved'
-            ## calc under CCD.
-            if (!is.na(self$marginalLogLik_improved))
-                cat("Marginal log-likelihood (grid-based): ", self$marginalLogLik_improved, "(*)\n")
+            if (!is.na(self$marginalLogLikImproved))
+                cat("Marginal log-likelihood (grid-based): ", self$marginalLogLikImproved, "(*)\n")
             cat("(*) Marginal log-likelihood is invalid for improper priors and may not be useful\nfor non-informative priors.\n")
             
             invisible(self)
@@ -87,17 +79,17 @@ approxSummary <- R6Class("approxSummary",
         setParamGrid = function(summary, quadRule = "NULL", nQuad = -1, prune = -1){
             setParamGrid(self, quadRule, nQuad, prune)
         },
-        improveMarginals = function(nodes, nMarginalGrid = 5, nQuad = 3, quadRule = "NULL", prune = -1, transform = "spectral") {
-            improveMarginals(self, nodes, nMarginalGrid, nQuad, quadRule, prune, transform)
+        improveParamMarginals = function(nodes, nMarginalGrid = 5, nQuad = 3, quadRule = "NULL", prune = -1, transform = "spectral") {
+            improveParamMarginals(self, nodes, nMarginalGrid, nQuad, quadRule, prune, transform)
         },
         calcMarginalLogLikImproved = function() {
             calcMarginalLogLikImproved(self)
         },
-        sampleParamNodes = function(n = 1000, matchMarginals = TRUE) {
-            sampleParamNodes(self, n, matchMarginals)
+        sampleParams = function(n = 1000, matchMarginals = TRUE) {
+            sampleParams(self, n, matchMarginals)
         },
-        sampleLatentNodes = function(n = 1000, includeParams = FALSE) {
-            sampleLatentNodes(self, n, includeParams)
+        sampleLatents = function(n = 1000, includeParams = FALSE) {
+            sampleLatents(self, n, includeParams)
         },
         qmarginal = function(node, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)) {
             qmarginal(self, node, quantiles)
@@ -122,7 +114,7 @@ approxSummary <- R6Class("approxSummary",
         indivParamTransforms = NULL,
         originalScale = NULL,
         marginalLogLik = NULL,
-        marginalLogLik_improved = NULL,
+        marginalLogLikImproved = NULL,
         samples = NULL,
         paramSamples = NULL,
         params = NULL
@@ -135,10 +127,10 @@ approxSummary <- R6Class("approxSummary",
 runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975),
                             originalScale = TRUE, improve1d = TRUE,
                             nSamplesLatents = 0, nSamplesParams = 0) {
-    if(is(approx, "NestedApprox")) 
+    if(is(approx, "nestedApprox")) 
         Rapprox <- approx else Rapprox <- approx$Robject
 
-    nParamTrans <- Rapprox$theta_length
+    nParamTrans <- Rapprox$nParamTrans
 
     marginalsRaw <- list()
     length(marginalsRaw) <- nParamTrans
@@ -150,7 +142,7 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
 
     ## Estimate marginals on transformed scale first.
     for (i in seq_len(nParamTrans)) {
-        marginalsRaw[[i]] <- approx$findMarginalHyperIntFree(i)
+        marginalsRaw[[i]] <- approx$calcMarginalParamIntegFree(i)
         marginalsApprox[[i]] <- fitMarginalSpline(marginalsRaw[[i]])
         if(!originalScale) {
             length(quantileEsts) <- length(expectations) <- length(indivParamTransforms) <- nParamTrans
@@ -184,11 +176,11 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
         marginalsRaw, indivParamTransforms, originalScale, marginalLogLik, NA, NULL,
         NULL)
 
-    ## With only one parameter, computations should not be so slow, so go ahead
-    ## and use better marginal and logLik estimates.
+    ## With only one parameter, computations will not be slow unless number of latents is large,
+    ## so go ahead and use better marginal and logLik estimates. 
     if (nParamTrans == 1 && improve1d) {
-        improveMarginals(summary, ifelse(originalScale, Rapprox$paramNodesComponents[1], 1))
-        summary$marginalLogLik_improved <- approx$calcMarginalLogLikQuad()
+        improveParamMarginals(summary, ifelse(originalScale, Rapprox$paramNodesComponents[1], 1))
+        summary$marginalLogLikImproved <- approx$calcMarginalLogLikQuad()
     }
 
     ## Should we embed sampling in `runNestedApprox`?
@@ -196,14 +188,14 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
     ## OTOH, it complicates things, including the args, and would be cleaner to
     ## have users requests samples afterwards.
 
-    ## This is expensive. Avoid if user only needs parameter inference.  How do
-    ## we have user tell us whether to `includeParams`?  Perhaps tell them to
-    ## use more manual workflow if they need that.
+    ## This is expensive. Avoid if user only needs parameter inference.
+    ## Also, how do we have user tell us whether to `includeParams`?
+    ## For now they must use more manual workflow if they need that.
     if (nSamplesLatents) 
-        sampleLatentNodes(summary, n = nSamplesLatents, includeParams = FALSE)
+        sampleLatents(summary, n = nSamplesLatents, includeParams = FALSE)
 
     if (nSamplesParams) 
-        sampleParamNodes(summary, n = nSamplesParams)
+        sampleParams(summary, n = nSamplesParams)
 
     return(summary)
 }
@@ -235,14 +227,14 @@ getNodeIndex <- function(node, Rapprox) {
 ## for parameters.
 ## Should it be called `improveParamMarginals`?
 ## Note that quadRule = "NULL" makes sure the default is orginal user choice.
-improveMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad = 3, quadRule = "NULL", prune = -1, transform = "spectral") {
+improveParamMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad = 3, quadRule = "NULL", prune = -1, transform = "spectral") {
     Rapprox <- summary$approx$Robject
 
     originalScale <- summary$originalScale
 
     if(missing(nodes))
         nodes <- ifelse(originalScale, Rapprox$innerMethods$paramNodes,
-                        seq_len(Rapprox$theta_length))
+                        seq_len(Rapprox$nParamTrans))
     
     if(originalScale) {
         if(!is.character(nodes))
@@ -260,9 +252,9 @@ improveMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad = 3, quadR
         if(!originalScale || idx > 0) {
             if(is.character(nodes[i])) paramName <- nodes[i] else paramName <- paste0("param_trans", nodes[i])
         
-            summary$marginalsRaw[[idx]] <- summary$approx$findMarginalPosteriorDensity(idx,
-                                                                                       nPts = nMarginalGrid, nQuad = nQuad, gridTransformMethod = transform, 
-                                                                                       quadRule = quadRule, prune = prune)
+            summary$marginalsRaw[[idx]] <- summary$approx$calcMarginalParamQuad(idx,
+                                                      nPts = nMarginalGrid, nQuad = nQuad, gridTransformMethod = transform, 
+                                                      quadRule = quadRule, prune = prune)
             summary$marginalsApprox[[idx]] <- fitMarginalSpline(summary$marginalsRaw[[idx]])
             
             summary$quantiles[[paramName]] <- estimateQuantiles(summary$marginalsApprox[[idx]],
@@ -276,18 +268,18 @@ improveMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad = 3, quadR
 }
 
 calcMarginalLogLikImproved <- function(summary) {
-    summary$marginalLogLik_improved <- summary$approx$calcMarginalLogLikQuad()
-    invisible(summary$marginalLogLik_improved)
+    summary$marginalLogLikImproved <- summary$approx$calcMarginalLogLikQuad()
+    invisible(summary$marginalLogLikImproved)
 }
 
 
 ## This uses whatever marginals (asymm Gaussian approx or improved) are in
 ## `summary`.  Potentially called from runNestedApprox or independently.
-sampleParamNodes <- function(summary, n = 1000, matchMarginals = TRUE) {
+sampleParams <- function(summary, n = 1000, matchMarginals = TRUE) {
     Rapprox <- summary$approx$Robject
     originalScale <- summary$originalScale
 
-    samplesTrans <- summary$approx$simulateHyperParams(n)
+    samplesTrans <- summary$approx$simulateParams(n)
 
     if (matchMarginals) {
         ## Copula approach based on `inla.hperpar.sample` via
@@ -305,7 +297,7 @@ sampleParamNodes <- function(summary, n = 1000, matchMarginals = TRUE) {
     ## Should we compile such that we can used compiled $paramsTransform?
     if (originalScale) {
         samples <- t(apply(samplesTrans, 1, Rapprox$innerMethods$paramsTransform$inverseTransform))
-        if(Rapprox$theta_length == 1)
+        if(Rapprox$nParamTrans == 1)
             samples <- matrix(samples, ncol = 1)
         colnames(samples) <- Rapprox$model$expandNodeNames(Rapprox$innerMethods$paramNodes,
                                                            returnScalarComponents = TRUE)
@@ -314,21 +306,20 @@ sampleParamNodes <- function(summary, n = 1000, matchMarginals = TRUE) {
         colnames(samples) <- paste0("param_trans", seq_len(ncol(samples)))
     }
 
-    ## TODO: check that INLA's improve.marginals does nothing for non 1:1
-    ## cases.
+    ## TODO: check that INLA's improve.marginals does nothing for non 1:1 cases.
     summary$paramSamples <- samples
     invisible(samples)
 }
 
 ## Potentially called from runNestedApprox or independently.
-sampleLatentNodes <- function(summary, n = 1000, includeParams = FALSE) {
+sampleLatents <- function(summary, n = 1000, includeParams = FALSE) {
     Rapprox <- summary$approx$Robject
     originalScale <- summary$originalScale
 
-    samples <- summary$approx$simulateLatentEffects(n)
+    samples <- summary$approx$simulateLatents(n)
 
     ## Grid-based marginal log-likelihood comes "for free" if simulate parameters.
-    summary$marginalLogLik_improved <- summary$approx$calcMarginalLogLikQuad()
+    summary$marginalLogLikImproved <- summary$approx$calcMarginalLogLikQuad()
 
     if(originalScale) {
         nms <- Rapprox$innerMethods$reNodesAsScalars_vec
@@ -352,7 +343,7 @@ sampleLatentNodes <- function(summary, n = 1000, includeParams = FALSE) {
         paramSamples <- paramValues[samples[, "index"], , drop = FALSE]
         if(summary$originalScale) {
             colnames(paramSamples) <- Rapprox$paramNodesComponents
-        } else colnames(paramSamples) <- paste0('param_trans', seq_len(Rapprox$theta_length))
+        } else colnames(paramSamples) <- paste0('param_trans', seq_len(Rapprox$nParamTrans))
         samples <- cbind(samples, paramSamples)
     }
     summary$samples <- samples[, -1, drop = FALSE]

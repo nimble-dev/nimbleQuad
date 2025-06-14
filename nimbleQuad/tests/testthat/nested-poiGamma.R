@@ -31,35 +31,35 @@ result <- runLaplace(cmLaplace, jointCovariance = TRUE)
 result <- runLaplace(cmLaplace, jointCovariance = TRUE, originalScale = FALSE)
 result$summary
 
-approx <- buildNestedApprox(m, latentNodes = c('mu'), hyperParamNodes = c('a','b'))
+approx <- buildNestedApprox(m, latentNodes = c('mu'), paramNodes = c('a','b'))
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox) # -139.9048
 
-latent_sample <- result$sampleLatentNodes(100, includeParams = TRUE)
+latent_sample <- result$sampleLatents(100, includeParams = TRUE)
 result  # -139.8688
 
 result <- runNestedApprox(capprox, originalScale = FALSE)
-latent_sample_trans <- result$sampleLatentNodes(100, includeParams = TRUE)
+latent_sample_trans <- result$sampleLatents(100, includeParams = TRUE)
 
 
-approx <- buildNestedApprox(m, latentNodes = c('mu'), hyperParamNodes = c('a','b'),
+approx <- buildNestedApprox(m, latentNodes = c('mu'), paramNodes = c('a','b'),
                             control = list(nQuadOuter = 7))
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox)  
 
-latent_sample <- result$sampleLatentNodes(100)
+latent_sample <- result$sampleLatents(100)
 result  # -139.8579
 
 
-approx <- buildNestedApprox(m, latentNodes = c('mu'), hyperParamNodes = c('a','b'),
+approx <- buildNestedApprox(m, latentNodes = c('mu'), paramNodes = c('a','b'),
                             control = list(nQuadOuter = 7, nQuadInner = 3))
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox) # -139.8575 
 
-latent_sample <- result$sampleLatentNodes(100)
+latent_sample <- result$sampleLatents(100)
 result  
 
 

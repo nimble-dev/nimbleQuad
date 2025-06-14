@@ -5,10 +5,10 @@ QUAD_CACHE_BASE <- nimbleFunctionVirtual(
         cacheQuadGrid = function(levels = double(), nodes = double(2), wgts = double(1), 
                                  modeI = integer(), prune = double(0, default = 0)) {
         },
-        nodes = function(indx = integer(0, default = 0)) {
+        nodes = function(idx = integer(0, default = 0)) {
             returnType(double(2))
         },
-        weights = function(indx = integer(0, default = 0)) {
+        weights = function(idx = integer(0, default = 0)) {
             returnType(double(1))
         },
         modeIndex = function() {
@@ -80,27 +80,27 @@ quadGridCache <- nimbleFunction(
         if (!gridBuilt | (levels != levels_) | (prune_ != prune) | (d_ != d))
             return(FALSE) else return(TRUE)
     },
-    nodes = function(indx = integer(0, default = 0)) {
+    nodes = function(idx = integer(0, default = 0)) {
         returnType(double(2))
-        if (indx > 0) {
-            if(indx > nGrid_cached) stop("Trying to access more quadrature points than available.")
-            return(matrix(nodes_cached[indx, ], nrow = 1))
+        if (idx > 0) {
+            if(idx > nGrid_cached) stop("Trying to access more quadrature points than available.")
+            return(matrix(nodes_cached[idx, ], nrow = 1))
         }
-        if (indx == -1 & modeIndex_cached > 0)
+        if (idx == -1 & modeIndex_cached > 0)
             return(matrix(nodes_cached[modeIndex_cached, ], nrow = 1))
-        if(indx > nGrid_cached)
+        if(idx > nGrid_cached)
           stop("Trying to access more quadrature points than available.")
         return(nodes_cached)
     },
-    weights = function(indx = integer(0, default = 0)) {
+    weights = function(idx = integer(0, default = 0)) {
         returnType(double(1))
-        if (indx > 0){
-            if(indx > nGrid_cached) stop("Trying to access more quadrature points than available.")
-            return(numeric(value = weights_cached[indx], length = 1))
+        if (idx > 0){
+            if(idx > nGrid_cached) stop("Trying to access more quadrature points than available.")
+            return(numeric(value = weights_cached[idx], length = 1))
         }
-        if (indx == -1 & modeIndex_cached > 0)
+        if (idx == -1 & modeIndex_cached > 0)
             return(numeric(value = weights_cached[modeIndex_cached], length = 1))
-        if(indx > nGrid_cached)
+        if(idx > nGrid_cached)
           stop("Trying to access more quadrature points than available.")
         return(weights_cached)
     },
@@ -183,22 +183,22 @@ configureQuadGrid <- nimbleFunction(
             if (quadRules[i] == "AGHQ") {
                 I_AGHQ <- i
                 quadRule_nfl[[i]] <- quadRule_GH(type="GHe")
-            }else if (quadRules[i] == "CCD") {
+            } else if (quadRules[i] == "CCD") {
                 I_CCD <- i
                 quadRule_nfl[[i]] <- quadRule_CCD(f0 = ccd_f0)
-            }else if (quadRules[i] == "AGHQSPARSE") {
+            } else if (quadRules[i] == "AGHQSPARSE") {
                 I_AGHQSPARSE <- i
                 quadRule_nfl[[i]] <- quadRule_GH(type="GHe")
-            }else if (quadRules[i] == "USER") {
+            } else if (quadRules[i] == "USER") {
                 I_USER <- i
                 quadRule_nfl[[i]] <- quadRule_USER()
-            }else if (quadRules[i] == "USERSPARSE") {
+            } else if (quadRules[i] == "USERSPARSE") {
                 I_USERSPARSE <- i
                 quadRule_nfl[[i]] <- quadRule_USER()
-            }else if (quadRules[i] == "USERMULTI") {
+            } else if (quadRules[i] == "USERMULTI") {
                 I_USERMULTI <- i
                 quadRule_nfl[[i]] <- quadRule_USER()
-            }else{
+            } else {
               stop("An unrecognized quadRule was detected.")
             }
             quadGridCache_nfl[[i]] <- quadGridCache()            
@@ -233,10 +233,10 @@ configureQuadGrid <- nimbleFunction(
           ## No sparse or product rule for d=1. User can provide a multivariate grid similar to CCD as well.
           if ( I_RULE == I_CCD | I_RULE == I_USERMULTI | d == 1){
             nodes_wgts <- quadRule_nfl[[I_RULE]]$buildGrid(levels = levels, d = d)
-          }else{
+          } else {
             if ( I_RULE == I_AGHQSPARSE | I_RULE == I_USERSPARSE ){
               nodes_wgts <- sparse_construction()
-            }else{
+            } else {
               levels_vec <- numeric(value = levels, length = d) ## In theory we can choose a different number of nodes per dimension.
               nodes_wgts <- product_construction(levels_vec = levels_vec)
             }
@@ -259,11 +259,11 @@ configureQuadGrid <- nimbleFunction(
           modei <- -1L
           if(I_RULE == I_CCD) {
             modei <- 1
-          }else {
+          } else {
             nQ <- dim(nodes_wgts)[1]
             if(nQ %% 2 == 0 & (I_RULE == I_AGHQ | I_RULE == I_USER | I_RULE == I_USERMULTI)){
               modei <- -1L
-            }else {
+            } else {
               modei <- ceiling(nQ/2)
               if (sum(abs(nodes_wgts[modei, 2:(d + 1)])) != 0) {
                 for (i in 1:nQ) {
@@ -308,7 +308,7 @@ configureQuadGrid <- nimbleFunction(
                       modei <- which(keep == modeI[I_RULE] )
                       if (dim(modei)[1] > 0) modeI[I_RULE]  <<- modei[1] else modeI[I_RULE] <<- -1
                   }
-                }else{
+                } else {
                   stop("Will not prune to less than 3 quadrature points. Choose another pruning proportion or switch to Laplace, one quadrature node.")
                 }
             }
@@ -334,15 +334,15 @@ configureQuadGrid <- nimbleFunction(
 
             ## Do Product Rule: Repeat x for each dimension swp times.
             for (j in 1:d) {
-                indx <- 1
+                idx <- 1
                 for (ii in 1:nQ) {
-                    nodes_wgts[ii, j + 1] <- nodes_mat[j, indx]
-                    nodes_wgts[ii, 1] <- nodes_wgts[ii, 1] * weights_vec[j, indx]
+                    nodes_wgts[ii, j + 1] <- nodes_mat[j, idx]
+                    nodes_wgts[ii, 1] <- nodes_wgts[ii, 1] * weights_vec[j, idx]
                     k <- ii %% swp[j]
                     if (k == 0)
-                        indx <- indx + 1
-                    if (indx > levels_vec[j])
-                        indx <- 1
+                        idx <- idx + 1
+                    if (idx > levels_vec[j])
+                        idx <- 1
                 }
             }
             returnType(double(2))
@@ -381,7 +381,7 @@ configureQuadGrid <- nimbleFunction(
 
                   cnt <- cnt + dim(nodes_prod)[1]
               }
-            }else{
+            } else {
               stop("Trying to apply sparse construction to an invalid quadrature rule.")
             }
             returnType(double(2))
@@ -406,17 +406,17 @@ configureQuadGrid <- nimbleFunction(
             ## Make sure the next grid gets built.
             for( i in 1:nRules ) gridBuilt[i] <<- FALSE
         },
-        weights = function(indx = integer(0, default = 0)) {
+        weights = function(idx = integer(0, default = 0)) {
             if (!gridBuilt[I_RULE]) buildGrid()
-            if (indx == -1 & modeI[I_RULE] > 0) indx <- modeI[I_RULE] 
+            if (idx == -1 & modeI[I_RULE] > 0) idx <- modeI[I_RULE] 
             returnType(double(1))
-            return(quadGridCache_nfl[[I_RULE]]$weights(indx = indx))
+            return(quadGridCache_nfl[[I_RULE]]$weights(idx = idx))
         },
-        nodes = function(indx = integer(0, default = 0)) {
+        nodes = function(idx = integer(0, default = 0)) {
             if (!gridBuilt[I_RULE]) buildGrid()
-            if (indx == -1 & modeI[I_RULE]  > 0) indx <- modeI[I_RULE]
+            if (idx == -1 & modeI[I_RULE]  > 0) idx <- modeI[I_RULE]
             returnType(double(2))
-            return(quadGridCache_nfl[[I_RULE]]$nodes(indx = indx))
+            return(quadGridCache_nfl[[I_RULE]]$nodes(idx = idx))
         },
         gridSize = function() {
             if (!gridBuilt[I_RULE]) buildGrid()
@@ -543,10 +543,10 @@ INNER_CACHE_BASE <- nimbleFunctionVirtual(
     run = function() {
     },
     methods = list(
-        buildCache = function(nGridUpdate = integer(), nLatentNodes = integer()) {},
-        cache_weights = function(weight = double(), indx = integer()) {},
-        cache_inner_mode = function(mode = double(1), indx = integer()) {},
-        cache_inner_negHessChol = function(negHessChol = double(2), indx = integer()) {},
+        buildCache = function(nGridUpdate = integer(), nLatents = integer()) {},
+        cache_weights = function(weight = double(), idx = integer()) {},
+        cache_inner_mode = function(mode = double(1), idx = integer()) {},
+        cache_inner_negHessChol = function(negHessChol = double(2), idx = integer()) {},
         gridSize = function(){returnType(integer())},
         weights = function() {
             returnType(double(1))
@@ -563,29 +563,29 @@ INNER_CACHE_BASE <- nimbleFunctionVirtual(
 ## point:
 inner_cache_methods = nimbleFunction(
     contains = INNER_CACHE_BASE,
-    setup = function(nre = 0, nGrid = 0, condIndptSets = NULL, nCondIndptSets = 1) {
+    setup = function(nre = 0, nGrid = 0, condIndepSets = NULL, nCondIndepSets = 1) {
         innerMode <- matrix(0, nrow = 1, ncol = 1)
         innerNegHessChol <- array(0, c(1, 1, 1))
         wgtsDens <- c(1, -1)
         cacheBuilt <- FALSE
-        if (is.null(condIndptSets)) {
-            condIndptSets <- nre  ## Assuming all one set.
-            nCondIndptSets <- 1  ## If NULL then this is not relevant.
+        if (is.null(condIndepSets)) {
+            condIndepSets <- nre  ## Assuming all one set.
+            nCondIndepSets <- 1  ## If NULL then this is not relevant.
         }
-        if (length(condIndptSets) == 1) {
-            condIndptSets <- c(condIndptSets, -1)  ##  Make sure it's a vector.
+        if (length(condIndepSets) == 1) {
+            condIndepSets <- c(condIndepSets, -1)  ##  Make sure it's a vector.
         }
     },
     run = function() {
     },
     methods = list(
-        buildCache = function(nGridUpdate = integer(0, default = -1), nLatentNodes = integer()) {
-            nre <<- nLatentNodes
-            ## If the cond indpt sets don't match up, don't use.
-            if (nre != sum(condIndptSets[1:nCondIndptSets])) {
+        buildCache = function(nGridUpdate = integer(0, default = -1), nLatents = integer()) {
+            nre <<- nLatents
+            ## If the cond independent sets don't match up, don't use.
+            if (nre != sum(condIndepSets[1:nCondIndepSets])) {
                 print("  Warning: Not able to simulate latent effects from conditionally independent sets.")
-                condIndptSets <<- numeric(value = nre, length = 1)
-                nCondIndptSets <<- 1
+                condIndepSets <<- numeric(value = nre, length = 1)
+                nCondIndepSets <<- 1
             }
 
             if (nGridUpdate > 0 & nGridUpdate != nGrid) {
@@ -601,22 +601,22 @@ inner_cache_methods = nimbleFunction(
             }
         },
         ## Note to self, this wgt will be density*wgt, strictly for simulating.
-        cache_weights = function(weight = double(), indx = integer()) {
-            if(indx > nGrid | indx <= 0)
+        cache_weights = function(weight = double(), idx = integer()) {
+            if(idx > nGrid | idx <= 0)
               stop("Trying to cache weights larger than we expect the quadrature grid to be.")
-            wgtsDens[indx] <<- weight
+            wgtsDens[idx] <<- weight
         },
-        cache_inner_mode = function(mode = double(1), indx = integer()) {
-            if(indx > nGrid | indx <= 0)
+        cache_inner_mode = function(mode = double(1), idx = integer()) {
+            if(idx > nGrid | idx <= 0)
               stop("Trying to cache latent mode larger than we expect the quadrature grid to be.")
-            innerMode[indx, ] <<- mode
+            innerMode[idx, ] <<- mode
         },
         ## Note potentially storing a lot of zeros here. Could break it into a list of cond indpt sets.
-        cache_inner_negHessChol = function(negHessChol = double(2), indx = integer()) {
-            if(indx > nGrid | indx <= 0)
+        cache_inner_negHessChol = function(negHessChol = double(2), idx = integer()) {
+            if(idx > nGrid | idx <= 0)
               stop("Trying to cache latent hessian larger than we expect the quadrature grid to be.")
         
-            innerNegHessChol[indx, , ] <<- negHessChol
+            innerNegHessChol[idx, , ] <<- negHessChol
         },
         weights = function() {
             returnType(double(1))
@@ -637,13 +637,13 @@ inner_cache_methods = nimbleFunction(
                 k <- rcat(1, prob = simwgt)
                 val[i, 1] <- k
                 jStart <- 1
-                for (j in 1:nCondIndptSets) {
-                    val[i, (jStart + 1):(jStart + condIndptSets[j])] <-
-                        rmnorm_chol(n = 1, mean = innerMode[k, jStart:(jStart + condIndptSets[j] - 1)],
-                                    cholesky = innerNegHessChol[k, jStart:(jStart + condIndptSets[j] - 1),
-                                                                jStart:(jStart + condIndptSets[j] - 1)],
+                for (j in 1:nCondIndepSets) {
+                    val[i, (jStart + 1):(jStart + condIndepSets[j])] <-
+                        rmnorm_chol(n = 1, mean = innerMode[k, jStart:(jStart + condIndepSets[j] - 1)],
+                                    cholesky = innerNegHessChol[k, jStart:(jStart + condIndepSets[j] - 1),
+                                                                jStart:(jStart + condIndepSets[j] - 1)],
                                     prec_param = TRUE)
-                    jStart <- jStart + condIndptSets[j]
+                    jStart <- jStart + condIndepSets[j]
                 }
             }
             returnType(double(2))

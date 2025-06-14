@@ -2469,7 +2469,7 @@ buildAGHQ <- nimbleFunction(
       returnType(double(1))
     },
     ## Gradient of posterior density on the transformed scale.
-    gr_LogDens = function(p = double(1), trans = logical(0, default = FALSE), 
+    gr_logDens = function(p = double(1), trans = logical(0, default = FALSE), 
                           includeJacobian = logical(0, default = TRUE), 
                           includePrior = logical(0, default = TRUE)){
       if(trans) {
@@ -2490,16 +2490,16 @@ buildAGHQ <- nimbleFunction(
       return(ans)
       returnType(double(1))
     },
-    gr_LogDens_pTransformed = function(pTransform = double(1)){
-      ans <- gr_LogDens(pTransform, trans = TRUE, 
+    gr_logDens_pTransformed = function(pTransform = double(1)){
+      ans <- gr_logDens(pTransform, trans = TRUE, 
                         includeJacobian = includeJacobian_, 
                         includePrior = includePrior_)
       return(ans)
       returnType(double(1))
     },
-    gr_LogDens_pTransformedFix1 = function(pTransform = double(1)){
+    gr_logDens_pTransformedFix1 = function(pTransform = double(1)){
       pTransform_star <- replaceOneVec(pTransform)
-      ans <- gr_LogDens(pTransform_star, trans = TRUE, 
+      ans <- gr_logDens(pTransform_star, trans = TRUE, 
                         includeJacobian = includeJacobian_, 
                         includePrior = includePrior_)
 
@@ -2608,7 +2608,7 @@ buildAGHQ <- nimbleFunction(
       ## Use of AD-based gradient requires fix to handling of gradient of prior. // CJP 2025-04-03
       if( !keepOneFixed_ ){
         if(outerOptimUseAD) {
-            optRes <- optim(pStartTransform, calcLogDens_pTransformed, gr_LogDens_pTransformed, 
+            optRes <- optim(pStartTransform, calcLogDens_pTransformed, gr_logDens_pTransformed, 
                             method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
         } else optRes <- optim(pStartTransform, calcLogDens_pTransformed, 
                                method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
@@ -2616,7 +2616,7 @@ buildAGHQ <- nimbleFunction(
         if(parscale == "real") optRes$par <- p
       } else {
         if(outerOptimUseAD) {
-            optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, gr_LogDens_pTransformedFix1, 
+            optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, gr_logDens_pTransformedFix1, 
                             method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
         } else optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, 
                                method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)

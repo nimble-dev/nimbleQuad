@@ -23,6 +23,6 @@ Collate:
     quadratureRules.R
     nodeUtils.R
     Laplace.R
-    approxPosterior.R
+    buildNestedApprox.R
     runNestedApprox.R
-    approxSummaries.R
+    summaryUtils.R

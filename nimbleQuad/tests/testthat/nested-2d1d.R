@@ -18,16 +18,16 @@ y <- 0.3*x + rnorm(n)
 m <- nimbleModel(code, data = list(y = y, x = x), constants = list(n=n),
                  inits = list(b0 = 0, b1 = .5, tau = 1), buildDerivs = TRUE)
 
-approx <- buildNestedApprox(m, latentNodes = c('b0','b1'), hyperParamNodes = 'tau')
+approx <- buildNestedApprox(m, latentNodes = c('b0','b1'), paramNodes = 'tau')
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
 result <- runNestedApprox(capprox)
 
 result # -55.70563
 
-result$improveMarginals('tau', nMarginalGrid = 31)
+result$improveParamMarginals('tau', nMarginalGrid = 31)
 
-mu_sample <- result$sampleLatentNodes(100000)
+mu_sample <- result$sampleLatents(100000)
 apply(mu_sample, 2, quantile, qpts)
 
 # -55.70194
