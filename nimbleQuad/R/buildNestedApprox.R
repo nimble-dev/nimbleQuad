@@ -47,7 +47,7 @@ buildNestedApprox <- nimbleFunction(
 
         ## Default outer grid to CCD unless low dimensional.
         paramGridRule <- extractControlElement(control, "paramGridRule", "none")
-        pruneHyperGrid <- extractControlElement(control, "hyperGridPrune", 0)
+        pruneParamGrid <- extractControlElement(control, "paramGridPrune", 0)
         if(paramGridRule == "none")
             paramGridRule <- ifelse(nParamTrans >= 3, "CCD", "AGHQ")
 
@@ -273,7 +273,7 @@ buildNestedApprox <- nimbleFunction(
             nGrid <- paramGrid$gridSize()
             nCache <- inner_grid_cache_nfl[[I_GRID]]$gridSize()
             inner_grid_cache_nfl[[I_GRID]]$buildCache(nGridUpdate = nGrid, nLatents = nreTrans)
-            ## If grid changed, then need to update here that we have to calcHyperGrid again too.
+            ## If grid changed, then need to update here that we have to calcParamGrid again too.
             if(nGrid != nCache) paramGridCached[I_GRID] <<- FALSE
             if (!modeCached) findMode(rep(Inf, nParamTrans), hessian = TRUE, parscale = "transformed")
         },
@@ -375,7 +375,7 @@ buildNestedApprox <- nimbleFunction(
                 skewedStdDev[i, 2] <<- sqrt(2/(2 * (logPostProbMode - logDens2Pos)))  ## numerator (-sqrt(2)) ^2
                 logSkewedWgt <<- logSkewedWgt + log(sum(skewedStdDev[i, ]/2))
                 if(any(skewedStdDev[i,] < 0.3) | any(skewedStdDev[i,] > 3.333))
-                    nimCat("  [Warning] Skewness in posterior of the hyperparameters in dimension ", i, " is large and a potential sign of an issue for these approximations.\n")
+                    nimCat("  [Warning] Skewness in posterior of the (hyper)parameters in dimension ", i, " is large and a potential sign of an issue for these approximations.\n")
             }
             skewedSDCached <<- TRUE
         },
