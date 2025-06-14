@@ -215,7 +215,7 @@ getNodeIndex <- function(node, Rapprox) {
             stop("node `", nodes[i], "` is not a parameter element or is not involved in a 1:1 parameter transformation, so marginals cannot be estimated by analytic approximation. In the latter case, use `sampleParamNodes` for inference.")
         idx <- Rapprox$paramNodesIndices[mtch]
     } else {
-        if(node > Rapprox$innerMethods$nparTrans)
+        if(node > Rapprox$innerMethods$nParamTrans)
             stop("Numeric index value ", node, " exceeds number of transformed parameters")
         idx <- node
     }
@@ -327,8 +327,7 @@ sampleLatents <- function(summary, n = 1000, includeParams = FALSE) {
     if(dim(samples)[2] == 2) 
         nms <- nms[1]
 
-    if(originalScale && !all(Rpprox$innerMethods$reTransform$transformType == 1, na.rm = TRUE))
-) {
+    if(originalScale && !all(Rapprox$innerMethods$reTransform$transformType == 1, na.rm = TRUE)) {
         samplesTrans <- t(apply(samples[ , -1], 1, Rapprox$innerMethods$reTransform$inverseTransform))
         samples <- cbind(samples[ , 1], samplesTrans)
     }

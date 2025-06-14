@@ -14,8 +14,8 @@ buildNestedApprox <- nimbleFunction(
 
         transformMethod <- extractControlElement(control, "quadTransform", "spectral")
 
-        ## Default starting value for Approx Posterior set here and passed to
-        ## Laplace.  zero makes sense but should test others on the AGHQ grid and
+        ## Default starting value for nested approximation set here and passed to
+        ## Laplace.  Zero makes sense but should test others on the AGHQ grid and
         ## see how they work.
         control$innerOptimStart <- extractControlElement(control, "innerOptimStart",
                                                          "zero")
