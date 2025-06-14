@@ -23,6 +23,7 @@ Takes requested quadrature rules, builds the associated quadrature grids, and ca
 all the features of the grids.
 }
 \details{
+\itemize{
 \item \code{buildGrid} method for creating the quadrature grid. Inputs are \code{method} includes ("AGHQ", "CCD", "USER") to choose the quadrature rule. 
   \code{nQuad} number of quadrature points (nQuad) per dimension, \code{prune} proportion of points in the product construction to use, and \code{constructionRule} 
   includes ("product", "sparse"). Default behaviour for all input is to use whatever values are currently being used. 
@@ -32,6 +33,7 @@ all the features of the grids.
   \item \code{nodes}, \code{weights}, \code{gridSize}, and \code{modeIndex} give access to the user for the details of the quadrature grid in use. This is either based
   on the last call to \code{buildGrid}, or by choosing a different grid with \code{setMethod}. \code{nodes} and \code{weights} return all nodes and weights if no values
   are passed, or if an index is passed, the node and weight associated with that index. Passing -1 indicates that the mode should be returned which in this case is all zeros.
+}
 }
 \author{
 Paul van Dam-Bates
