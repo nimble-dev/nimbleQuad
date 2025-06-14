@@ -506,7 +506,7 @@ buildNestedApprox <- nimbleFunction(
 
             nQuadGrid <- paramMargGrid$gridSize()
 
-            if (!modeCached) findMode(rep(Inf, npar), hessian = TRUE, parscale = "transformed")  ## *** default is now nlminb
+            if (!modeCached) findMode(rep(Inf, nParamTrans), hessian = TRUE, parscale = "transformed")  ## *** default is now nlminb
             
             ## 1D quadrature to evaluate the paramTrans on.
             stdDev <- sqrt(covParamTrans[pIndex, pIndex])
