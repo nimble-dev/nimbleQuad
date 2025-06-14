@@ -3,7 +3,7 @@
 export(buildAGHQ)
 export(buildLaplace)
 export(buildNestedApprox)
-export(ruNestedApprox)
+export(runNestedApprox)
 export(configureQuadGrid)
 export(drop_algorithm)
 export(logSumExp)
