@@ -327,7 +327,8 @@ sampleLatents <- function(summary, n = 1000, includeParams = FALSE) {
     if(dim(samples)[2] == 2) 
         nms <- nms[1]
 
-    if(originalScale) {
+    if(originalScale && !all(Rpprox$innerMethods$reTransform$transformType == 1, na.rm = TRUE))
+) {
         samplesTrans <- t(apply(samples[ , -1], 1, Rapprox$innerMethods$reTransform$inverseTransform))
         samples <- cbind(samples[ , 1], samplesTrans)
     }
