@@ -212,10 +212,13 @@ getNodeIndex <- function(node, Rapprox) {
     if (is.character(node)) {
         mtch <- which(node == Rapprox$paramNodesComponents)
         if(length(mtch) != 1)
-            stop("node `", nodes[i], "` is not a parameter element or is not involved in a 1:1 parameter transformation, so marginals cannot be estimated by analytic approximation. In the latter case, use `sampleParamNodes` for inference.")
+            stop("node `", node, "` is not a parameter element")
         idx <- Rapprox$paramNodesIndices[mtch]
+        if(idx == 0)
+            stop("node `", node, "`is not involved in a 1:1 parameter transformation, so marginals cannot be estimated by analytic approximation. Use `sampleParams` for inference.")
+                 
     } else {
-        if(node > Rapprox$innerMethods$nParamTrans)
+        if(node > Rapprox$innerMethods$nparTrans)
             stop("Numeric index value ", node, " exceeds number of transformed parameters")
         idx <- node
     }
@@ -352,9 +355,10 @@ sampleLatents <- function(summary, n = 1000, includeParams = FALSE) {
 
 qmarginal <- function(summary, node, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)) {
     Rapprox <- summary$approx$Robject
-    if(is.character(node))
-        paramTransform  <- parameterTransform(Rapprox$model, node) else paramTransform <- NULL
     idx <- getNodeIndex(node, Rapprox)
+    if(is.character(node)) {
+        paramTransform  <- parameterTransform(Rapprox$model, node) 
+    } else paramTransform <- NULL
     quantileEsts <- estimateQuantiles(summary$marginalsApprox[[idx]], paramTransform, quantiles)
     names(quantileEsts) <- quantiles
     return(quantileEsts)
@@ -369,12 +373,12 @@ rmarginal <- function(summary, node, n = 1000) {
 dmarginal <- function(summary, node, x, log = FALSE) {
     Rapprox <- summary$approx$Robject
     logDetJac <- 0
+    idx <- getNodeIndex(node, Rapprox)
     if(is.character(node)) {
         paramTransform  <- parameterTransform(Rapprox$model, node)
         x <- sapply(x, paramTransform$transform)
         logDetJac <- sapply(x, paramTransform$logDetJacobian)
     }
-    idx <- getNodeIndex(node, Rapprox)
     logPDF <- fitMarginalSpline(summary$marginalsRaw[[idx]], xnew = x) - logDetJac
 
     if(log) return(logPDF) else return(exp(logPDF))

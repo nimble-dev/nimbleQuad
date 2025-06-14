@@ -400,7 +400,7 @@ buildNestedApprox <- nimbleFunction(
         ## Stores all values we need for simulation inference on the latent nodes.
         calcParamGrid = function(skew = logical(0, default = TRUE)) {
             if(I_GRID == I_AGHQSPARSE)
-                print("  [Note] Sparse grids cannot be used to simulate latent effects which is the main reason to compute posterior on the hyper grid.")
+                print("  [Note] Sparse grids cannot be used to simulate latent effects (the main reason to compute the posterior on the parameter grid).")
 
             buildParamGrid()
             setTransformations(transformMethod)
