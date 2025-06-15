@@ -1,12 +1,14 @@
 marginalSplineR <- nimbleRcall(function(theta = double(1), logdens = double(1)) {},
                                Rfun = "marginalSpline", returnType = double(2))
 
-fitMarginalSpline <- function(gridded, normalize = TRUE, xnew = NULL) {
+fitMarginalSpline <- function(gridded, normalize = TRUE, xnew = NULL, refine = TRUE, extend = TRUE) {
     theta <- gridded[, 1]
     logdens <- gridded[, 2]
     n <- length(theta)
     rn <- range(theta)
     rnl <- diff(rn)
+    if(!extend)
+        rnl <- 0   # Don't be cautious if refining the interval.
     thetarange <- c(min(rn) - rnl/2, max(rn) + rnl/2)
     finegrid <- seq(thetarange[1], thetarange[2], length.out = 1000)  ## This is based off of Stringer for a fine grid.
     if (n <= 3) {
@@ -24,11 +26,20 @@ fitMarginalSpline <- function(gridded, normalize = TRUE, xnew = NULL) {
     }
     ## Normalize the PDF.
     pdf <- exp(logPDF)
-    trapezoids <- diff(finegrid) * (pdf[-length(pdf)] + pdf[-1])/2  # Trapezoidal rule (could use Simpson as (2M+T)/3.
-    if (normalize)
-        norm <- sum(trapezoids) else norm <- 1
-    pdf <- pdf/norm
+    # Trapezoidal rule (could use Simpson as (2M+T)/3, but it would require additional spline evaluation.
+    trapezoids <- diff(finegrid) * (pdf[-length(pdf)] + pdf[-1])/2  
+    if (normalize) {
+        norm <- sum(trapezoids) 
+        pdf <- pdf/norm
+        logPDF <- logPDF - log(norm)
+    } else norm <- 1
     cdf <- c(0, cumsum(trapezoids)/norm)
+
+    if(refine) {
+        core <- which(cdf > 0.00001 & cdf < 0.99999)
+        return(fitMarginalSpline(cbind(finegrid[core], logPDF[core]), xnew = xnew, refine = FALSE, extend = FALSE))
+    }
+    
     ## Return the gridded distribution information or evaluation at provided points.
     if(is.null(xnew))
         return(cbind(finegrid, pdf, cdf)) else return(logPDFnew - log(norm))

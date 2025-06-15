@@ -381,7 +381,7 @@ dmarginal <- function(summary, node, x, log = FALSE) {
         x <- sapply(x, paramTransform$transform)
         logDetJac <- sapply(x, paramTransform$logDetJacobian)
     }
-    logPDF <- fitMarginalSpline(summary$marginalsRaw[[idx]], xnew = x) - logDetJac
+    logPDF <- fitMarginalSpline(summary$marginalsRaw[[idx]], xnew = x, refine = FALSE) - logDetJac
 
     if(log) return(logPDF) else return(exp(logPDF))
 }
