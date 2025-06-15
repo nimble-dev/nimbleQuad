@@ -677,6 +677,7 @@ buildNestedApprox <- nimbleFunction(
                 vals[i,] <- z_to_paramTrans(vals[i,], paramTransMode, Atransform, transformMethod)
             }
             returnType(double(2))
+            return(vals)
         }
     )
 )
