@@ -459,6 +459,8 @@ buildNestedApprox <- nimbleFunction(
                 adjLogWgt
 
             paramGridCached[I_GRID] <<- TRUE
+            if(skew)
+                paramGridSkewed <<- TRUE else paramGridSkewed <<- FALSE
         },
         ## Quadrature based marginal log-likelihood
         ## Probably not particularly accurate for CCD.
@@ -665,7 +667,15 @@ buildNestedApprox <- nimbleFunction(
             return(sims)
         },
         getParamGrid = function() {
-            return(paramGrid$nodes())
+            vals <- paramGrid$nodes()  # z
+            for(i in 1:dim(vals)[1]) {
+                if (paramGridSkewed) {
+                    for (d in 1:nParamTrans) {
+                        vals[i,d] <- vals[i,d] * skewedStdDev[d, step(vals[i,d]) + 1]  
+                    }
+                }
+                vals[i,] <- z_to_paramTrans(vals[i,], paramTransMode, Atransform, transformMethod)
+            }
             returnType(double(2))
         }
     )
