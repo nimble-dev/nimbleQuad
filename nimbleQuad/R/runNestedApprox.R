@@ -103,8 +103,8 @@ approxSummary <- R6Class("approxSummary",
         emarginal = function(node, functional, ...) {
             emarginal(self, node, functional, ...)
         },
-        plotMarginal = function(node, x, log = FALSE, add = FALSE, ...){
-            plotMarginal(self, node, x, log, add = add, ...)
+        plotMarginal = function(node, log = FALSE, add = FALSE, ...){
+            plotMarginal(self, node, log, add = add, ...)
         },
         approx = NULL,
         quantiles = NULL,

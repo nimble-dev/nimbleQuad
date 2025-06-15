@@ -216,6 +216,8 @@ buildNestedApprox <- nimbleFunction(
         ## Must be cached for each grid: Up to 4 currently.
         paramGridCached <- c(FALSE, FALSE, FALSE, FALSE)
 
+        paramGridSkewed <- TRUE
+
         ## Indicator for removing the redundant index -1 in paramTrans_indices
         one_time_fixes_done <- FALSE
     },
