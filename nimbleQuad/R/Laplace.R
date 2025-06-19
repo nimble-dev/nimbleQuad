@@ -1833,6 +1833,9 @@ buildAGHQ <- nimbleFunction(
     check <- extractControlElement(control, 'check', TRUE)
     innerOptimWarning <- extractControlElement(control, 'innerOptimWarning', FALSE)
 
+    if(!is.Rmodel(model))
+        stop("`model` must be an R model, created by calling `nimbleModel`")
+    
     if(nQuad %% 2 == 0)
       messageIfVerbose("  [Note] For computational efficiency, it is recommended to use an odd number of quadrature points.")
     if(nQuad > 35) {
@@ -2605,7 +2608,6 @@ buildAGHQ <- nimbleFunction(
       # optRes <- optim(pStartTransform, calcLogLik_pTransformed, gr_logLik_pTransformed, method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
 
       setLogDensType(includeJacobian = includeJacobian, includePrior = includePrior)
-      ## Use of AD-based gradient requires fix to handling of gradient of prior. // CJP 2025-04-03
       if( !keepOneFixed_ ){
         if(outerOptimUseAD) {
             optRes <- optim(pStartTransform, calcLogDens_pTransformed, gr_logDens_pTransformed, 

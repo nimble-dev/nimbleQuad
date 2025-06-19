@@ -18,7 +18,9 @@ buildNestedApprox <- nimbleFunction(
         ## see how they work.
         control$innerOptimStart <- extractControlElement(control, "innerOptimStart",
                                                          "zero")
-
+        if(!is.Rmodel(model))
+            stop("`model` must be an R model, created by calling `nimbleModel`")
+        
         inferenceNodes <- model$getNodeNames(includeData = FALSE, stochOnly = TRUE)
         if(!missing(paramNodes) && !all(model$expandNodeNames(paramNodes) %in% inferenceNodes))
             stop("some elements of `paramNodes` do not have prior distributions")
