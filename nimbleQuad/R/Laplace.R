@@ -3204,7 +3204,7 @@ runAGHQ <- function(AGHQ, pStart,
                     randomEffectsStdError = TRUE,
                     jointCovariance = FALSE) {
   if(missing(AGHQ)) stop('runAGHQ: must provide a NIMBLE Laplace or AGHQ algorithm')
-  if(!identical(nfGetDefVar(AGHQ, 'name'), 'AGHQ'))
+  if(!inherits(AGHQ, c("AGHQ","AGHQ_refClass")))
     stop('runAGHQ: AGHQ or Laplace argument must be a NIMBLE Laplace or AGHQ algorithm (compiled or uncompiled) from `buildLaplace` or `buildAGHQ`.')
   if(!is.Cnf(AGHQ)) {
     messageIfVerbose('  [Warning] Running an uncompiled Laplace or AGHQ algorithm.\n',
