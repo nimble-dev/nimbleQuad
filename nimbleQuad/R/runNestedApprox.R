@@ -235,8 +235,9 @@ improveParamMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad, quad
     originalScale <- summary$originalScale
 
     if(missing(nodes))
-        nodes <- ifelse(originalScale, Rapprox$innerMethods$paramNodes,
-                        seq_len(Rapprox$nParamTrans))
+        if(originalScale) {
+            nodes <- Rapprox$innerMethods$paramNodes
+        } else nodes <- seq_len(Rapprox$nParamTrans)
     
     if(originalScale) {
         if(!is.character(nodes))
