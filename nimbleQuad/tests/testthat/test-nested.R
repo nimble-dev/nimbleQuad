@@ -102,7 +102,7 @@ test_that("Determination of params and latents", {
     m <- nimbleModel(code, data = list(y = rnorm(5)))
     ## If `latentNodes` not specified, error with no latents.
     approx <- buildNestedApprox(m, latentNodes = c('b0','b1'))
-    expect_identical(c('sigma'), approx$innerMethods$getNodeNamesVec())
+    expect_identical(c('sigma'), approx$innerMethods$getNodeNameSingle())
     expect_identical(c('b0', 'b1'), approx$innerMethods$getNodeNamesVec(returnParams = FALSE))
 
     ## Noncentered
@@ -148,7 +148,25 @@ test_that("Determination of params and latents", {
     expect_identical(c('mu0', 'sigma','tau', 'tau_x', 'mu_x'), approx$innerMethods$getNodeNamesVec())
     expect_identical(c('b1', paste0('mu[', 1:5, "]"), paste0('x[', miss, ']')), approx$innerMethods$getNodeNamesVec(returnParams = FALSE))
 
+    ## User putting RE params in params.
+    code <- nimbleCode({
+        for(i in 1:5) {
+            y[i] ~ dnorm(b0 + b1 * x[i] + tau*mu[i], tau_y)
+            mu[i] ~ dnorm(0, 1)
+        }
+        b0 ~ dflat()
+        b1 ~ dflat()
+        tau_y <- 1/(sigma*sigma)
+        sigma ~ dhalfflat()
+        tau ~ dhalfflat()
+    })
+    m <- nimbleModel(code, data = list(y = rnorm(5)))
+    approx <- buildNestedApprox(m, paramNodes = c('b0','b1','tau','sigma'))
+    expect_identical(c('b0','b1','tau', 'sigma'), approx$innerMethods$getNodeNamesVec())
+    expect_identical(paste0('mu[', 1:5, "]"), approx$innerMethods$getNodeNamesVec(returnParams = FALSE))
+
     ## Why is mu2[1] last in the returned node names?
+    ## Bug in getConditionallyIndepSets that causes a separate Laplace for mu2[1].
     code <- nimbleCode({
         for(i in 1:5) {
             y[i] ~ dnorm(b1 * x[i] + mu[i], sd = exp(b2*x[i] + mu2[i]))
@@ -166,7 +184,8 @@ test_that("Determination of params and latents", {
     approx <- buildNestedApprox(m)
     expect_identical(c('mu0','tau'), approx$innerMethods$getNodeNamesVec())
     expect_identical(c('b1', 'b2', paste0('mu[', 1:5, "]"), paste0('mu2[', 1:5, "]")), approx$innerMethods$getNodeNamesVec(returnParams = FALSE))
-  
+
+
 })
 
 
@@ -175,3 +194,7 @@ test_that("Determination of params and latents", {
 
 nimbleOptions(enableDerivs = EDopt)
 nimbleOptions(buildModelDerivs = BMDopt)
+
+
+
+

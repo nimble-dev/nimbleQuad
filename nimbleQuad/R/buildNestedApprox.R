@@ -27,14 +27,21 @@ buildNestedApprox <- nimbleFunction(
         if(!missing(latentNodes) && !all(model$expandNodeNames(latentNodes) %in% inferenceNodes))
             stop("some elements of `latentNodes` do not have prior distributions")
 
-        
+        ## Allow users to provide only one of the two sets and assume the rest are in the other.
+        ## If one really wants to exclude a node, one would have to explicitly set
+        ## both `paramNodes` and `latentNodes`.
+        if(missing(paramNodes) && !missing(latentNodes))
+            paramNodes <- setdiff(inferenceNodes, model$expandNodeNames(latentNodes))
+        if(missing(latentNodes) && !missing(paramNodes))
+            latentNodes <- setdiff(inferenceNodes, model$expandNodeNames(paramNodes))
+
         margNodes <- splitLatents(model, paramNodes, latentNodes)
         paramNodes <- margNodes$paramNodes
         latentNodes <- margNodes$randomEffectsNodes
         if(!length(paramNodes))
-            stop("No parameter nodes detected in model. Please check the model structure or provide parameter nodes explicitly via `paramNodes`.")
+            stop("No parameter nodes detected in model. Check the model structure or provide parameter nodes explicitly via `paramNodes`.")
         if(!length(latentNodes))
-            stop("No latent nodes detected in model. Please check the model structure or provide latent nodes explicitly via `latentNodes`.")
+            stop("No latent nodes detected in model. Check the model structure or provide latent nodes explicitly via `latentNodes`. Note that this can occur in a model with random effects that do not depend on any (hyper)parameters.")
 
         ## We need `nParamTrans` now; this should be ok, as `paramNodes` shouldn't be changed
         ## by creation of `innerMethods`.
