@@ -1,4 +1,9 @@
-## Code for main user interface for NIMBLE's nested approximation.
+#' Main user interface for NIMBLE's nested approximation
+#'
+#' This file provides the main user-facing functions and helpers for running nested approximations
+#' and summarizing results in the NIMBLE framework. It includes the main summary class, the main
+#' wrapper for running approximations, and utilities for improving marginals, sampling, and more.
+#'
 
 ### Example workflow
 ## Rapprox <- buildNestedApprox(model)
@@ -12,9 +17,7 @@
 ## result$improveParamMarginals(nodes = 'sigma')
 ## result$sampleParams(n=1000)
 
-## Class for holding nestedApprox object and various outputs/summaries computed
-## from it when running `runNestedApprox` or individual functions that
-## manipulate the approximation.
+## Class for holding nestedApprox object and various outputs/summaries computed from it
 #' @importFrom R6 R6Class
 approxSummary <- R6Class("approxSummary",
     public = list(
@@ -122,8 +125,77 @@ approxSummary <- R6Class("approxSummary",
 )
 
 
-## Main user-facing function for running a nested approximation and getting a
-## results summary.  
+#' Run a nested approximation, returning a summary object with initial inference
+#'
+#' Uses a nested approximation (compiled or uncompiled) returned from \code{buildNestedApprox}) 
+#' to do initial inference and return a summary object that can be used for additional tailored inference.
+#' It estimates marginal distributions for parameters (quantiles and expectations), and can 
+#' optionally return posterior samples for the latent nodes and parameters
+#'
+#' @param approx a compiled or uncompiled nestedApprox object.
+#' @param quantiles numeric vector of quantiles to estimate for each parameter. Default is \code{c(0.025, 0.25, 0.5, 0.75, 0.975)}.
+#' @param originalScale logical; if \code{TRUE}, report results on the original scales of the parameters and latent nodes. 
+#'   Default is \code{TRUE}.
+#' @param improve1d logical; if \code{TRUE} and there is a single parameter, improve the estimate of the estimate of marginal
+#' distribution for the marginal by directly using the Laplace/AGHQ approximate marginal distribution rather than the asymmetric
+#' Gaussian approximation. Default is \code{TRUE}.
+#' @param nSamplesLatents number of samples of the latent nodes to draw. Default is 0.
+#' @param nSamplesParams number of samples of the parameter nodes to draw. Default is 0.
+#'
+#' @details 
+#' 
+#' This is the main user interface for running a nested approximation. It carries out
+#' initial inference and then returns a summary object that can be used for further inference
+#' by calling methods on the summary object, as seen in the examples (or running the equivalent 
+#' function calls with the first argument being the summary object).
+#' 
+#' @return An object of class \code{approxSummary} containing initial results that can be used to carry out further inference.
+#' 
+#' @author Christopher Paciorek
+#' 
+#' @examples
+#' data(penicillin, package="faraway")
+#' code <- nimbleCode({
+#'     for(i in 1:n) {
+#'         mu[i] <- inprod(b[1:nTreat], x[i, 1:nTreat]) + re[blend[i]]
+#'         y[i] ~ dnorm(mu[i], tau = Tau)
+#'     }
+#'     # Priors corresponding simply to INLA defaults and not being recommended.
+#'     # Instead consider uniform or half-t distributions on the standard deviation scale
+#'     # or penalized complexity priors.
+#'     Tau ~ dgamma(1, 5e-05)
+#'     Tau_re ~ dgamma(1, 5e-05)
+#'     for( i in 1:nTreat ){ b[i] ~ dnorm(0, tau = 0.001) }
+#'     for( i in 1:nBlend ){ re[i] ~ dnorm(0, tau = Tau_re) }
+#' })
+#' X <- model.matrix(~treat, data = penicillin)
+#' data = list(y = penicillin$yield)
+#' constants = list(nTreat = 4, nBlend = 5, n = nrow(penicillin),
+#'                  x = X, blend = as.numeric(penicillin$blend))
+#' inits <- list(Tau = 1, Tau_re = 1, b = c(mean(data$y), rep(0,3)), re = rep(0,5))
+#' 
+#' model <- nimbleModel(code, data = data, constants = constants,
+#'                  inits = inits, buildDerivs = TRUE)
+#' approx <- buildNestedApprox(model = model)
+#' 
+#' \dontrun{
+#' comp_model <- compileNimble(model)
+#' comp_approx <- compileNimble(approx, project = model)
+#' result <- runNestedApprox(comp_approx)
+#' # Improve marginals for a parameter node using AGHQ.
+#' result$improveParamMarginals(nodes = 'Tau_re', nMarginalGrid = 9)
+#' # Specify other quantiles of interest.
+#' result$qmarginal('Tau_re', quantiles = c(.05, .95))
+#' # Compute other expectations of interest, here the mean on the standard deviation scale
+#' result$emarginal('Tau_re', function(x) 1/sqrt(x))
+#' 
+#' # Sample from the approximate posterior for the latent nodes.
+#' latent_sample <- result$sampleLatents(n = 1000)
+#' # For joint inference on parameters, sample from the approximate posterior for the parameters.
+#' param_sample <- result$sampleParams(n = 1000)
+#'
+#' @export
+#' 
 runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975),
                             originalScale = TRUE, improve1d = TRUE,
                             nSamplesLatents = 0, nSamplesParams = 0) {
@@ -183,12 +255,9 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
         summary$marginalLogLikImproved <- approx$calcMarginalLogLikQuad()
     }
 
-    ## Should we embed sampling in `runNestedApprox`?
-    ## OTOH it would provide an all-in-one experience.
-    ## OTOH, it complicates things, including the args, and would be cleaner to
-    ## have users requests samples afterwards.
 
-    ## This is expensive. Avoid if user only needs parameter inference.
+    ## This is expensive. It is provided to enable an all-in-one experience.
+    ## Avoid if user only needs parameter inference.
     ## Also, how do we have user tell us whether to `includeParams`?
     ## For now they must use more manual workflow if they need that.
     if (nSamplesLatents) 
@@ -200,14 +269,26 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
     return(summary)
 }
 
-## Add option for the user to change the parameter grid in the wrapper.
+
+#' Set the parameter grid for the nested approximation
+#'
+#' Allows the user to change the parameter grid used in the nested approximation.
+#'
+#' @param summary an approxSummary object, returned by \code{runNestedApprox}.
+#' @param quadRule quadrature rule to use for the parameter grid. Can be any of
+#'        \code{"CCD"}, \code{"AGHQ"}, \code{"AGHQSPARSE"} or \code{"USER"},
+#'          the latter for user-defined grids.
+#' @param nQuad number of quadrature points (not used for \code{"CCD"}.
+#' @param prune pruning parameter for removing AGHQ points at low-density points.
+#' 
+#' @return None. Modifies the summary object in place.
+#' @export
 setParamGrid <- function(summary, quadRule = "NULL", nQuad = -1, prune = -1){
   summary$approx$buildHyperGrid(quadRule, nQuad, prune)
 }
 
-## Helper function that takes either a character string for an original node element
-## and returns transformed parameter index (if in a 1:1 transformation)
-## or simply checks that the index of the transformed parameter is valid.
+
+## Get the index of a parameter node.
 getNodeIndex <- function(node, Rapprox) {
     if (is.character(node)) {
         mtch <- which(node == Rapprox$paramNodesComponents)
@@ -226,9 +307,31 @@ getNodeIndex <- function(node, Rapprox) {
 }
 
 
-## This uses d-1 dimensional AGHQ to get improved univariate marginal estimates
-## for parameters.
-## Note that quadRule = "NULL" makes sure the default is orginal user choice.
+##
+#' Improve univariate parameter marginals using grid-based quadrature
+#'
+#' Uses d-1 dimensional quadrature (by default AGHQ) to get improved univariate marginal estimates for parameters.
+#' Users can select to apply to specific nodes of interest to limit computation. 
+#' 
+#' @param summary an approxSummary object, returned by \code{runNestedApprox}.
+#' @param nodes parameter nodes to improve inference for. Specified as character (when using original scale) 
+#' or integer (when using transformed scale), where the scale was specified in \code{runNestedApprox}.
+#' @param nMarginalGrid number of grid points for marginal calculations. Default is 5.
+#' @param nQuad number of AGHQ quadrature points. Default is 5 if d=2 and 3 otherwise.
+#' @param quadRule quadrature rule to use for the parameter grid. Can be any of
+#'        \code{"AGHQ"}, \code{"CCD"}, \code{"AGHQSPARSE"} or \code{"USER"},
+#'          the latter for user-defined grids, but standard use will be of \code{"AGHQ"}.
+#' @param prune pruning parameter for removing AGHQ points at low-density points.
+#' @param transform grid transformation method for internal AGHQ. Default is \code{"spectral"}.
+#'
+#' @return The modified \code{approxSummary} object with improved marginals.
+#'
+#' @details
+#'
+#' See \code{runNestedApprox} for example usage.
+#' 
+#' @export 
+#' 
 improveParamMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad, quadRule = "NULL", prune = -1, transform = "spectral") {
     Rapprox <- summary$approx$Robject
 
@@ -273,14 +376,60 @@ improveParamMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad, quad
     return(summary)
 }
 
+##
+#' Calculate improved marginal log-likelihood using grid-based quadrature
+#' 
+#' Uses quadrature (by default AGHQ) to get an improved estimate of the marginal log-likelihood.
+#'
+#' @param summary an approxSummary object, returned by \code{runNestedApprox}.
+#'
+#' @return The improved marginal log-likelihood.
+#' 
+#' @details 
+#' 
+#' Users will not generally need to call this function directly, as it is called
+#' automatically when sampling from the posterior of the latent nodes, since
+#' its computation comes for free in that case.
+#' 
+#' Warning: the marginal log-likelihood is invalid for improper priors and may not be useful
+#' for non-informative priors, because it averages the log-likelihood (approximately marginalized 
+#' with respect to the latent nodes) over the prior distribution, thereby
+#' including log-likelihood values corresponding to parameter values that are inconsistent with the data.
+#' 
+#' @export 
+#' 
 calcMarginalLogLikImproved <- function(summary) {
     summary$marginalLogLikImproved <- summary$approx$calcMarginalLogLikQuad()
     invisible(summary$marginalLogLikImproved)
 }
 
 
-## This uses whatever marginals (asymm Gaussian approx or improved) are in
-## `summary`.  Potentially called from runNestedApprox or independently.
+##
+#' Sample from the parameter posterior distribution
+#'
+#' Draws samples from the parameter posterior using the asymmetric Gaussian approximation. 
+#' Optionally uses a copula approach to match the univariate marginals to the 
+#' currently-available marginal distributions (based on either the initial asymmetric 
+#' Gaussian approximation or improved marginals from 
+#' calling \code{improveParamMarginals}).
+#'
+#' @param summary an approxSummary object, returned by \code{runNestedApprox}.
+#' @param n number of samples to draw. Default is 1000.
+#' @param matchMarginals logical; if \code{TRUE} (the default), match marginals using copula approach.
+#'
+#' @return Matrix of parameter samples.
+#' 
+#' @details 
+#' 
+#' Draws samples from the joint parameter posterior distribution (marginalized with respect to the latent nodes)
+#' using the asymmetric Gaussian approximation.
+#'
+#' This is useful for joint inference on the parameters, including inference on functions of more than one parameter.
+#'
+#' See \code{runNestedApprox} for example usage.
+#' 
+#' @export
+#'
 sampleParams <- function(summary, n = 1000, matchMarginals = TRUE) {
     Rapprox <- summary$approx$Robject
     originalScale <- summary$originalScale
@@ -317,7 +466,37 @@ sampleParams <- function(summary, n = 1000, matchMarginals = TRUE) {
     invisible(samples)
 }
 
-## Potentially called from runNestedApprox or independently.
+##
+#' Sample from the posterior distribution of the latent nodes
+#'
+#' Draws samples from the posterior distribution of the latent nodes. 
+#' Optionally includes parameter values corresponding to each sample.
+#'
+#' @param summary an approxSummary object, returned by \code{runNestedApprox}.
+#' @param n Number of samples to draw (default: 1000).
+#' @param includeParams logical; if \code{TRUE}, include parameter values corresponding to each sample. 
+#' Default is \code{FALSE}.
+#'
+#' @return Matrix of latent samples.
+#' 
+#' @details 
+#' 
+#' The sampling approach uses stratified sampling from a weighted mixture of multivariate normals, 
+#' where the weights are based on the
+#' approximate marginal density at each grid point in the parameter grid. For each point, the multivariate normal
+#' is based on Laplace approximation, using the maximum for the mean and the inverse Hessian for the covariance
+#' matrix. 
+#' 
+#' The parameter values corresponding to the samples can be requested via \code{includeParams}.
+#' 
+#' Note that NIMBLE's nested approximation framework does not provide marginals for the latent nodes
+#' based on analytic approximation, so both joint and univariate inference on the latent nodes
+#' is from sampling.
+#'
+#' See \code{runNestedApprox} for example usage.
+#' 
+#' @export
+#' 
 sampleLatents <- function(summary, n = 1000, includeParams = FALSE) {
     Rapprox <- summary$approx$Robject
     originalScale <- summary$originalScale
@@ -356,6 +535,27 @@ sampleLatents <- function(summary, n = 1000, includeParams = FALSE) {
     invisible(summary$samples)
 }
 
+##
+#' Compute quantiles for a parameter
+#' 
+#' Quantile estimation for univariate parameter marginals.
+#'
+#' @param summary an approxSummary object, returned by \code{runNestedApprox}.
+#' @param node parameter node of interest. Specified as character (when using original scale) 
+#' or integer (when using transformed scale), where the scale was specified in \code{runNestedApprox}.
+#' @param quantiles numeric vector of quantiles to compute. Default is \code{c(0.025, 0.25, 0.5, 0.75, 0.975)}.
+#'
+#' @return Named vector of quantile estimates.
+#' 
+#' @details
+#' 
+#' Uses a spline approximation to the quantile function of the marginal posterior distribution,
+#' based on a cached approximation of the marginal density on a fine grid.
+#'
+#' See \code{runNestedApprox} for example usage.
+#' 
+#' @export 
+#' 
 qmarginal <- function(summary, node, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)) {
     Rapprox <- summary$approx$Robject
     idx <- getNodeIndex(node, Rapprox)
@@ -367,12 +567,45 @@ qmarginal <- function(summary, node, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975
     return(quantileEsts)
 }
 
+#' Draw random samples from the marginal posterior of a parameter
+#' 
+#' Random sampling for univariate parameter marginals.
+#'
+#' @param summary an approxSummary object, returned by \code{runNestedApprox}.
+#' @param node parameter node of interest. Specified as character (when using original scale) 
+#' or integer (when using transformed scale), where the scale was specified in \code{runNestedApprox}.
+#' @param n number of samples to draw. Default is 1000.
+#'
+#' @return Numeric vector of samples.
+#' 
+#' @details Uses the inverse CDF method applied to the quantile function of the marginal posterior distribution.
+#' 
+#' @export
 rmarginal <- function(summary, node, n = 1000) {
     samples <- qmarginal(summary, node, runif(n))
     names(samples) <- NULL
     return(samples)
 }
 
+#' Evaluate the marginal posterior density for a parameter.
+#' 
+#' Density evaluation for univariate parameter marginals.
+#'
+#' @param summary an approxSummary object, returned by \code{runNestedApprox}.
+#' @param node parameter node of interest. Specified as character (when using original scale) 
+#' or integer (when using transformed scale), where the scale was specified in \code{runNestedApprox}.
+#' @param x numeric vector of values at which to evaluate the density.
+#' @param log logical; if \code{TRUE}, return log-density. Default is \code{FALSE}.
+#'
+#' @return Numeric vector of (log-)density values.
+#' 
+#' @details 
+#' 
+#' Uses a spline approximation to the log-density of the marginal posterior distribution,
+#' based on a cached approximation of the marginal density on a fine grid.
+#' 
+#' @export 
+#' 
 dmarginal <- function(summary, node, x, log = FALSE) {
     Rapprox <- summary$approx$Robject
     logDetJac <- 0
@@ -387,6 +620,28 @@ dmarginal <- function(summary, node, x, log = FALSE) {
     if(log) return(logPDF) else return(exp(logPDF))
 }
 
+##
+#' Compute the expectation of a function of a parameter under the marginal posterior distribution
+#' 
+#' Posterior expectations for univariate parameter marginals.
+#'
+#' @param summary an approxSummary object, returned by \code{runNestedApprox}.
+#' @param node parameter node of interest. Specified as character (when using original scale) 
+#' or integer (when using transformed scale), where the scale was specified in \code{runNestedApprox}.
+#' @param functional function to compute the expectation of.
+#' @param ... Additional arguments passed to the function.
+#'
+#' @return Numeric value of the expectation.
+#' 
+#' @details 
+#' 
+#' Estimate the expectation of a function of a parameter using univariate numerical
+#' integration based on a cached approximation of the marginal density on a fine grid.
+#'
+#' See \code{runNestedApprox} for example usage.
+#' 
+#' @export 
+#' 
 emarginal <- function(summary, node, functional, ...) {
     Rapprox <- summary$approx$Robject
     if(is.character(node))
@@ -396,6 +651,19 @@ emarginal <- function(summary, node, functional, ...) {
     return(expectation)
 }
 
+##
+#' Plot the marginal posterior for a parameter
+#' 
+#' Univariate marginal posterior plotting for parameters.
+#'
+#' @param summary an approxSummary object, returned by \code{runNestedApprox}.
+#' @param node parameter node of interest. Specified as character (when using original scale) 
+#' or integer (when using transformed scale), where the scale was specified in \code{runNestedApprox}.
+#' @param log logical; if \code{TRUE}, plot log-density. Default is \code{FALSE}.
+#' @param add logical; if \code{TRUE}, add to existing plot. Default is \code{FALSE}.
+#' @param ... Additional arguments passed to plotting function.
+#'
+#' @return None. Produces a plot.
 plotMarginal <- function(summary, node, log = FALSE, add = FALSE, ...){
     minmax <- summary$qmarginal(node, c(.001, 0.999))
     x <- seq(minmax[1], minmax[2], length = 200)
