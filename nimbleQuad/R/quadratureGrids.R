@@ -172,7 +172,7 @@ configureQuadGrid <- nimbleFunction(
         quadGridCache_nfl <- nimbleFunctionList(QUAD_CACHE_BASE)
         quadRule_nfl <- nimbleFunctionList(QUAD_RULE_BASE)
 
-        I_AGHQ <- I_CCD <- I_USER <- I_AGHQSPARSE <- I_USERSPARSE <- I_USERMULTI <- -1
+        I_AGHQ <- I_CCD <- I_USER <- I_AGHQSPARSE <- I_USERSPARSE <- I_USERMULTI <- as.numeric(-1)
         I_RULE <- which(quadRules == quadRule)[1]
 
         ## ***CJP please comment on this! Probably smarter way to do this...
@@ -182,23 +182,24 @@ configureQuadGrid <- nimbleFunction(
 
         nRules <- length(quadRules)
         for (i in 1:nRules) {
+            inum <- as.numeric(i)
             if (quadRules[i] == "AGHQ") {
-                I_AGHQ <- i
+                I_AGHQ <- inum
                 quadRule_nfl[[i]] <- quadRule_GH(type="GHe")
             } else if (quadRules[i] == "CCD") {
-                I_CCD <- i
+                I_CCD <- inum
                 quadRule_nfl[[i]] <- quadRule_CCD(f0 = ccd_f0)
             } else if (quadRules[i] == "AGHQSPARSE") {
-                I_AGHQSPARSE <- i
+                I_AGHQSPARSE <- inum
                 quadRule_nfl[[i]] <- quadRule_GH(type="GHe")
             } else if (quadRules[i] == "USER") {
-                I_USER <- i
+                I_USER <- inum
                 quadRule_nfl[[i]] <- quadRule_USER()
             } else if (quadRules[i] == "USERSPARSE") {
-                I_USERSPARSE <- i
+                I_USERSPARSE <- inum
                 quadRule_nfl[[i]] <- quadRule_USER()
             } else if (quadRules[i] == "USERMULTI") {
-                I_USERMULTI <- i
+                I_USERMULTI <- inum
                 quadRule_nfl[[i]] <- quadRule_USER()
             } else {
               stop("An unrecognized quadRule was detected.")
