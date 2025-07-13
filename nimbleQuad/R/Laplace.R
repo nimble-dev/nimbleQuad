@@ -1889,6 +1889,7 @@ buildAGHQ <- nimbleFunction(
           AGHQuad_nfl[[1]] <- buildOneAGHQuad1D(model, nQuad = nQuad_, paramNodes, randomEffectsNodes,
                                                 calcNodes, innerControlList)
         }
+        num_reSets <- 1
       }
       else {## Split randomEffectsNodes into conditionally independent sets
         reSets <- MargNodes$randomEffectsSets

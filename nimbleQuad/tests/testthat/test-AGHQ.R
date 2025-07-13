@@ -1,4 +1,4 @@
-
+library(nimbleQuad)
 # Tests of AGH Quadrature approximation
 source(system.file(file.path('tests', 'testthat', 'test_utils.R'), package = 'nimble'))
 source(system.file(file.path('tests', 'testthat', 'AD_test_utils.R'), package = 'nimble'))
@@ -12,7 +12,7 @@ test_that("AGH Quadrature Normal-Normal 1D works", {
   set.seed(123)
   n <- 50
   m <- nimbleModel(nimbleCode({
-                                        # priors 
+                                        # priors
     b0 ~ dnorm(0, 1000)
     sigma1 ~ dunif(0, 1000)
     sigma2 ~ dunif(0, 1000)
@@ -37,7 +37,7 @@ test_that("AGH Quadrature Normal-Normal 1D works", {
     sigma2 <- pars[3]
     ll <- 0
     for( i in seq_along(m$y) ) {
-      ll <- ll + dnorm( m$y[i], mean = b0, sd = sqrt(sigma1^2 + sigma2^2), log = TRUE ) 
+      ll <- ll + dnorm( m$y[i], mean = b0, sd = sqrt(sigma1^2 + sigma2^2), log = TRUE )
     }
     ll
   }
@@ -64,7 +64,7 @@ test_that("AGH Quadrature Normal-Normal 1D works", {
   ## Values from buildLaplace with testval1 and testval2
   grTestLaplace1 <- c(1.5385734890331042, -6.3490351165007235, -3.1745175582503542)
   grTestLaplace2 <- c(584.3200662134241838, 3706.5010041520263258, 741.3001253250956779)
-  
+
   ## Check Marginalization
   logLik5 <- cmQuad$calcLogLik(test.val1)
   logLikTru <- ll.norm(test.val1)
@@ -87,7 +87,7 @@ test_that("AGH Quadrature Normal-Normal 1D works", {
 
   expect_equal(gr_quad52, gr.ll.norm(test.val2), tol = 1e-08)	## Approx more different for poor values.
 
-  opt <- cmQuad$findMLE(pStart = test.val1)	## Needs decent starting values. 
+  opt <- cmQuad$findMLE(pStart = test.val1)	## Needs decent starting values.
   mle.tru <- optim(test.val1, ll.norm, gr.ll.norm, control = list(fnscale = -1))
   expect_equal(opt$value, mle.tru$value, tol = 1e-8) # Same log likelihood. Diff parameter values.
 
@@ -109,7 +109,7 @@ test_that("AGH Quadrature 1D Poisson-Gamma for checking nQuad", {
   set.seed(123)
   n <- 1
   m <- nimbleModel(nimbleCode({
-    # priors 
+    # priors
     a ~ dunif(0, 1000)
     b ~ dunif(0, 1000)
     for(i in 1:n){
@@ -120,7 +120,7 @@ test_that("AGH Quadrature 1D Poisson-Gamma for checking nQuad", {
 
   ## Marginal model is equivalent to a negative binomial with this parameterization.
   m.nb <- nimbleModel(nimbleCode({
-    # priors 
+    # priors
     a ~ dunif(0, 1000)
     b ~ dunif(0, 1000)
     for(i in 1:n){
@@ -158,11 +158,11 @@ test_that("AGH Quadrature 1D Poisson-Gamma for checking nQuad", {
     db <- a/b - (a + m$y)/(b+1)
     return(c(da,db))
   }
-  
+
   tru.gr <- tru.ll.gr(c(50,2))
   m.nb$a <- 50; m.nb$b <- 2; m.nb$calculate()
   tru.logLik <- m.nb$calculate('y')
- 
+
   ## Check node accuracy
   ## Tolerance should decrease in loop,
   for( i in 1:25 )
@@ -178,17 +178,17 @@ test_that("AGH Quadrature 1D Binomial-Beta check 3 methods", {
   n <- 50
   N <- 5
   m <- nimbleModel(nimbleCode({
-    # priors 
+    # priors
     a ~ dgamma(1,1)
     b ~ dgamma(1,1)
     for(i in 1:n){
       p[i] ~ dbeta(a, b)
       y[i] ~ dbinom(prob = p[i], size = N)
     }
-  }), data = list(y = rbinom(n, N, rbeta(n, 10, 2))), 
-    constants = list(N = N, n=n), inits = list(a = 10, b = 2), 
+  }), data = list(y = rbinom(n, N, rbeta(n, 10, 2))),
+    constants = list(N = N, n=n), inits = list(a = 10, b = 2),
     buildDerivs = TRUE)
-  
+
   cm <- compileNimble(m)
   # mQuad <- buildLaplace(model = m)
   mQuad <- buildAGHQ(model = m, nQuad = 5, control=list(innerOptimMethod="nlminb")) # tolerances set for this result
@@ -220,7 +220,7 @@ test_that("AGH Quadrature 1D Binomial-Beta check 3 methods", {
   expect_equal(ll.12, ll.32)
   expect_equal(gr.11, gr.21)
   expect_equal(gr.11, gr.31)
-  expect_equal(gr.12, gr.22)  
+  expect_equal(gr.12, gr.22)
   expect_equal(gr.12, gr.32)
 
   ## Check gradient and marginalization accuracy.
@@ -237,7 +237,7 @@ test_that("AGH Quadrature 1D Binomial-Beta check 3 methods", {
 
   dibeta <- function(a,b)
   {
-    da <-  digamma(a) - digamma(a+b) 
+    da <-  digamma(a) - digamma(a+b)
 	db <-  digamma(b) - digamma(a+b)
 	c(da, db)
   }
@@ -252,12 +252,12 @@ test_that("AGH Quadrature 1D Binomial-Beta check 3 methods", {
 	}
 	return(dll)
   }
-  
+
   cmQuad$updateSettings(computeMethod=2, nQuad=1)
   ## Check Laplace against RTMB here:
   #cmQuad$setQuadSize(1)
   expect_equal(cmQuad$calcLogLik(param.val), -57.1448725555934729, 1e-06)
-  
+
   ## Check against manual RTMB version 5 nodes.
   cmQuad$updateSettings(nQuad=5)
   expect_equal(cmQuad$calcLogLik(param.val), -54.7682946631443244, tol = 1e-06)	## Pretty close:
@@ -265,8 +265,8 @@ test_that("AGH Quadrature 1D Binomial-Beta check 3 methods", {
   ## Crank up the nodes to check accuracy. 15 nodes
   cmQuad$updateSettings(nQuad=15)
   expect_equal(cmQuad$calcLogLik(param.val), ll.betabin(param.val), tol = 1e-02)	## Accuracy is only slightly better.
-  expect_equal(cmQuad$gr_logLik(param.val), gr.betabin(param.val), tol = 1e-01)	
-  
+  expect_equal(cmQuad$gr_logLik(param.val), gr.betabin(param.val), tol = 1e-01)
+
   ## Lots of nodes. 35 nodes (our current max).
   cmQuad$updateSettings(nQuad=35)
   expect_equal(cmQuad$calcLogLik(param.val), ll.betabin(param.val), tol = 1e-5)	## Accuracy should not amazing but certainly better.
@@ -275,7 +275,7 @@ test_that("AGH Quadrature 1D Binomial-Beta check 3 methods", {
   ## Quick check on Laplace here as they are sooo bad.
   # library(RTMB)
   # dat <- list(y = m$y, N = N)
-  # pars <- list(loga = 0, logb = 0, logitp = rep(0, n))  
+  # pars <- list(loga = 0, logb = 0, logitp = rep(0, n))
   # func <- function(pars){
     # getAll(pars, dat)
     # a <- exp(loga)
@@ -286,7 +286,7 @@ test_that("AGH Quadrature 1D Binomial-Beta check 3 methods", {
     # negll - sum(log(exp(-logitp)/(1+exp(-logitp))^2))
   # }
   # obj <- MakeADFun(func, pars, random = "logitp")
-  # obj$fn(log(param.val))  
+  # obj$fn(log(param.val))
 })
 
 test_that("AGH Quadrature 1D Check MLE.", {
@@ -294,17 +294,17 @@ test_that("AGH Quadrature 1D Check MLE.", {
   n <- 50
   N <- 50
   m <- nimbleModel(nimbleCode({
-    # priors 
+    # priors
     a ~ dgamma(1,1)
     b ~ dgamma(1,1)
     for(i in 1:n){
 	  p[i] ~ dbeta(a, b)
 	  y[i] ~ dbinom(p[i], N)
     }
-  }), data = list(y = rbinom(n, N, rbeta(n, 10, 2))), 
-    constants = list(N = N, n=n), inits = list(a = 10, b = 2), 
+  }), data = list(y = rbinom(n, N, rbeta(n, 10, 2))),
+    constants = list(N = N, n=n), inits = list(a = 10, b = 2),
     buildDerivs = TRUE)
-  
+
   cm <- compileNimble(m)
   mQuad <- buildAGHQ(model = m, nQuad = 5, control=list(innerOptimMethod="nlminb"))
   cmQuad <- compileNimble(mQuad, project = m)
@@ -320,7 +320,7 @@ test_that("AGH Quadrature 1D Check MLE.", {
 
   dibeta <- function(a,b)
   {
-    da <-  digamma(a) - digamma(a+b) 
+    da <-  digamma(a) - digamma(a+b)
     db <-  digamma(b) - digamma(a+b)
     c(da, db)
   }
@@ -332,15 +332,15 @@ test_that("AGH Quadrature 1D Check MLE.", {
     for( i in seq_along(m$y)) dll <- dll - dibeta(a,b) + dibeta(a + m$y[i], b + N-m$y[i])
     return(dll)
   }
-  
+
   mle.tru <- optim(log(c(10,2)), ll.betabin, gr.betabin, control = list(fnscale = -1))
   mle.par <- exp(mle.tru$par)
-  
+
   ## Check with 5 quad points.
   mle.quad <- cmQuad$findMLE(pStart = c(10,2))
   expect_equal(mle.quad$par, mle.par, tol = 1e-02)
   expect_equal(mle.quad$value, mle.tru$value, tol = 1e-03)
-  
+
   ## Check with 35 quad points.
   cmQuad$updateSettings(nQuad=35)
   for(v in m$getVarNames()) cm[[v]] <- m[[v]]
@@ -357,7 +357,7 @@ test_that("AGH Quadrature Comparison to LME4 1 RE", {
   nobs <- n*J
   grp <- rep(1:n, each = J)
   m <- nimbleModel(nimbleCode({
-    # priors 
+    # priors
     b0 ~ dnorm(0, 1000)
     # sigma1 ~ dunif(0, 1000)
     # sigma2 ~ dunif(0, 1000)
@@ -366,14 +366,14 @@ test_that("AGH Quadrature Comparison to LME4 1 RE", {
     for(i in 1:n){
 	  b[i] ~ dnorm(mean = 0, sd = sigma2)
 	  mu[i] <- b0 + b[i]
-    }  
+    }
     for(i in 1:nobs){
       y[i] ~ dnorm(mean = mu[grp[i]], sd = sigma1)
     }}), constants = list(n=n, nobs=nobs, grp = grp),
     inits = list(b = rnorm(n, 0, 0.5), b0 = 3.5, sigma1 = 1.5, sigma2 = 0.5), buildDerivs = TRUE)
   m$simulate('y')
   m$setData('y')
-  m$calculate()  
+  m$calculate()
 
   cm <- compileNimble(m)
   # N.B. It is not clear that setting reltol values less than sqrt(.Machine$double.eps) is useful, so we may want to update this:
@@ -384,18 +384,18 @@ test_that("AGH Quadrature Comparison to LME4 1 RE", {
   cQL <- compileNimble(mQuad, mLaplace, project = m)
   cmQuad <- cQL$mQuad
   cmLaplace <- cQL$mLaplace
- 
- 
-    # mod.lme4 <- lme4::lmer(m$y ~ 1 + (1|grp), REML = FALSE, 
+
+
+    # mod.lme4 <- lme4::lmer(m$y ~ 1 + (1|grp), REML = FALSE,
     # control = lmerControl(optimizer= "optimx", optCtrl  = list(method="L-BFGS-B")))
     # sprintf("%.16f",   summary(mod.lme4)$sigma)
     # sprintf("%.16f",   lme4::fixef(mod.lme4))
-    # sprintf("%.16f",   attr(unclass(lme4::VarCorr(mod.lme4))[[1]], 'stddev'))  
+    # sprintf("%.16f",   attr(unclass(lme4::VarCorr(mod.lme4))[[1]], 'stddev'))
 
     # mod.tmb <- glmmTMB::glmmTMB(m$y ~ 1 + (1|grp))
     # sprintf("%.16f",   summary(mod.tmb)$sigma)
     # sprintf("%.16f",   lme4::fixef(mod.tmb))
-    # sprintf("%.16f",   attr(unclass(glmmTMB::VarCorr(mod.tmb))[[1]]$grp, 'stddev'))  
+    # sprintf("%.16f",   attr(unclass(glmmTMB::VarCorr(mod.tmb))[[1]]$grp, 'stddev'))
 
   # These findMLE calls work with "BFGS" and fail with "nlminb"
   # But with BFGS we get lots of warnings about uncached inner optimization
@@ -437,22 +437,22 @@ test_that("AGH Quadrature Comparison to LME4 1 RE for Poisson-Normal", {
   nobs <- n*J
   grp <- rep(1:n, each = J)
   m <- nimbleModel(nimbleCode({
-    # priors 
+    # priors
     b0 ~ dnorm(0, 1000)
     sigma ~ dgamma(1,1)
     for(i in 1:n){
 	  b[i] ~ dnorm(mean = 0, sd = sigma)
 	  mu[i] <- exp(b0 + b[i])
-    }  
+    }
     for(i in 1:nobs){
       y[i] ~ dpois(mu[grp[i]])
     }}), constants = list(n=n, nobs=nobs, grp = grp),
     inits = list(b = rnorm(n, 0, 0.5), b0 = 3.5, sigma = 0.5), buildDerivs = TRUE)
   m$simulate('y')
   m$setData('y')
-  m$calculate()  
+  m$calculate()
 
-  cm <- compileNimble(m)	  
+  cm <- compileNimble(m)
   mQuad <- buildAGHQ(model = m, nQuad = 21, control = list(outerOptimControl = list(reltol = 1e-12)))
   mLaplace <- buildAGHQ(model = m, nQuad = 1, control = list(outerOptimControl = list(reltol = 1e-12)))
   cQL <- compileNimble(mQuad, mLaplace, project = m)
@@ -463,7 +463,7 @@ test_that("AGH Quadrature Comparison to LME4 1 RE for Poisson-Normal", {
     # mod.lme4 <- lme4::glmer(m$y ~ 1 + (1|grp), family = "poisson", nAGQ = 1,	## nAGQ = 21 for nQuad = 21
 	  # control = glmerControl(optimizer= "optimx", optCtrl  = list(method="L-BFGS-B")))
     # sprintf("%.16f",   lme4::fixef(mod.lme4))
-    # sprintf("%.16f",   attr(unclass(lme4::VarCorr(mod.lme4))[[1]], 'stddev'))  
+    # sprintf("%.16f",   attr(unclass(lme4::VarCorr(mod.lme4))[[1]], 'stddev'))
     # sprintf("%.16f", logLik(mod.lme4, fixed.only = TRUE) )
 
   lme4_laplace <- -1695.4383630192869532
@@ -485,7 +485,7 @@ test_that("AGH Quadrature Comparison to LME4 1 RE for Poisson-Normal", {
   expect_equal(mleLaplace, mleLME4_laplace, tol = 1e-5)
   expect_equal(mleQuad, mleLME4_nquad21, tol = 1e-5)
   expect_equal(mleQuad, mleLaplace, tol = 1e-5)
-  
+
   ## Compare MLE after running twice.
   mleLaplace2 <- cmLaplace$findMLE()$par
   mleQuad2 <- cmQuad$findMLE()$par
@@ -571,9 +571,9 @@ test_that("AGHQ nQuad > 1 for simple LME with correlated intercept and slope wor
   pStart <- values(m, params_in_order)
   init_llh <- cmLaplace$calcLogLik(pStart)
   opt <- cmLaplace$findMLE()
-  
 
-  
+
+
 })
 
 
