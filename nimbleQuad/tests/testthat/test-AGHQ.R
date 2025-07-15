@@ -570,7 +570,7 @@ test_that("AGHQ nQuad > 1 for simple LME with correlated intercept and slope wor
   params_in_order <- setupMargNodes(m)$paramNodes
   pStart <- values(m, params_in_order)
   init_llh <- cmLaplace$calcLogLik(pStart)
-  opt <- cmLaplace$findMLE()
+  expect_error(cmLaplace$findMLE(), NULL)
   
 
   
