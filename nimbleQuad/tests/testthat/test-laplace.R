@@ -163,7 +163,7 @@ test_that("Laplace simplest 1D with a constrained parameter works", {
   expect_equal(summ$params$estimate, log(4), tol = 1e-4)
   # check summaryLaplace
   summL <- summaryLaplace(cmLaplace, opt, originalScale = FALSE, randomEffectsStdError = TRUE, jointCovariance = TRUE)
-  expect_equal(summL$params['mu','estimate'], log(4), tol = 1e-4)
+  expect_equal(summL$params['param_trans_1','estimate'], log(4), tol = 1e-4)
 
   # Covariance matrix on transformed scale
   vcov_transform <- matrix(c(0, 0, 0, 1/(1/4+1/9)), nrow = 2) + matrix(c(1, 16/13), ncol = 1) %*% (13/16) %*% t(matrix(c(1, 16/13), ncol = 1))
