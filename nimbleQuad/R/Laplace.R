@@ -749,12 +749,12 @@ buildOneAGHQuad1D <- nimbleFunction(
       invNegHessian <- 1/negHessian
 
       # invNegHessian <- inverse(negHessian)
-      gr_logdetNegHess <- jac_he_P_RE_wrt_RE2_uptri_outDir_c(p, reTransform, c(invNegHessian))
+      gr_logdetNegHess <- -jac_he_P_RE_wrt_RE2_uptri_outDir_c(p, reTransform, c(invNegHessian))
       grlogdetNegHesswrtp <- gr_logdetNegHess[1, p_indices]
       grlogdetNegHesswrtre <- gr_logdetNegHess[1, reTrans_indices][1]
-       #hess_joint_logLik_wrt_p_wrt_re(p, reTransform)[,1]
-       outDir <- numeric(length = 0) # outDir is not used in this case.
-      hesslogLikwrtpre <- jac_gr_P_RE_wrt_RE_outDir_b(p, reTransform, outDir)[1,]
+      #hess_joint_logLik_wrt_p_wrt_re(p, reTransform)[,1]
+      outDir <- numeric(length = 0) # outDir is not used in this case.
+      hesslogLikwrtpre <- jac_gr_P_RE_wrt_RE_outDir_b(p, reTransform, outDir)[1, p_indices]
       if( nQuad_ == 1 ){
         ## Gradient of Laplace Approx
         p1 <- gr_P_RE_b(p, reTransform)[p_indices]
