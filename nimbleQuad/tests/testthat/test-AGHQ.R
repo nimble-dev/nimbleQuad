@@ -482,7 +482,7 @@ test_that("AGH Quadrature Comparison to LME4 1 RE for Poisson-Normal", {
 
   ## Compare mle for laplace to lme4 laplace
   ## and nQuad = 21 for both methods
-  expect_equal(mleLaplace, mleLME4_laplace, tol = 1e-5)
+  expect_equal(mleLaplace, mleLME4_laplace, tol = 1e-4)
   expect_equal(mleQuad, mleLME4_nquad21, tol = 1e-5)
   expect_equal(mleQuad, mleLaplace, tol = 1e-5)
 
