@@ -1982,11 +1982,13 @@ buildAGHQ <- nimbleFunction(
     else{
       ## No random effects
       ## lenInternalRENodeSets <- numeric(2)
+      num_reSets <- 0
+      nreTrans <- 0
       reTransform <- parameterTransform(model, paramNodes[1], control = list(allowDeterm = FALSE)) ## Won't be needed at all
       reTransform_indices <- numeric(2)
       reNodesAsScalars_vec <- character(0)
       reNodesAsScalars_first <- character(1)
-      reTransNodesNames <- character(1)
+      reTransNodeNames <- character(1)
       if(num_calcNodesOther == 0)
         stop("buildAGHQ: Both `calcNodesOther` and `randomEffectsNodes` are empty for Laplace or AGHQ for the given model")
     }
