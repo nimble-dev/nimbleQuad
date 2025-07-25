@@ -26,14 +26,14 @@ splitLatents <- function(model, paramNodes, latentNodes, calcNodes, calcNodesOth
         calcNodes = calcNodes, calcNodesOther = calcNodesOther, split = split, check = check)
     if (missing(paramNodes) && missing(latentNodes)) {
         if (!missing(calcNodes) || !missing(calcNodesOther))
-            messageIfVerbose("   [Note] Ignoring provide `calcNodes` and `calcNodesOther` because `paramNodes` and `latentNodes` not provided and are being determinted automatically.")
+            messageIfVerbose("   [Note] Ignoring provide `calcNodes` and `calcNodesOther` because `paramNodes` and `latentNodes` not provided and are being determined automatically.")
         paramNodes <- margNodes$paramNodes
         latentNodes <- margNodes$randomEffectsNodes
         deps <- model$getDependencies(latentNodes, includeData = FALSE, self = FALSE)
         ## By default, we treat "siblings" of latent nodes as latents.
         ## This attempts to have fixed effects in latents,
         ## along with random effects.
-        newLatents <- model$getParents(deps)
+        newLatents <- model$getParents(deps, stochOnly = TRUE)
         paramNodes <- setdiff(paramNodes, newLatents)
         latentNodes <- unique(c(latentNodes, newLatents))
         margNodes <- setupMargNodes(model = model, paramNodes = paramNodes,
