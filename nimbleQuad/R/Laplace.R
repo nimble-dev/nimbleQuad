@@ -2641,7 +2641,7 @@ buildAGHQ <- nimbleFunction(
       ## Print out warning about inner convergence.
       if( checkInnerConvergence(FALSE) != 0 )
           print("  [Warning] Inner optimization had a non-zero convergence code.\n",
-                "            Use `checkInnerConvergence(TRUE)` to see details.")
+                "            Use the `checkInnerConvergence(TRUE)` method of the Laplace object to see details.")
 
       ## Back transform results to original scale if requested.
       
