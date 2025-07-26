@@ -341,6 +341,7 @@ buildOneAGHQuad1D <- nimbleFunction(
         quadTransform_ <<- quadTransform
       }
       if(replace_optimControl) {
+        optimControl$fnscale <- -1
         optimControl_ <<- optimControl
       }
     },
@@ -1182,6 +1183,7 @@ buildOneAGHQuad <- nimbleFunction(
         quadTransform_ <<- quadTransform
       }
       if(replace_optimControl) {
+        optimControl$fnscale <- -1
         optimControl_ <<- optimControl
       }
     },
