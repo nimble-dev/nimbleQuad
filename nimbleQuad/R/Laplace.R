@@ -341,7 +341,7 @@ buildOneAGHQuad1D <- nimbleFunction(
         quadTransform_ <<- quadTransform
       }
       if(replace_optimControl) {
-        optimControl$fnscale <- -1
+        if(optimControl$fnscale == 1) optimControl$fnscale <- -1
         optimControl_ <<- optimControl
       }
     },
@@ -1183,7 +1183,7 @@ buildOneAGHQuad <- nimbleFunction(
         quadTransform_ <<- quadTransform
       }
       if(replace_optimControl) {
-        optimControl$fnscale <- -1
+        if(optimControl$fnscale == 1) optimControl$fnscale <- -1
         optimControl_ <<- optimControl
       }
     },
@@ -2222,7 +2222,7 @@ buildAGHQ <- nimbleFunction(
       if(useInnerCache != -1) useInnerCache_ <<- useInnerCache != 0
       if(computeMethod != -1) computeMethod_ <<- computeMethod
       if(replace_outerOptimControl) {
-        outerOptimControl$fnscale <- -1
+        if(outerOptimControl$fnscale == 1) outerOptimControl$fnscale <- -1
         outerOptimControl_ <<- outerOptimControl
       }
       if(outerOptimMethod != "NULL")
