@@ -246,7 +246,7 @@ buildNestedApprox <- nimbleFunction(
                                  parscale = character(0, default = "transformed")) {
             optRes <- innerMethods$optimize(pStart = pStart, includePrior = TRUE,
                                             includeJacobian = TRUE,
-                                            hessian = TRUE, parscale = parscale)
+                                            hessian = hessian, parscale = parscale)
             dm <- dim(optRes$hessian)[1]
             if(dm != nParamTrans)
                 stop("Posterior mode could not be found. Consider adjusting the control parameters for the optimization via the `control` argument of `buildNestedApprox`.")
