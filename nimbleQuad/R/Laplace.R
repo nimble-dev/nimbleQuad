@@ -3215,6 +3215,8 @@ runAGHQ <- function(AGHQ, pStart,
                      '            Use `compileNimble()` for faster execution.')
     tmp <- AGHQ$gr_logLik_pTransformed
     tmp <- AGHQ$calcLogLik_pTransformed
+    tmp <- AGHQ$gr_logDens_pTransformed
+    tmp <- AGHQ$calcLogDens_pTransformed
     for(i in seq_along(AGHQ$AGHQuad_nfl)) {
         tmp <- AGHQ$AGHQuad_nfl[[i]]$gr_inner_logLik
         tmp <- AGHQ$AGHQuad_nfl[[i]]$he_inner_logLik
