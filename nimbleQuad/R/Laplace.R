@@ -3213,8 +3213,6 @@ runAGHQ <- function(AGHQ, pStart,
   if(!is.Cnf(AGHQ)) {
     messageIfVerbose('  [Warning] Running an uncompiled Laplace or AGHQ algorithm.\n',
                      '            Use `compileNimble()` for faster execution.')
-    tmp <- AGHQ$gr_logLik_pTransformed
-    tmp <- AGHQ$calcLogLik_pTransformed
     tmp <- AGHQ$gr_logDens_pTransformed
     tmp <- AGHQ$calcLogDens_pTransformed
     for(i in seq_along(AGHQ$AGHQuad_nfl)) {

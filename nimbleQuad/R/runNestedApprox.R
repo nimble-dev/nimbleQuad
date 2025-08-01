@@ -109,8 +109,8 @@ approxSummary <- R6Class("approxSummary",
         approx = NULL,
         quantiles = NULL,
         expectations = NULL,
-        marginalsApprox = NULL,
-        marginalsRaw = NULL,
+        marginalsApprox = NULL,  # perhaps make private
+        marginalsRaw = NULL,     # perhaps make private
         indivParamTransforms = NULL,
         originalScale = NULL,
         marginalLogLik = NULL,
@@ -127,8 +127,16 @@ approxSummary <- R6Class("approxSummary",
 runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975),
                             originalScale = TRUE, improve1d = TRUE,
                             nSamplesLatents = 0, nSamplesParams = 0) {
-    if(is(approx, "nestedApprox")) 
-        Rapprox <- approx else Rapprox <- approx$Robject
+    if(is(approx, "nestedApprox")) {
+        Rapprox <- approx
+        messageIfVerbose('  [Warning] Running an uncompiled nested approximation.  Use compileNimble() for faster execution.')
+        tmp <- Rapprox$innerMethods$gr_logDens_pTransformed
+        tmp <- Rapprox$innerMethods$calcLogDens_pTransformed
+        for(i in seq_along(Rapprox$innerMethods$AGHQuad_nfl)) {
+            tmp <- Rapprox$innerMethods$AGHQuad_nfl[[i]]$gr_inner_logLik
+            tmp <- Rapprox$innerMethods$AGHQuad_nfl[[i]]$he_inner_logLik
+        }
+    } else Rapprox <- approx$Robject
 
     nParamTrans <- Rapprox$nParamTrans
 
@@ -202,7 +210,7 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
 
 ## Add option for the user to change the parameter grid in the wrapper.
 setParamGrid <- function(summary, quadRule = "NULL", nQuad = -1, prune = -1){
-  summary$approx$buildHyperGrid(quadRule, nQuad, prune)
+  summary$approx$buildParamGrid(quadRule, nQuad, prune)
 }
 
 ## Helper function that takes either a character string for an original node element
