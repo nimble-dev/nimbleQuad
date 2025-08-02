@@ -218,6 +218,46 @@ test_that("Determination of params and latents", {
 
 })
 
+test_that("Controlling quadrature grids", {
+    code <- nimbleCode({
+        for(j in 1:J) {
+            for(i in 1:n)
+                ## This gamma likelihood is based on INLA's parameterization.
+                y[i,j] ~ dgamma(mean = exp(eta[j]), sd = sqrt(exp(eta[j])^2/phi))
+            eta[j] ~ dnorm(mu, sd = sigma)
+        }
+        mu ~ dnorm(0,.001) # INLA prior
+        sigma ~ dhalfflat()  # not INLA prior
+        phi ~ dgamma(1, rate = .01) # INLA prior
+    })
+    
+    set.seed(1)
+    n <- 10
+    J <- 8
+    eta <- rnorm(J)
+    phi <- 0.5
+    mns <- rep(exp(eta), each = n)
+    sds <- rep(sqrt(exp(eta)^2/phi), each = n)
+    y <- matrix(rgamma(n*J, shape = mns^2/sds^2, rate = mns/sds^2), ncol = J)
+    
+    m <- nimbleModel(code, data = list(y = y), constants = list(n=n, J=J),
+                     inits = list(eta = rep(0,J), mu = 0, tau=1, sigma = 1), buildDerivs = TRUE)
+    
+    expect_message(approx <- buildNestedApprox(m, latentNodes = c('eta'), paramNodes = c('mu','sigma','phi')),
+                   "with CCD grid")
+    expect_identical(approx$innerMethods$nQuad, 1)
+    expect_identical(approx$nQuadOuter, 3)
+    expect_message(approx <- buildNestedApprox(m, latentNodes = c('eta'), paramNodes = c('mu','sigma','phi'),
+                                               control = list(paramGridRule = "AGHQ", nQuadOuter = 5)),
+                   "with AGHQ grid")
+    expect_identical(approx$nQuadOuter, 5)
+    expect_message(approx <- buildNestedApprox(m, latentNodes = c('eta'), paramNodes = c('mu','sigma','phi'),
+                                               control = list(nQuadInner = 3)),
+                   "AGHQ approximation for the latent")
+    expect_identical(approx$innerMethods$nQuad, 3)
+})
+
+    
 
 test_that("Simple 1d param case - basic tests against known numerical results, including marginal distribution functions", {
     dig00 <- nimbleFunction(
