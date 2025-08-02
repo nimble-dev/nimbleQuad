@@ -193,6 +193,28 @@ test_that("Determination of params and latents", {
     expect_identical(c('mu0','tau'), approx$innerMethods$getNodeNamesVec())
     expect_identical(c('b1', 'b2', paste0('mu[', 1:5, "]"), paste0('mu2[', 1:5, "]")), approx$innerMethods$getNodeNamesVec(returnParams = FALSE))
 
+    code <- nimbleCode({
+        for(i in 1:5) {
+            y[i] ~ dnorm(b1 * x[i] + mu[i], tau_y)
+            mu[i] ~ dnorm(mu0, tau)
+            x[i] ~ dnorm(mu_x, tau_x)
+        }
+        mu0 ~ dflat()
+        b1 ~ dflat()
+        tau_y <- 1/(sigma*sigma)
+        sigma ~ dhalfflat()
+        tau ~ dhalfflat()
+        tau_x ~ dhalfflat()
+        mu_x ~ dhalfflat()
+    })
+    x <- rnorm(5)
+    x[2] <- NA
+    m <- nimbleModel(code, data = list(y = rnorm(5), x =x), inits = list(x = rnorm(5)))
+    expect_message(approx <- buildNestedApprox(m), "latent nodes: x[2], b1, mu (5 elements)", fixed = TRUE)
+
+    x[4] <- NA
+    m <- nimbleModel(code, data = list(y = rnorm(5), x =x), inits = list(x = rnorm(5)))
+    expect_message(approx <- buildNestedApprox(m), "latent nodes: b1, mu (5 elements), x (2 elements)", fixed = TRUE)
 
 })
 

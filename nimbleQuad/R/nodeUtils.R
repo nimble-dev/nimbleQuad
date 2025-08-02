@@ -4,13 +4,13 @@ makeNodeString <- function(nodes, model) {
     if (!length(nodes))
         return("")
     elements <- model$expandNodeNames(nodes, returnScalarComponents = TRUE)
-    vars <- sapply(strsplit(elements, "[", fixed = TRUE), `[[`, 1)
+    vars <- sapply(strsplit(elements, "[", fixed = TRUE), `[[`, 1)    
     nodesCount <- table(vars)
-    start <- names(nodesCount)
-    end <- c(rep(", ", length(start) - 1), "")
-    end[nodesCount > 1] <- paste0(" (", nodesCount[nodesCount > 1], " elements)",
-        end[nodesCount > 1])
-    return(paste0(c(rbind(start, end)), collapse = ""))
+    items <- elements[nodesCount[vars] == 1]
+    multiples <- names(nodesCount[nodesCount > 1])
+    if(length(multiples)) 
+        items <- c(items, paste0(multiples, " (", nodesCount[nodesCount > 1], " elements)"))
+    return(paste0(items, collapse = ", "))
 }
 
 splitLatents <- function(model, paramNodes, latentNodes, calcNodes, calcNodesOther,
@@ -33,7 +33,7 @@ splitLatents <- function(model, paramNodes, latentNodes, calcNodes, calcNodesOth
         ## By default, we treat "siblings" of latent nodes as latents.
         ## This attempts to have fixed effects in latents,
         ## along with random effects.
-        newLatents <- model$getParents(deps, stochOnly = TRUE)
+        newLatents <- model$getParents(deps, stochOnly = TRUE, includeData = FALSE)
         paramNodes <- setdiff(paramNodes, newLatents)
         latentNodes <- unique(c(latentNodes, newLatents))
         margNodes <- setupMargNodes(model = model, paramNodes = paramNodes,
