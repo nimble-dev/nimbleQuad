@@ -82,14 +82,9 @@ setup_OneAGHQuad <- function(model, paramNodes, randomEffectsNodes, calcNodes, c
   nre  <- length(model$expandNodeNames(randomEffectsNodes, returnScalarComponents = TRUE))
 
   paramDeps <- model$getDependencies(paramNodes, determOnly = TRUE, self=FALSE)
-  if(length(paramDeps) > 0) {
-    keep_paramDeps <- logical(length(paramDeps))  # all FALSE
-    matched <- which(!paramDeps %in% calcNodes)
-    for(i in matched) {
-        nextDeps <- model$getDependencies(paramDeps[i])
-        keep_paramDeps[i] <- any(nextDeps %in% calcNodes)
-    }
-    paramDeps <- paramDeps[keep_paramDeps]
+  if(length(paramDeps)) {
+    calcNodesParents <- model$getParents(calcNodes)
+    paramDeps <- paramDeps[paramDeps %in% calcNodesParents]  
   }
   innerCalcNodes <- calcNodes
   calcNodes <- model$expandNodeNames(c(paramDeps, calcNodes), sort = TRUE)
