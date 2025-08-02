@@ -83,8 +83,8 @@ setup_OneAGHQuad <- function(model, paramNodes, randomEffectsNodes, calcNodes, c
 
   paramDeps <- model$getDependencies(paramNodes, determOnly = TRUE, self=FALSE)
   if(length(paramDeps)) {
-    calcNodesParents <- model$getParents(calcNodes)
-    paramDeps <- paramDeps[paramDeps %in% calcNodesParents]  
+    calcNodesParents <- model$getParents(calcNodes, determOnly = TRUE)
+    paramDeps <- paramDeps[!paramDeps %in% calcNodes & paramDeps %in% calcNodesParents]  
   }
   innerCalcNodes <- calcNodes
   calcNodes <- model$expandNodeNames(c(paramDeps, calcNodes), sort = TRUE)
