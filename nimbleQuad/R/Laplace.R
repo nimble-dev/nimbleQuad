@@ -2547,7 +2547,8 @@ buildAGHQ <- nimbleFunction(
 
       if(optRes$convergence != 0)
           print("  [Warning] In maximizing the Laplace/AGHQ approximation,\n",
-                "            `optim` has a non-zero convergence code: ", optRes$convergence, ".\n",
+                "            `optim` has a non-zero convergence code: ", optRes$convergence, ",\n",
+                "            with the message '", optRes$message, "'.\n",
                 "            The control parameters of `optim` can be adjusted using the `outerOptimControl`\n",
                 "            list component of the `control` list argument of `buildLaplace` or `buildAGHQ`.")
 
