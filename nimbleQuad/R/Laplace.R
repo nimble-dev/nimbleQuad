@@ -339,6 +339,7 @@ buildOneAGHQuad1D <- nimbleFunction(
         quadTransform_ <<- quadTransform
       }
       if(replace_optimControl) {
+        if(optimControl$fnscale == 1) optimControl$fnscale <- -1
         optimControl_ <<- optimControl
       }
     },
@@ -1144,6 +1145,7 @@ buildOneAGHQuad <- nimbleFunction(
         quadTransform_ <<- quadTransform
       }
       if(replace_optimControl) {
+        if(optimControl$fnscale == 1) optimControl$fnscale <- -1
         optimControl_ <<- optimControl
       }
     },
@@ -1896,10 +1898,12 @@ buildAGHQ <- nimbleFunction(
         if(num_reSets == 0){
           stop("buildAGHQ: There was a problem determining conditionally independent random effects sets for this model")
         }
+        if(nQuad_ == 1)
+            msg <- "Laplace" else msg <- "AGHQ (extended Laplace)"
         if(length(reSets) > 1) {
-            messageIfVerbose("Building individual AGHQ/Laplace approximations (one dot for each): ", appendLF = FALSE)
+            messageIfVerbose("Building individual ", msg, " approximations (one dot for each): ", appendLF = FAL
         } else {
-          messageIfVerbose("Building AGHQ/Laplace approximation.")
+          messageIfVerbose("Building ", msg, " approximation.")
         }
         for(i in seq_along(reSets)){
           ## Work with one conditionally independent set of latent states
@@ -2122,7 +2126,7 @@ buildAGHQ <- nimbleFunction(
       if(useInnerCache != -1) useInnerCache_ <<- useInnerCache != 0
       if(computeMethod != -1) computeMethod_ <<- computeMethod
       if(replace_outerOptimControl) {
-        outerOptimControl$fnscale <- -1
+        if(outerOptimControl$fnscale == 1) outerOptimControl$fnscale <- -1
         outerOptimControl_ <<- outerOptimControl
       }
       if(outerOptimMethod != "NULL")
@@ -2550,7 +2554,7 @@ buildAGHQ <- nimbleFunction(
       ## Print out warning about inner convergence.
       if( checkInnerConvergence(FALSE) != 0 )
           print("  [Warning] Inner optimization had a non-zero convergence code.\n",
-                "            Use `checkInnerConvergence(TRUE)` to see details.")
+                "            Use the `checkInnerConvergence(TRUE)` method of the Laplace object to see details.")
 
       ## Back transform results to original scale if requested.
 
@@ -3122,8 +3126,8 @@ runAGHQ <- function(AGHQ, pStart,
   if(!is.Cnf(AGHQ)) {
     messageIfVerbose('  [Warning] Running an uncompiled Laplace or AGHQ algorithm.\n',
                      '            Use `compileNimble()` for faster execution.')
-    tmp <- AGHQ$gr_logLik_pTransformed
-    tmp <- AGHQ$calcLogLik_pTransformed
+    tmp <- AGHQ$gr_logDens_pTransformed
+    tmp <- AGHQ$calcLogDens_pTransformed
     for(i in seq_along(AGHQ$AGHQuad_nfl)) {
         tmp <- AGHQ$AGHQuad_nfl[[i]]$gr_inner_logLik
         tmp <- AGHQ$AGHQuad_nfl[[i]]$he_inner_logLik

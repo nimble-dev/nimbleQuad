@@ -5,6 +5,14 @@ BMDopt <- nimbleOptions("buildModelDerivs")
 nimbleOptions(enableDerivs = TRUE)
 nimbleOptions(buildModelDerivs = TRUE)
 
+temporarilyAssignInGlobalEnv <- function(value, replace = FALSE) {
+    name <- deparse(substitute(value))
+    assign(name, value, envir = .GlobalEnv)
+    if(!replace) {
+        rmCommand <- substitute(remove(name, envir = .GlobalEnv))
+        do.call('on.exit', list(rmCommand, add = TRUE), envir = parent.frame())
+    }
+}
 
 test_that("Error trapping for invalid models", {
 
@@ -185,16 +193,443 @@ test_that("Determination of params and latents", {
     expect_identical(c('mu0','tau'), approx$innerMethods$getNodeNamesVec())
     expect_identical(c('b1', 'b2', paste0('mu[', 1:5, "]"), paste0('mu2[', 1:5, "]")), approx$innerMethods$getNodeNamesVec(returnParams = FALSE))
 
+    code <- nimbleCode({
+        for(i in 1:5) {
+            y[i] ~ dnorm(b1 * x[i] + mu[i], tau_y)
+            mu[i] ~ dnorm(mu0, tau)
+            x[i] ~ dnorm(mu_x, tau_x)
+        }
+        mu0 ~ dflat()
+        b1 ~ dflat()
+        tau_y <- 1/(sigma*sigma)
+        sigma ~ dhalfflat()
+        tau ~ dhalfflat()
+        tau_x ~ dhalfflat()
+        mu_x ~ dhalfflat()
+    })
+    x <- rnorm(5)
+    x[2] <- NA
+    m <- nimbleModel(code, data = list(y = rnorm(5), x =x), inits = list(x = rnorm(5)))
+    expect_message(approx <- buildNestedApprox(m), "latent nodes: x[2], b1, mu (5 elements)", fixed = TRUE)
+
+    x[4] <- NA
+    m <- nimbleModel(code, data = list(y = rnorm(5), x =x), inits = list(x = rnorm(5)))
+    expect_message(approx <- buildNestedApprox(m), "latent nodes: b1, mu (5 elements), x (2 elements)", fixed = TRUE)
 
 })
 
+test_that("Controlling quadrature grids", {
+    code <- nimbleCode({
+        for(j in 1:J) {
+            for(i in 1:n)
+                ## This gamma likelihood is based on INLA's parameterization.
+                y[i,j] ~ dgamma(mean = exp(eta[j]), sd = sqrt(exp(eta[j])^2/phi))
+            eta[j] ~ dnorm(mu, sd = sigma)
+        }
+        mu ~ dnorm(0,.001) # INLA prior
+        sigma ~ dhalfflat()  # not INLA prior
+        phi ~ dgamma(1, rate = .01) # INLA prior
+    })
+    
+    set.seed(1)
+    n <- 10
+    J <- 8
+    eta <- rnorm(J)
+    phi <- 0.5
+    mns <- rep(exp(eta), each = n)
+    sds <- rep(sqrt(exp(eta)^2/phi), each = n)
+    y <- matrix(rgamma(n*J, shape = mns^2/sds^2, rate = mns/sds^2), ncol = J)
+    
+    m <- nimbleModel(code, data = list(y = y), constants = list(n=n, J=J),
+                     inits = list(eta = rep(0,J), mu = 0, tau=1, sigma = 1), buildDerivs = TRUE)
+    
+    expect_message(approx <- buildNestedApprox(m, latentNodes = c('eta'), paramNodes = c('mu','sigma','phi')),
+                   "with CCD grid")
+    expect_identical(approx$innerMethods$nQuad, 1)
+    expect_identical(approx$nQuadOuter, 3)
+    expect_message(approx <- buildNestedApprox(m, latentNodes = c('eta'), paramNodes = c('mu','sigma','phi'),
+                                               control = list(paramGridRule = "AGHQ", nQuadOuter = 5)),
+                   "with AGHQ grid")
+    expect_identical(approx$nQuadOuter, 5)
+    expect_message(approx <- buildNestedApprox(m, latentNodes = c('eta'), paramNodes = c('mu','sigma','phi'),
+                                               control = list(nQuadInner = 3)),
+                   "AGHQ approximation for the latent")
+    expect_identical(approx$innerMethods$nQuad, 3)
+})
+
+    
+
+test_that("Simple 1d param case - basic tests against known numerical results, including marginal distribution functions", {
+    dig00 <- nimbleFunction(
+        run = function(x = double(0), log = logical(0, default = FALSE)) {
+            returnType(double(0))
+            if(log) return(-log(x)) else return(1/x)
+        }, buildDerivs = TRUE)
+    
+    registerDistributions(list(dig00=list(BUGSdist="dig00()",range=c(0,Inf))))
+    temporarilyAssignInGlobalEnv(dig00)
+    temporarilyAssignInGlobalEnv(rig00)
+    
+    ## can't use dinvgamma(0,0) as that gives density of 0
+    
+    code <- nimbleCode({
+        for(i in 1:n)
+            y[i] ~ dnorm(mu, sd = sqrt(sigma2))
+        mu ~ dflat()
+        sigma2 ~ dig00() # Gelman Sec. 3.2: pi(sigma2) \propto 1/sigma2
+    })
+    
+    
+    set.seed(1)
+    n <- 30
+    m <- nimbleModel(code, data = list(y = rnorm(n)), constants = list(n=n),
+                     inits = list(mu = 0, sigma2 = 1), buildDerivs = TRUE)
+    
+    ## marginal for sigma2 is IG((n-1)/2,(n-1)*s2/2)
+    ## marginal for mu is t(ybar, s2/n)
+    qpts <- c(.025,.25,.5,.75,.975)
+    
+    qs <- qinvgamma(qpts, (n-1)/2, scale=(n-1)*var(m$y)/2)
+
+    approx <- buildNestedApprox(m, latentNodes = 'mu', paramNodes = 'sigma2')
+    cm <- compileNimble(m)
+    capprox <- compileNimble(approx, project = m)
+    result <- runNestedApprox(capprox)
+    exp_table <- result$expectations  # from summary table
+    qs_table <- result$quantiles      # from summary table
+    qs_est <- result$qmarginal('sigma2')
+    expect_lt(max(abs(qs - qs_est)), 0.01)
+
+    result$improveParamMarginals('sigma2', nMarginalGrid = 5)
+    ## Expect identical results since 1d improvement done by default (and with 5 points).
+    expect_identical(qs_est, result$qmarginal('sigma2')) 
+    expect_identical(exp_table, result$expectations)
+    expect_identical(qs_table, result$quantiles)
+    
+    result$improveParamMarginals('sigma2', nMarginalGrid = 11)
+
+    qs_est_impr <- result$qmarginal('sigma2')
+    expect_lt(max(abs(qs - qs_est_impr)), .0004)  
+    expect_false(identical(qs_est, qs_est_impr))
+                 
+    result$improveParamMarginals('sigma2', nMarginalGrid = 21)
+
+    qs_est_impr2 <- result$qmarginal('sigma2')
+    expect_lt(max(abs(qs - qs_est_impr2)), 1e-4) 
+    expect_false(identical(qs_est_impr, qs_est_impr2))
+
+    new_qpts <- c(0.3, 0.72)
+    qs_est <- result$qmarginal('sigma2', new_qpts)
+    qs <- qinvgamma(new_qpts, (n-1)/2, scale=(n-1)*var(m$y)/2)
+    expect_lt(max(abs(qs - qs_est)), 1e-4)
+
+    new_qpts <- 0.99
+    qs_est <- result$qmarginal('sigma2', new_qpts)
+    qs <- qinvgamma(new_qpts, (n-1)/2, scale=(n-1)*var(m$y)/2)
+    expect_lt(abs(qs - qs_est), 3e-4)
+
+    rtrue <- rinvgamma(1000, (n-1)/2, scale=(n-1)*var(m$y)/2)
+    rapprox <- result$rmarginal('sigma2', 1000)
+    expect_gt(ks.test(rtrue,rapprox)$p.value, 0.05)
+
+    grid <- seq(.25, 2.25, len = 50)
+    dtrue <- dinvgamma(grid, (n-1)/2, scale=(n-1)*var(m$y)/2, log = TRUE)
+    dapprox <- result$dmarginal('sigma2', grid, log=TRUE)
+    expect_lt(max(abs(dtrue - dapprox)), 1e-4)
+
+    prec_approx <- result$emarginal('sigma2', function(x) 1/x)
+    sd_approx <- result$emarginal('sigma2', function(x) sqrt(x))
+    prob_approx <- result$emarginal('sigma2', function(x, val) x < val, 2)
+
+    rtrue <- rinvgamma(1e5, (n-1)/2, scale=(n-1)*var(m$y)/2)
+    prec_true <- mean(1/rtrue)
+    sd_true <- mean(sqrt(rtrue))
+    prob_true <- pinvgamma(2, (n-1)/2, scale=(n-1)*var(m$y)/2)
+
+    expect_lt(abs(prec_true - prec_approx), 1e-3)
+    expect_lt(abs(sd_true - sd_approx), 1e-3)
+    expect_lt(abs(prob_true - prob_approx), 1e-5)
 
 
+    ## More constrained priors for MLL calc to be valid.
+    code <- nimbleCode({
+        for(i in 1:n)
+            y[i] ~ dnorm(mu, sd = sigma)
+        mu ~ dnorm(0,sd=3)
+        sigma ~ dunif(0,5)
+    })
+    
+    set.seed(1)
+    n <- 30
+    y <- rnorm(n)
+    m <- nimbleModel(code, data = list(y = y), constants = list(n=n),
+                     inits = list(mu = 0, sigma = 1), buildDerivs = TRUE)
 
+    approx <- buildNestedApprox(m, latentNodes = 'mu', paramNodes = 'sigma')
+    cm <- compileNimble(m)
+    capprox <- compileNimble(approx, project = m)
+    result <- runNestedApprox(capprox)
+
+    ## Basic harmonic mean estimator (high variance, so need many samples).
+    if(FALSE) {
+        set.seed(1)
+        n <- 5e7
+        mus <- rnorm(n,0,sd=3)
+        sigmas <- runif(n,0,5)
+        theta <- cbind(mus,sigmas)
+        logpy <- apply(theta, 1, function(x) sum(dnorm(y,x[1],x[2],log=T)))
+        mll <- log(mean(exp(logpy)))
+    } else mll <- -45.351158
+
+    ## WORK ON THIS ##
+    
+    expect_lt(abs(mll - result$marginalLogLik), .01)
+    expect_lt(abs(mll - result$marginalLogLikImproved), .004)
+
+    ## This is probably getting to the resolution of the accuracy of the harmonic mean estimator...
+    result$setParamGrid(nQuad = 15)
+    result$calcMarginalLogLikImproved()
+    result$marginalLogLikImproved
+    expect_lt(abs(mll - result$marginalLogLikImproved), .002)
+})
+
+test_that("Basic interface and user input errors", {
+    code <- nimbleCode({
+        for(j in 1:J) {
+            for(i in 1:n)
+                ## This gamma likelihood is based on INLA's parameterization.
+                y[i,j] ~ dgamma(mean = exp(eta[j]), sd = sqrt(exp(eta[j])^2/phi))
+            eta[j] ~ dnorm(mu, sd = sigma)
+        }
+        mu ~ dnorm(0,.001) # INLA prior
+        sigma ~ dhalfflat()  # not INLA prior
+        phi ~ dgamma(1, rate = .01) # INLA prior
+    })
+    
+    set.seed(1)
+    n <- 10
+    J <- 8
+    eta <- rnorm(J)
+    phi <- 0.5
+    mns <- rep(exp(eta), each = n)
+    sds <- rep(sqrt(exp(eta)^2/phi), each = n)
+    y <- matrix(rgamma(n*J, shape = mns^2/sds^2, rate = mns/sds^2), ncol = J)
+    
+    m <- nimbleModel(code, data = list(y = y), constants = list(n=n, J=J),
+                     inits = list(eta = rep(0,J), mu = 0, tau=1, sigma = 1), buildDerivs = TRUE)
+    
+    approx <- buildNestedApprox(m, latentNodes = c('eta'), paramNodes = c('mu','sigma','phi'))
+    ## This takes too long to include in testing.
+    # expect_output(runNestedApprox(approx), "Running an uncompiled nested approximation")
+
+    cm <- compileNimble(m)
+    capprox <- compileNimble(approx, project = m)
+
+    ## Check use of `originalScale = FALSE`.
+    result <- runNestedApprox(capprox)
+    resultTrans <- runNestedApprox(capprox, originalScale = FALSE)
+
+    expect_identical(result$expectations$mu, resultTrans$expectations$param_trans1)
+    expect_identical(result$quantiles$mu, resultTrans$quantiles$param_trans1)
+
+    expect_identical(result$quantiles$sigma, exp(resultTrans$quantiles$param_trans2))
+    
+    set.seed(1)
+    paramSamples <- result$sampleParams(50)
+    set.seed(1)
+    paramSamplesTrans <- resultTrans$sampleParams(50)
+    tmp <- paramSamplesTrans
+    tmp[,'param_trans2'] <- exp(tmp[,'param_trans2'])
+    tmp[,'param_trans3'] <- exp(tmp[,'param_trans3'])
+    colnames(tmp) <- c('mu','sigma','phi')
+    expect_identical(tmp, paramSamples)
+
+    ## Check sampling options.
+    paramSamples <- result$sampleParams(10000)
+    paramSamplesUnmatch <- result$sampleParams(10000, matchMarginals = FALSE)
+    matched_qs <- apply(paramSamples, 2, quantile, c(.025,.25,.5,.75,.975))
+    unmatched_qs <- apply(paramSamplesUnmatch, 2, quantile, c(.025,.25,.5,.75,.975))
+    expect_lt(max(abs(unlist(result$quantiles) - matched_qs)), .001)
+    expect_lt(max(abs(unlist(result$quantiles) - unmatched_qs)), .02)
+
+    latentSamples <- result$sampleLatents(500, includeParams = TRUE)
+    expect_identical(dim(latentSamples), c(500L, 11L))
+    grid <- result$approx$getParamGrid()
+    expect_identical(sort(grid[,1]), sort(unique(latentSamples[,'mu'])))
+    expect_identical(exp(sort(grid[,2])), sort(unique(latentSamples[,'sigma'])))
+
+    q1 <- result$quantiles
+    result$improveParamMarginals()
+    q2 <- result$quantiles
+    result$improveParamMarginals(nMarginalGrid = 11)
+    q3 <- result$quantiles
+    result$improveParamMarginals(nMarginalGrid = 11, nQuad = 5)
+    q4 <- result$quantiles
+    expect_false(identical(q1,q2))
+    expect_false(identical(q2,q3))
+    expect_false(identical(q3,q4))
+    # result$improveParamMarginals(quadRule = 'CCD') # Need to trap more cleanly with informative msg about CCD not allowed.
+                                        
+    ## Try various interface interactions.
+    expect_silent(result <- runNestedApprox(capprox))
+    ll1 <- result$marginalLogLik
+    
+    expect_output(result <- runNestedApprox(capprox, nSamplesLatents = 25, nSamplesParams = 50),
+                   "Estimating marginal log-likelihood based on CCD grid")
+    expect_identical(dim(result$samples), c(25L,8L))
+    expect_identical(dim(result$paramSamples), c(50L,3L))
+    expect_identical(colnames(result$samples), m$expandNodeNames('eta'))
+    expect_identical(colnames(result$paramSamples), c('mu','sigma','phi'))
+    ll2 <- result$marginalLogLikImproved
+    expect_false(identical(ll1, ll2))
+   
+    result$calcMarginalLogLikImproved()
+    expect_identical(ll2, result$marginalLogLikImproved)
+    set.seed(1)
+    smp1 <- result$sampleLatents(20)
+    set.seed(1)
+    smp2 <- result$sampleLatents(20)
+    expect_identical(smp1, smp2)
+
+    result$setParamGrid(quadRule = 'AGHQ')
+    result$calcMarginalLogLikImproved()
+    ll3 <- result$marginalLogLikImproved
+    expect_false(identical(ll2, ll3))
+
+    set.seed(1)
+    smp3 <- result$sampleLatents(20)
+    expect_false(identical(smp2, smp3))
+
+    ## This should not affect the grid as default should be 3.
+    result$setParamGrid(quadRule = 'AGHQ', nQuad = 3)
+    result$calcMarginalLogLikImproved()
+    expect_identical(ll3, result$marginalLogLikImproved)
+
+    result$setParamGrid(quadRule = 'AGHQ', nQuad = 5)
+    result$calcMarginalLogLikImproved()
+    ll4 <- result$marginalLogLikImproved
+    expect_false(identical(ll2, ll3))
+
+    set.seed(1)
+    smp4 <- result$sampleLatents(20)
+    expect_false(identical(smp3, smp4))
+
+})
+
+test_that("Marginal log-likelihood, 2-d case", {
+    code <- nimbleCode({
+        for(j in 1:J) {
+            for(i in 1:n)
+                y[i,j] ~ dpois(mu[j])
+            mu[j] ~ dgamma(a, b)
+        }
+        a ~ dgamma(1, 1)
+        b ~ dgamma(1, 1)
+    })
+
+    set.seed(1)
+    n <- 10
+    J <- 8
+    a <- 2
+    b <- 1
+    mu <- rgamma(J, a, b)
+    mns <- rep(mu, each = n)
+    y <- matrix(rpois(n*J, mns), ncol = J)
+    m <- nimbleModel(code, data = list(y = y), constants = list(n=n, J=J),
+                     inits = list(mu = rep(0,J), a=1,b=1), buildDerivs = TRUE)
+
+
+    if(FALSE) {
+        M <- 1e6
+        py <- rep(0, M)
+        
+        dens <- function(idx) {
+            ytmp <- y[(1+(idx-1)*n):(idx*n)]
+            return(a*log(b) - lgamma(a) - sum(lgamma(ytmp+1)) + lgamma(a+sum(ytmp)) - (a+sum(ytmp)) * log(b + n))
+        }
+        
+        set.seed(1)
+        for(i in seq_along(py)) {
+            a <- rgamma(1, 1,1)
+            b <- rgamma(1,1,1)
+            logpy <- sum(sapply(1:J, dens))
+            py[i] <- exp(logpy)
+        }
+        
+        mll <- log(mean(py))
+    } else mll <- -139.80807
+
+    approx <- buildNestedApprox(m)
+    cm <- compileNimble(m)
+    capprox <- compileNimble(approx, project = m)
+    result <- runNestedApprox(capprox)
+    
+    expect_lt(abs(mll - result$marginalLogLik), 0.1)
+
+    tmp <- result$sampleLatents(n = 10)  # Side effect of calculating logLik.
+    expect_lt(abs(mll - result$marginalLogLikImproved), 0.07)
+
+    result$setParamGrid(nQuad = 7)
+    result <- runNestedApprox(capprox)
+    result$calcMarginalLogLikImproved()
+    expect_lt(abs(mll - result$marginalLogLikImproved), 0.05)
+
+    approx <- buildNestedApprox(m, control = list(nQuadOuter = 7, nQuadInner = 5))
+    capprox <- compileNimble(approx, project = m)
+    result <- runNestedApprox(capprox) 
+    result$calcMarginalLogLikImproved()
+    expect_lt(abs(mll - result$marginalLogLikImproved), 0.02)
+
+})
+
+test_that("Marginals, 3-d case", {
+
+    code <- nimbleCode({
+        for(j in 1:J) {
+            for(i in 1:n)
+                ## This gamma likelihood is based on INLA's parameterization.
+                y[i,j] ~ dgamma(mean = exp(eta[j]), sd = sqrt(exp(eta[j])^2/phi))
+            eta[j] ~ dnorm(mu, sd = sigma)
+        }
+        mu ~ dnorm(0,.001) # INLA prior
+        sigma ~ dhalfflat()  # not INLA prior
+        phi ~ dgamma(1, rate = .01) # INLA prior
+    })
+
+    set.seed(1)
+    n <- 10
+    J <- 8
+    eta <- rnorm(J)
+    phi <- 0.5
+    mns <- rep(exp(eta), each = n)
+    sds <- rep(sqrt(exp(eta)^2/phi), each = n)
+    y <- matrix(rgamma(n*J, shape = mns^2/sds^2, rate = mns/sds^2), ncol = J)
+
+    m <- nimbleModel(code, data = list(y = y), constants = list(n=n, J=J),
+                     inits = list(eta = rep(0,J), mu = 0, tau=1, sigma = 1), buildDerivs = TRUE)
+
+    cm <- compileNimble(m)
+    conf <- configureMCMC(m, monitors = c('mu','sigma','phi','eta'), onlySlice = TRUE)
+    mcmc <- buildMCMC(conf)
+    cmcmc <- compileNimble(mcmc, project=m)
+    out <- runMCMC(cmcmc, niter=51000, nburnin=1000) 
+
+    qs_mcmc <- apply(out[ , c('mu','sigma','phi')], 2, quantile, qpts)
+
+    approx <- buildNestedApprox(m, latentNodes = c('eta'), paramNodes = c('mu','sigma','phi'))
+    capprox <- compileNimble(approx, project = m)
+    result <- runNestedApprox(capprox)  # Quantiles based on asymmetric Gaussian are not good in tails.
+    unlist(result$quantiles)
+
+    result$improveParamMarginals(c('mu','phi','sigma'), nMarginalGrid = 7)
+    expect_lt(max(abs(qs_mcmc - unlist(result$quantiles))), .015)
+    
+    ## Could add assessment of latents.
+})
 
 nimbleOptions(enableDerivs = EDopt)
 nimbleOptions(buildModelDerivs = BMDopt)
-
-
-
+    
+    
+    
 

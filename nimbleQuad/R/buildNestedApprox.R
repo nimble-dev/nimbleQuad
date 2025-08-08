@@ -246,7 +246,7 @@ buildNestedApprox <- nimbleFunction(
                                  parscale = character(0, default = "transformed")) {
             optRes <- innerMethods$optimize(pStart = pStart, includePrior = TRUE,
                                             includeJacobian = TRUE,
-                                            hessian = TRUE, parscale = parscale)
+                                            hessian = hessian, parscale = parscale)
             dm <- dim(optRes$hessian)[1]
             if(dm != nParamTrans)
                 stop("Posterior mode could not be found. Consider adjusting the control parameters for the optimization via the `control` argument of `buildNestedApprox`.")
@@ -477,7 +477,7 @@ buildNestedApprox <- nimbleFunction(
         ## Probably not particularly accurate for CCD.
         calcMarginalLogLikQuad = function() {
             if (I_GRID == I_CCD)
-                print("  [Note]: Estimating marginal log-likelihood based on CCD grid.\n           Estimation based on an AGHQ grid may be more accurate (but more computationally expensive).")
+                print("  [Note]: Estimating marginal log-likelihood based on CCD grid.\n          Estimation based on an AGHQ grid may be more accurate (but more computationally expensive).")
             if(!paramGridCached[I_GRID])
                 calcParamGrid()
             returnType(double())

@@ -48,6 +48,8 @@ fitMarginalSpline <- function(gridded, normalize = TRUE, xnew = NULL, refine = T
 
 estimateQuantiles <- function(marginalApprox, transform = NULL,
                               quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)) {
+    if(any(quantiles < 0 | quantiles > 1))
+        stop("quantile probabilities are outside [0,1]")
     finegridTrans <- marginalApprox[, "finegrid"]
     cdf <- marginalApprox[, "cdf"]
 
