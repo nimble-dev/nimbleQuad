@@ -1901,7 +1901,7 @@ buildAGHQ <- nimbleFunction(
         if(nQuad_ == 1)
             msg <- "Laplace" else msg <- "AGHQ (extended Laplace)"
         if(length(reSets) > 1) {
-            messageIfVerbose("Building individual ", msg, " approximations (one dot for each): ", appendLF = FAL
+            messageIfVerbose("Building individual ", msg, " approximations (one dot for each): ", appendLF = FALSE)
         } else {
           messageIfVerbose("Building ", msg, " approximation.")
         }
