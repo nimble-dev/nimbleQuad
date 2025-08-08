@@ -1990,7 +1990,7 @@ buildAGHQ <- nimbleFunction(
       reTransform_indices <- numeric(2)
       reNodesAsScalars_vec <- character(0)
       reNodesAsScalars_first <- character(1)
-      reTransNodeNames <- character(1)
+      reTransNodeNames <- character(2)
       if(num_calcNodesOther == 0)
         stop("buildAGHQ: Both `calcNodesOther` and `randomEffectsNodes` are empty for Laplace or AGHQ for the given model")
     }

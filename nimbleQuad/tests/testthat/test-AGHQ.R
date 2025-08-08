@@ -564,7 +564,7 @@ test_that("AGHQ nQuad > 1 for simple LME with correlated intercept and slope wor
   init_llh <- cmLaplace$calcLogLik(pStart)
   expect_error(cmLaplace$findMLE(), NULL)
 
-  mLaplace <- buildAGHQ(model = m, nQuad = 3, quadTransform = 'spectral')
+  mLaplace <- buildAGHQ(model = m, nQuad = 3, control=list(quadTransform = 'spectral'))
   cm <- compileNimble(m)
   cmLaplace <- compileNimble(mLaplace, project = m)
   params_in_order <- setupMargNodes(m)$paramNodes
