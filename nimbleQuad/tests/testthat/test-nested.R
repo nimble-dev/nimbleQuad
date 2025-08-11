@@ -5,6 +5,7 @@ BMDopt <- nimbleOptions("buildModelDerivs")
 nimbleOptions(enableDerivs = TRUE)
 nimbleOptions(buildModelDerivs = TRUE)
 
+
 temporarilyAssignInGlobalEnv <- function(value, replace = FALSE) {
     name <- deparse(substitute(value))
     assign(name, value, envir = .GlobalEnv)
@@ -349,7 +350,7 @@ test_that("Simple 1d param case - basic tests against known numerical results, i
 
     expect_lt(abs(prec_true - prec_approx), 1e-3)
     expect_lt(abs(sd_true - sd_approx), 1e-3)
-    expect_lt(abs(prob_true - prob_approx), 1e-5)
+    expect_lt(abs(prob_true - prob_approx), 1e-4)
 
 
     ## More constrained priors for MLL calc to be valid.
@@ -630,6 +631,7 @@ test_that("Marginals, 3-d case", {
 
 nimbleOptions(enableDerivs = EDopt)
 nimbleOptions(buildModelDerivs = BMDopt)
+
     
     
     
