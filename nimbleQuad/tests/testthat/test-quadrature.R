@@ -1,8 +1,6 @@
-library(nimble)
+library(nimbleQuad)
 library(testthat)
 # Tests of Quadrature Rules and Grids for numerical integration:
-source("../../R/quadratureRules.R")
-source("../../R/quadratureGrids.R")
 
 test_that("Returns Laplace when nQuad = 1, and one rule is passed.", {
   ## 1D Case
