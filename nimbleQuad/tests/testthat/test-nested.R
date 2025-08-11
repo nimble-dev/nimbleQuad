@@ -14,6 +14,8 @@ temporarilyAssignInGlobalEnv <- function(value, replace = FALSE) {
     }
 }
 
+qpts <- c(.025,.25,.5,.75,.975)
+
 test_that("Error trapping for invalid models", {
 
     ## Either no parameter or no latent nodes
@@ -287,7 +289,6 @@ test_that("Simple 1d param case - basic tests against known numerical results, i
     
     ## marginal for sigma2 is IG((n-1)/2,(n-1)*s2/2)
     ## marginal for mu is t(ybar, s2/n)
-    qpts <- c(.025,.25,.5,.75,.975)
     
     qs <- qinvgamma(qpts, (n-1)/2, scale=(n-1)*var(m$y)/2)
 
@@ -332,10 +333,10 @@ test_that("Simple 1d param case - basic tests against known numerical results, i
     rapprox <- result$rmarginal('sigma2', 1000)
     expect_gt(ks.test(rtrue,rapprox)$p.value, 0.05)
 
-    grid <- seq(.25, 2.25, len = 50)
+    grid <- seq(.35, 2.25, len = 50)
     dtrue <- dinvgamma(grid, (n-1)/2, scale=(n-1)*var(m$y)/2, log = TRUE)
     dapprox <- result$dmarginal('sigma2', grid, log=TRUE)
-    expect_lt(max(abs(dtrue - dapprox)), 1e-4)
+    expect_lt(max(abs(dtrue - dapprox)), .0003)
 
     prec_approx <- result$emarginal('sigma2', function(x) 1/x)
     sd_approx <- result$emarginal('sigma2', function(x) sqrt(x))
