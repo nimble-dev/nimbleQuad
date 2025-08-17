@@ -2670,7 +2670,7 @@ buildAGHQ <- nimbleFunction(
 
       setLogDensType(includeJacobian = includeJacobian, includePrior = includePrior)
       if( !keepOneFixed_ ){
-        if(outerOptimUseAD && !useNormalityHess && !useNormalityGrad) {
+        if(outerOptimUseAD & !useNormalityHess & !useNormalityGrad) {
             ## If using analytic normality, can't do outer (3rd) deriv, as that would take deriv of `getParam`.  
             optRes <- optim(pStartTransform, calcLogDens_pTransformed, gr_logDens_pTransformed,
                             method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
@@ -2679,7 +2679,7 @@ buildAGHQ <- nimbleFunction(
         p <- paramsTransform$inverseTransform(optRes$par)
         if(parscale == "real") optRes$par <- p
       } else {
-        if(outerOptimUseAD && !useNormalityHess && !useNormalityGrad) {
+        if(outerOptimUseAD & !useNormalityHess & !useNormalityGrad) {
             optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, gr_logDens_pTransformedFix1,
                             method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
         } else optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1,

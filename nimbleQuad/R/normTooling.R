@@ -104,22 +104,19 @@ multiGaussParam <- nimbleFunction(
                                 last = integer()) {
             i <- indexConvert[index]
             bstar <- (reTransform[first:last] - model$getParam(nodeNames[i], "mean"))
-            if(model$getDistribution(nodeNames[i] == "dmnormAD")) {
-                Q <- model$getParam(nodeNames[i], "prec")
-                ans <- -(Q %*% bstar)[, 1]
-            } else {  # dmnorm
-                ## This branch will generally not be exercised as we do automated
-                ## replacement of dmnorm with dmnormAD when buildDerivs=TRUE,
-                ## and this nf is used with Laplace.
-                U <- model$getParam(nodeNames[i], "cholesky")
-                if (model$getParam(nodeNames[i], "prec_param") == 1) {
-                    ans <- -(t(U) %*% (U %*% bstar))[, 1]
-                } else {
-                    ans <- -backsolve(U, forwardsolve(t(U), bstar))
-                    ## ans <- - model$getParam(nodeNames[i], 'prec') %*%
-                    ## (reTransform[first:last] - model$getParam(nodeNames[i], 'mean'))
-                }
-            }
+            Q <- model$getParam(nodeNames[i], "prec")
+            ans <- -(Q %*% bstar)[, 1]
+
+            ## This assumes use of dmnormAD, where `prec` is "free".
+            ## If we somehow wanted to use this with `dmnorm`, we should
+            ## create a version of this that uses `cholesky`:
+            ##  U <- model$getParam(nodeNames[i], "cholesky")
+            ##  if (model$getParam(nodeNames[i], "prec_param") == 1) {
+            ##      ans <- -(t(U) %*% (U %*% bstar))[, 1]
+            ##  } else {
+            ##     ans <- -backsolve(U, forwardsolve(t(U), bstar))
+            ##  }
+
             returnType(double(1))
             return(ans)
         }
