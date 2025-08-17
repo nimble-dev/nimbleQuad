@@ -915,6 +915,10 @@ buildOneAGHQuad <- nimbleFunction(
     p_indices  <-  S$p_indices
     quadRule_ <- S$quadRule
 
+    useNormalityGrad <- extractControlElement(control, 'useNormalityGrad', TRUE)
+    useNormalityHess <- extractControlElement(control, 'useNormalityHess', TRUE)
+      
+
     ## OVERVIEW OF INDEXING SCHEME:
     ## We have two situations: Sometimes we need the logLik as a function of random effects only ("inner" or "_RE_"),
     ##        and sometimes as a function of parameters and random effects ("outer" or "_P_RE_").
@@ -1042,6 +1046,57 @@ buildOneAGHQuad <- nimbleFunction(
     outer_mode_inner_argmax <- if(nreTrans > 1) numeric(nreTrans) else as.numeric(c(0, -1))
     outer_param_max <- if(npar > 1) rep(Inf, npar) else as.numeric(c(Inf, -1))
 
+    ## Configure nodes so that can avoid AD calculations on prior for normal nodes.
+    randomEffectsNodes <- model$expandNodeNames(randomEffectsNodes, returnScalarComponents = FALSE)
+    nreNodes <- length(randomEffectsNodes)
+    distrRE <- model$getDistribution(randomEffectsNodes)
+    nREElements <- reTrans$transformData[, 4] - reTrans$transformData[, 3] + 1
+    ## Indexing we need for block updates of gradient and precision.
+    firstRE <- as.numeric(c(1, 1+cumsum(nREElements[-nreNodes])))
+    lastRE <- firstRE + nREElements - 1
+
+    gaussNodes1 <- as.numeric(distrRE == "dnorm")
+    gaussNodesM <- as.numeric(distrRE %in% c("dmnorm", "dmnormAD"))
+    ndnorm <- sum(gaussNodes1)
+    ndmnorm <- sum(gaussNodesM)
+    gaussNodes <- gaussNodesM + gaussNodes1
+    gaussNode_nfl <- nimbleFunctionList(getParam_BASE)
+
+    ## Build nimble function list for each case of normal.
+    if(ndnorm > 0) {
+        gaussNode_nfl[[1]] <- gaussParam(model, randomEffectsNodes[gaussNodes1 == 1], gaussNodes1)
+    }else{
+        gaussNode_nfl[[1]] <- emptyParam()
+    }
+    if(ndmnorm > 0) {
+        gaussNode_nfl[[2]] <- multiGaussParam(model, randomEffectsNodes[gaussNodesM == 1], gaussNodesM)
+    }else{ 
+        gaussNode_nfl[[2]] <- emptyParam()
+    }
+
+    nGNodes <- ndnorm + ndmnorm
+    gaussRandomEffectsNodes <- randomEffectsNodes[gaussNodes == 1]
+
+    if(nreNodes == 1) {
+        gaussNodes <- c(gaussNodes, -1)
+        gaussNodes1 <- c(gaussNodes1, -1)
+        gaussNodesM <- c(gaussNodesM, -1)
+        firstRE <- c(firstRE, -1)
+        lastRE <- c(lastRE, -1)
+    }
+      
+    ## Remove Gaussian priors from the inner likelihood.
+    innerCalcNodesNoNorm <- innerCalcNodes[!innerCalcNodes %in% gaussRandomEffectsNodes]
+    calcNodesNoNorm <- calcNodes[!calcNodes %in% gaussRandomEffectsNodes]
+
+    inner_derivsInfoNoNorm <- makeModelDerivsInfo(model = model, wrtNodes = randomEffectsNodes, calcNodes = innerCalcNodesNoNorm)
+    inner_updateNodesNoNorm   <- inner_derivsInfoNoNorm$updateNodes
+    inner_constantNodesNoNorm <- inner_derivsInfoNoNorm$constantNodes
+    joint_derivsInfoNoNorm    <- makeModelDerivsInfo(model = model, wrtNodes = wrtNodes, calcNodes = calcNodesNoNorm)
+    joint_updateNodesNoNorm   <- joint_derivsInfoNoNorm$updateNodes
+    joint_constantNodesNoNorm <- joint_derivsInfoNoNorm$constantNodes
+
+      
     ## Build Quadrature grid for any dimension:
     ## This is set up to add other quad grids in the future. quadRule := "AGHQ" to start.
     quadGrid <- configureQuadGrid(d = nreTrans, levels = nQuad_, quadRule = quadRule_)
@@ -1239,12 +1294,46 @@ buildOneAGHQuad <- nimbleFunction(
       he_P_RE_wrt_RE2_uptri_reset_once <<- he_P_RE_wrt_RE2_uptri
       ## Reset the inner optimization cache.
     },
+    includeNormGrad = function(vec = double(1), reTransform = double(1)) {
+        if(nGNodes > 0) {
+            for(i in 1:nreNodes) {
+                if (gaussNodes[i] == 1) {
+                    normType <- gaussNodes1[i] + gaussNodesM[i]*2	## 1 is dnorm, 2 is dmnorm.
+                    blockIndices <- firstRE[i]:lastRE[i]	## Just one value.
+                    vec[blockIndices] <- vec[blockIndices] + gaussNode_nfl[[normType]]$calcGradient(reTransform, i, firstRE[i], lastRE[i])
+                }
+            }
+        }
+    },
+    includeNormPrec = function(mat = double(2), add = logical(default = FALSE)) {
+        if(nGNodes > 0) {
+            for(i in 1:nreNodes) {
+                if(gaussNodes[i] == 1){
+                    normType <- gaussNodes1[i] + gaussNodesM[i]*2	## 1 is dnorm, 2 is dmnorm.
+                    Q <- gaussNode_nfl[[normType]]$getPrecision(i)
+                    blockIndices <- firstRE[i]:lastRE[i]
+                    if(add) {
+                        mat[blockIndices, blockIndices] <- mat[blockIndices, blockIndices] + Q
+                    } else mat[blockIndices, blockIndices] <- mat[blockIndices, blockIndices] - Q
+                }
+            }
+        }
+    },
+    
     ## Joint log-likelihood with values of parameters fixed: used only for inner optimization
     logLik_RE = function(reTransform = double(1)) {
       # previously inner_logLik
       re <- reTrans$inverseTransform(reTransform)
       values(model, randomEffectsNodes) <<- re
       ans <- model$calculate(innerCalcNodes) + reTrans$logDetJacobian(reTransform)
+      return(ans)
+      returnType(double())
+    },
+    logLik_RE_noNorm = function(reTransform = double(1)) {
+      # previously inner_logLik
+      re <- reTrans$inverseTransform(reTransform)
+      values(model, randomEffectsNodes) <<- re
+      ans <- model$calculate(innerCalcNodesNoNorm) + reTrans$logDetJacobian(reTransform)
       return(ans)
       returnType(double())
     },
@@ -1256,6 +1345,21 @@ buildOneAGHQuad <- nimbleFunction(
       do_reset <- forceReset | gr_RE_reset_once
       ans <- derivs(logLik_RE(reTransform), wrt = reTrans_indices_inner, order = 1, model = model,
                     updateNodes = inner_updateNodes, constantNodes = inner_constantNodes,
+                    do_update = gr_RE_update_once | gr_RE_update_always | forceUpdate | do_reset,
+                    reset=do_reset)
+      gr_RE_update_once <<- FALSE
+      gr_RE_reset_once <<- FALSE
+      return(ans$jacobian[1,])
+      returnType(double(1))
+    },
+    gr_RE_a_noNorm = function(reTransform = double(1),
+                       forceUpdate = logical(0, default = FALSE),
+                       forceReset = logical(0, default = FALSE)) {
+      # renamed: previously had "internal" suffix
+      #  previously gr_inner_logLik_internal
+      do_reset <- forceReset | gr_RE_reset_once
+      ans <- derivs(logLik_RE_noNorm(reTransform), wrt = reTrans_indices_inner, order = 1, model = model,
+                    updateNodes = inner_updateNodesNoNorm, constantNodes = inner_constantNodesNoNorm,
                     do_update = gr_RE_update_once | gr_RE_update_always | forceUpdate | do_reset,
                     reset=do_reset)
       gr_RE_update_once <<- FALSE
@@ -1297,11 +1401,19 @@ buildOneAGHQuad <- nimbleFunction(
       ## reimplemented: now uses order(1) from gr_inner_logLik
       do_reset <- forceReset | he_RE_reset_once
       do_update <- he_RE_update_once | he_RE_update_always | forceUpdate | do_reset
-      ans <- derivs(gr_RE_a(reTransform, forceUpdate=do_update, forceReset=do_reset),
-                    wrt = reTrans_indices_inner, order = 1, model = model,
-                    updateNodes = inner_updateNodes, constantNodes = inner_constantNodes,
-                    do_update = do_update,
-                    reset=do_reset)
+      if(useNormalityHess) {
+          ans <- derivs(gr_RE_a_noNorm(reTransform, forceUpdate=do_update, forceReset=do_reset),
+                        wrt = reTrans_indices_inner, order = 1, model = model,
+                        updateNodes = inner_updateNodesNoNorm, constantNodes = inner_constantNodesNoNorm,
+                        do_update = do_update,
+                        reset=do_reset)
+          
+      } else 
+          ans <- derivs(gr_RE_a(reTransform, forceUpdate=do_update, forceReset=do_reset),
+                        wrt = reTrans_indices_inner, order = 1, model = model,
+                        updateNodes = inner_updateNodes, constantNodes = inner_constantNodes,
+                        do_update = do_update,
+                        reset=do_reset)
       he_RE_update_once <<- FALSE
       he_RE_reset_once <<- FALSE
       res <- ans$jacobian
@@ -1323,15 +1435,25 @@ buildOneAGHQuad <- nimbleFunction(
       # previously he_inner_logLik
       do_reset <- forceReset | he_RE_reset_once
       do_update <- he_RE_update_once | he_RE_update_always | forceUpdate | do_reset
-      ans <- derivs(he_RE_b_asvec(reTransform, forceUpdate=do_update, forceReset=do_reset),
-                    wrt = reTrans_indices_inner,
-                    order = 0, model = model,
-                    updateNodes = inner_updateNodes, constantNodes = inner_constantNodes,
-                    do_update = do_update,
-                    reset=do_reset)
+      if(useNormalityHess) {  
+          ans <- derivs(he_RE_b_asvec(reTransform, forceUpdate=do_update, forceReset=do_reset),
+                        wrt = reTrans_indices_inner,
+                        order = 0, model = model,
+                        updateNodes = inner_updateNodesNoNorm, constantNodes = inner_constantNodesNoNorm,
+                        do_update = do_update,
+                        reset=do_reset)
+      } else  ans <- derivs(he_RE_b_asvec(reTransform, forceUpdate=do_update, forceReset=do_reset),
+                            wrt = reTrans_indices_inner,
+                            order = 0, model = model,
+                            updateNodes = inner_updateNodes, constantNodes = inner_constantNodes,
+                            do_update = do_update,
+                            reset=do_reset)
       he_RE_update_once <<- FALSE
       he_RE_reset_once <<- FALSE
       res <- matrix(value = ans$value, nrow = nreTrans, ncol = nreTrans)
+      ## Additional part from normality can only be included here outside of all derivs calls,
+      ## as AD cannot be done on `includeNormPrec`, which has call to `getParam` via `getPrecision`.
+      if(useNormalityHess) includeNormPrec(res)
       return(res)
       returnType(double(2))
     },
@@ -1360,18 +1482,33 @@ buildOneAGHQuad <- nimbleFunction(
         return(ans)
         returnType(double())
     },
+    logLik_P_RE_noNorm = function(p = double(1), reTransform = double(1)) {
+        re <- reTrans$inverseTransform(reTransform)
+        values(model, paramNodes) <<- p
+        values(model, randomEffectsNodes) <<- re
+        ans <- model$calculate(calcNodesNoNorm) +  reTrans$logDetJacobian(reTransform)
+        return(ans)
+        returnType(double())
+    },
     gr_P_RE_a = function(p = double(1), reTransform = double(1),
                          forceUpdate = logical(0, default = FALSE),
                          forceReset = logical(0, default = FALSE)) {
         # previously gr_joint_logLik_wrt_p_re_internal (?)
         do_reset <- forceReset | gr_P_RE_reset_once
         do_update <- gr_P_RE_update_once | gr_P_RE_update_always | forceUpdate | do_reset
-        ans <- derivs(logLik_P_RE(p, reTransform), wrt = p_reTrans_indices, order = 1, model = model,
+        if(useNormalityGrad) {
+            ans <- derivs(logLik_P_RE_noNorm(p, reTransform), wrt = p_reTrans_indices, order = 1, model = model,
+                      updateNodes = joint_updateNodesNoNorm, constantNodes = joint_constantNodesNoNorm,
+                      do_update = do_update,
+                      reset=do_reset)
+        } else ans <- derivs(logLik_P_RE(p, reTransform), wrt = p_reTrans_indices, order = 1, model = model,
                       updateNodes = joint_updateNodes, constantNodes = joint_constantNodes,
                       do_update = do_update,
                       reset=do_reset)
         gr_P_RE_update_once <<- FALSE
         gr_P_RE_reset_once <<- FALSE
+        res <- ans$jacobian[1,]
+        if(useNormalityGrad) includeNormGrad(res, reTransform)
         return(ans$jacobian[1,])
         returnType(double(1))
     },
@@ -1382,9 +1519,9 @@ buildOneAGHQuad <- nimbleFunction(
         do_reset <- forceReset | gr_P_RE_reset_once
         do_update <- gr_P_RE_update_once | gr_P_RE_update_always | forceUpdate | do_reset
         ans <- derivs(gr_P_RE_a(p, reTransform, forceUpdate=do_update, forceReset=do_reset), wrt = p_reTrans_indices, order = 0, model = model,
-                      updateNodes = joint_updateNodes, constantNodes = joint_updateNodes,
-                      do_update = do_update,
-                      reset=do_reset)
+                          updateNodes = joint_updateNodes, constantNodes = joint_updateNodes,
+                          do_update = do_update,
+                          reset=do_reset)
         gr_P_RE_update_once <<- FALSE
         gr_P_RE_reset_once <<- FALSE
         return(ans$value)
@@ -1708,10 +1845,13 @@ buildOneAGHQuad <- nimbleFunction(
     ## }
   ),
   buildDerivs = list(logLik_RE              = list(),
+                     logLik_RE_noNorm       = list(),
                      gr_RE_a                = list(),
+                     gr_RE_a_noNorm         = list(),
                      he_RE_b                = list(),
                      he_RE_b_asvec          = list(),
                      logLik_P_RE            = list(),
+                     logLik_P_RE_noNorm     = list(),
                      gr_P_RE_a              = list(),
                      gr_P_RE_wrt_RE_a      = list(),
                      he_P_RE_wrt_RE2_uptri_b = list())
@@ -1734,6 +1874,8 @@ buildAGHQ <- nimbleFunction(
                    calcNodesOther, control = list()) {
     split <- extractControlElement(control, 'split', TRUE)
     check <- extractControlElement(control, 'check', TRUE)
+    useNormalityGrad <- extractControlElement(control, 'useNormalityGrad', TRUE)
+    useNormalityHess <- extractControlElement(control, 'useNormalityHess', TRUE)
     innerOptimWarning <- extractControlElement(control, 'innerOptimWarning', FALSE)
 
     if(!is.Rmodel(model))
@@ -1856,7 +1998,9 @@ buildAGHQ <- nimbleFunction(
                              optimStart=innerOptimStart,
                              optimStartValues=innerOptimStartValues,
                              optimWarning=innerOptimWarning,
-                             quadTransform=quadTransform)
+                             quadTransform=quadTransform,
+                             useNormalityGrad = useNormalityGrad,
+                             useNormalityHess = useNormalityHess)
     if(nre > 0){
       ## Record the order of random effects processed internally
       internalRandomEffectsNodes <- NULL
@@ -2526,7 +2670,8 @@ buildAGHQ <- nimbleFunction(
 
       setLogDensType(includeJacobian = includeJacobian, includePrior = includePrior)
       if( !keepOneFixed_ ){
-        if(outerOptimUseAD) {
+        if(outerOptimUseAD && !useNormalityHess && !useNormalityGrad) {
+            ## If using analytic normality, can't do outer (3rd) deriv, as that would take deriv of `getParam`.  
             optRes <- optim(pStartTransform, calcLogDens_pTransformed, gr_logDens_pTransformed,
                             method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
         } else optRes <- optim(pStartTransform, calcLogDens_pTransformed,
@@ -2534,7 +2679,7 @@ buildAGHQ <- nimbleFunction(
         p <- paramsTransform$inverseTransform(optRes$par)
         if(parscale == "real") optRes$par <- p
       } else {
-        if(outerOptimUseAD) {
+        if(outerOptimUseAD && !useNormalityHess && !useNormalityGrad) {
             optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, gr_logDens_pTransformedFix1,
                             method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
         } else optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1,
