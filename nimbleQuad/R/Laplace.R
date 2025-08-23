@@ -1374,14 +1374,22 @@ buildOneAGHQuad <- nimbleFunction(
       ## previusly gr_inner_logLik
       do_reset <- forceReset | gr_RE_reset_once
       do_update <- gr_RE_update_once | gr_RE_update_always | forceUpdate | do_reset
-      ans <- derivs(gr_RE_a(reTransform, forceUpdate=do_update, forceReset=do_reset),
+      if(useNormalityGrad) {
+          ans <- derivs(gr_RE_a_noNorm(reTransform, forceUpdate=do_update, forceReset=do_reset),
+                        wrt = reTrans_indices_inner, order = 0, model = model,
+                        updateNodes = inner_updateNodesNoNorm, constantNodes = inner_constantNodesNoNorm,
+                        do_update = do_update,
+                        reset=do_reset)
+      } else ans <- derivs(gr_RE_a(reTransform, forceUpdate=do_update, forceReset=do_reset),
                     wrt = reTrans_indices_inner, order = 0, model = model,
                     updateNodes = inner_updateNodes, constantNodes = inner_constantNodes,
                     do_update = do_update,
                     reset=do_reset)
       gr_RE_update_once <<- FALSE
       gr_RE_reset_once <<- FALSE
-      return(ans$value)
+      res <- ans$value
+      if(useNormalityGrad) includeNormGrad(res, reTransform)  
+      return(res)
       returnType(double(1))
     },
     gr_for_optim = function(reTransform = double(1)) {
@@ -1482,33 +1490,18 @@ buildOneAGHQuad <- nimbleFunction(
         return(ans)
         returnType(double())
     },
-    logLik_P_RE_noNorm = function(p = double(1), reTransform = double(1)) {
-        re <- reTrans$inverseTransform(reTransform)
-        values(model, paramNodes) <<- p
-        values(model, randomEffectsNodes) <<- re
-        ans <- model$calculate(calcNodesNoNorm) +  reTrans$logDetJacobian(reTransform)
-        return(ans)
-        returnType(double())
-    },
     gr_P_RE_a = function(p = double(1), reTransform = double(1),
                          forceUpdate = logical(0, default = FALSE),
                          forceReset = logical(0, default = FALSE)) {
         # previously gr_joint_logLik_wrt_p_re_internal (?)
         do_reset <- forceReset | gr_P_RE_reset_once
         do_update <- gr_P_RE_update_once | gr_P_RE_update_always | forceUpdate | do_reset
-        if(useNormalityGrad) {
-            ans <- derivs(logLik_P_RE_noNorm(p, reTransform), wrt = p_reTrans_indices, order = 1, model = model,
-                      updateNodes = joint_updateNodesNoNorm, constantNodes = joint_constantNodesNoNorm,
-                      do_update = do_update,
-                      reset=do_reset)
-        } else ans <- derivs(logLik_P_RE(p, reTransform), wrt = p_reTrans_indices, order = 1, model = model,
+        ans <- derivs(logLik_P_RE(p, reTransform), wrt = p_reTrans_indices, order = 1, model = model,
                       updateNodes = joint_updateNodes, constantNodes = joint_constantNodes,
                       do_update = do_update,
                       reset=do_reset)
         gr_P_RE_update_once <<- FALSE
         gr_P_RE_reset_once <<- FALSE
-        res <- ans$jacobian[1,]
-        if(useNormalityGrad) includeNormGrad(res, reTransform)
         return(ans$jacobian[1,])
         returnType(double(1))
     },
@@ -1851,7 +1844,6 @@ buildOneAGHQuad <- nimbleFunction(
                      he_RE_b                = list(),
                      he_RE_b_asvec          = list(),
                      logLik_P_RE            = list(),
-                     logLik_P_RE_noNorm     = list(),
                      gr_P_RE_a              = list(),
                      gr_P_RE_wrt_RE_a      = list(),
                      he_P_RE_wrt_RE2_uptri_b = list())
