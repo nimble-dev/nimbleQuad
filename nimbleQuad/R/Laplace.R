@@ -62,7 +62,7 @@ AGHQuad_BASE <- nimbleFunctionVirtual(
   )
 )
 
-setup_OneAGHQuad <- function(model, paramNodes, randomEffectsNodes, calcNodes, control) {
+setup_OneAGHQuad <- function(model, paramNodes, randomEffectsNodes, calcNodes, paramDeps, control) {
   # common setup steps for 1D and >1D cases
   optimControl_ <- extractControlElement(control, 'optimControl', nimOptimDefaultControl())
   optimMethod_ <- extractControlElement(control, 'optimMethod', 'nlminb')
@@ -70,13 +70,15 @@ setup_OneAGHQuad <- function(model, paramNodes, randomEffectsNodes, calcNodes, c
   optimStartValues_ <- extractControlElement(control, 'optimStartValues', 0)
   nre  <- length(model$expandNodeNames(randomEffectsNodes, returnScalarComponents = TRUE))
 
-  paramDeps <- model$getDependencies(paramNodes, determOnly = TRUE, self=FALSE)
+  if(missing(paramDeps))
+    paramDeps <- model$getDependencies(paramNodes, determOnly = TRUE, self=FALSE)
   if(length(paramDeps)) {
     calcNodesParents <- model$getParents(calcNodes, determOnly = TRUE)
     paramDeps <- paramDeps[!paramDeps %in% calcNodes & paramDeps %in% calcNodesParents]  
   }
   innerCalcNodes <- calcNodes
-  calcNodes <- model$expandNodeNames(c(paramDeps, calcNodes), sort = TRUE)
+  if(length(paramDeps))  
+    calcNodes <- model$expandNodeNames(c(paramDeps, calcNodes), sort = TRUE)
   wrtNodes <- c(paramNodes, randomEffectsNodes)
   reTrans <- parameterTransform(model, randomEffectsNodes)
   npar <- length(model$expandNodeNames(paramNodes, returnScalarComponents = TRUE))
@@ -103,20 +105,20 @@ setup_OneAGHQuad <- function(model, paramNodes, randomEffectsNodes, calcNodes, c
 }
 
 ## A single Laplace approximation for only one scalar random effect node
-buildOneLaplace1D <- function(model, paramNodes, randomEffectsNodes, calcNodes, control = list()) {
-  buildOneAGHQuad1D(model, nQuad = 1, paramNodes, randomEffectsNodes, calcNodes, control)
+buildOneLaplace1D <- function(model, paramNodes, randomEffectsNodes, calcNodes, paramDeps, control = list()) {
+  buildOneAGHQuad1D(model, nQuad = 1, paramNodes, randomEffectsNodes, calcNodes, paramDeps, control)
 }
 
 buildOneAGHQuad1D <- nimbleFunction(
   contains = AGHQuad_BASE,
-  setup = function(model, nQuad, paramNodes, randomEffectsNodes, calcNodes, control = list()) {
+  setup = function(model, nQuad, paramNodes, randomEffectsNodes, calcNodes, paramDeps, control = list()) {
     ## Check the number of random effects is 1
     ## optimControl_ <- extractControlElement(control, 'optimControl', nimOptimDefaultControl())
     ## optimMethod_ <- extractControlElement(control, 'optimMethod', 'BFGS')
     ## optimStart_ <- extractControlElement(control, 'optimStart', 'constant')
     ## optimStartValues_ <- extractControlElement(control, 'optimStartValues', 0)
     nQuad_ <- nQuad
-    S <- setup_OneAGHQuad(model, paramNodes, randomEffectsNodes, calcNodes, control)
+    S <- setup_OneAGHQuad(model, paramNodes, randomEffectsNodes, calcNodes, paramDeps, control)
     optimControl_ <- S$optimControl_
     optimMethod_ <- S$optimMethod_
     optimStart_ <- S$optimStart_
@@ -881,13 +883,13 @@ buildOneAGHQuad1D <- nimbleFunction(
 
 
 ## A single Laplace approximation for models with more than one scalar random effect node
-buildOneLaplace <- function(model, paramNodes, randomEffectsNodes, calcNodes, control = list()) {
-  buildOneAGHQuad(model, nQuad = 1, paramNodes, randomEffectsNodes, calcNodes, control)
+buildOneLaplace <- function(model, paramNodes, randomEffectsNodes, calcNodes, paramDeps, control = list()) {
+  buildOneAGHQuad(model, nQuad = 1, paramNodes, randomEffectsNodes, calcNodes, paramDeps, control)
 }
 
 buildOneAGHQuad <- nimbleFunction(
   contains = AGHQuad_BASE,
-  setup = function(model, nQuad = 1, paramNodes, randomEffectsNodes, calcNodes, control = list()) {
+  setup = function(model, nQuad = 1, paramNodes, randomEffectsNodes, calcNodes, paramDeps, control = list()) {
     ## Check and add necessary (upstream) deterministic nodes into calcNodes
     ## This ensures that deterministic nodes between paramNodes and calcNodes are used.
     ## optimControl_ <- extractControlElement(control, 'optimControl', nimOptimDefaultControl())
@@ -895,7 +897,7 @@ buildOneAGHQuad <- nimbleFunction(
     ## optimStart_ <- extractControlElement(control, 'optimStart', 'constant')
     ## optimStartValues_ <- extractControlElement(control, 'optimStartValues', 0)
     nQuad_ <- nQuad
-    S <- setup_OneAGHQuad(model, paramNodes, randomEffectsNodes, calcNodes, control)
+    S <- setup_OneAGHQuad(model, paramNodes, randomEffectsNodes, calcNodes, paramDeps, control)
     optimControl_ <- S$optimControl_
     optimMethod_ <- S$optimMethod_
     optimStart_ <- S$optimStart_
@@ -1878,11 +1880,11 @@ buildAGHQ <- nimbleFunction(
         ## Build AGHQuad
         if(nre > 1 | isTRUE(control[['force_nDim']])) {
           AGHQuad_nfl[[1]] <- buildOneAGHQuad(model, nQuad = nQuad_, paramNodes, randomEffectsNodes,
-                                              calcNodes, innerControlList)
+                                              calcNodes, control = innerControlList)
           multiSetsCheck <- TRUE
         } else {
           AGHQuad_nfl[[1]] <- buildOneAGHQuad1D(model, nQuad = nQuad_, paramNodes, randomEffectsNodes,
-                                                calcNodes, innerControlList)
+                                                calcNodes, control = innerControlList)
         }
         num_reSets <- 1
       }
@@ -1900,6 +1902,8 @@ buildAGHQ <- nimbleFunction(
         } else {
           messageIfVerbose("Building ", msg, " approximation.")
         }
+        ## Do this once as shared across all individual AGHQs.
+        paramDeps <- model$getDependencies(paramNodes, determOnly = TRUE, self=FALSE)
         for(i in seq_along(reSets)){
           ## Work with one conditionally independent set of latent states
           these_reNodes <- reSets[[i]]
@@ -1951,12 +1955,12 @@ buildAGHQ <- nimbleFunction(
           ## **** WZ below the innerControlList is still the full one I do not know why the code above was commented out
           if(nre_these > 1 | isTRUE(control[['force_nDim']])){
             AGHQuad_nfl[[i]] <- buildOneAGHQuad(model, nQuad = nQuad_, paramNodes, these_reNodes, these_calcNodes,
-                                                innerControlList)
+                                                paramDeps, innerControlList)
             multiSetsCheck <- TRUE
           }
           else {
             AGHQuad_nfl[[i]] <- buildOneAGHQuad1D(model, nQuad = nQuad_, paramNodes, these_reNodes, these_calcNodes,
-                                                  innerControlList)
+                                                  paramDeps, innerControlList)
           }
           if(length(reSets) > 1) messageIfVerbose(".", appendLF = FALSE)
         }
