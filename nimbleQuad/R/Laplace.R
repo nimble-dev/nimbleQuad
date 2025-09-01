@@ -1783,9 +1783,7 @@ buildOneAGHQuad <- nimbleFunction(
     ## }
   ),
   buildDerivs = list(logLik_RE              = list(),
-                     logLik_RE_noNorm       = list(),
                      gr_RE_a                = list(),
-                     gr_RE_a_noNorm         = list(),
                      he_RE_b                = list(),
                      he_RE_b_asvec          = list(),
                      logLik_P_RE            = list(),
