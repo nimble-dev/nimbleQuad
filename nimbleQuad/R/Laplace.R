@@ -992,15 +992,19 @@ buildOneAGHQuad <- nimbleFunction(
       
     ## Remove Gaussian priors from the inner likelihood.
     if(useNormalityAD) {  
-        innerCalcNodes <- innerCalcNodes[!innerCalcNodes %in% gaussRandomEffectsNodes]
-        calcNodes <- calcNodes[!calcNodes %in% gaussRandomEffectsNodes]
+        innerCalcNodesForDerivs <- innerCalcNodes[!innerCalcNodes %in% gaussRandomEffectsNodes]
+    } else {
+        innerCalcNodesForDerivs <- innerCalcNodes
     }
-
+      
     ## Update and constant nodes info for obtaining derivatives using AD
       
-    inner_derivsInfo    <- makeModelDerivsInfo(model = model, wrtNodes = randomEffectsNodes, calcNodes = innerCalcNodes)
+    inner_derivsInfo    <- makeModelDerivsInfo(model = model, wrtNodes = randomEffectsNodes, calcNodes = innerCalcNodesForDerivs)
     inner_updateNodes   <- inner_derivsInfo$updateNodes
     inner_constantNodes <- inner_derivsInfo$constantNodes
+
+    ## This is used for 3rd deriv (gradient of Laplace) and is not used in the analytic normality case,
+    ## as that would use AD on `getParam`.      
     joint_derivsInfo    <- makeModelDerivsInfo(model = model, wrtNodes = wrtNodes, calcNodes = calcNodes)
     joint_updateNodes   <- joint_derivsInfo$updateNodes
     joint_constantNodes <- joint_derivsInfo$constantNodes
@@ -1310,11 +1314,21 @@ buildOneAGHQuad <- nimbleFunction(
     },
     
     ## Joint log-likelihood with values of parameters fixed: used only for inner optimization
+    ## Used only for calculation, not derivs.
     logLik_RE = function(reTransform = double(1)) {
       # previously inner_logLik
       re <- reTrans$inverseTransform(reTransform)
       values(model, randomEffectsNodes) <<- re
       ans <- model$calculate(innerCalcNodes) + reTrans$logDetJacobian(reTransform)
+      return(ans)
+      returnType(double())
+    },
+    ## Used for derivs, either with or without analytic normality.
+    logLik_RE_forDerivs = function(reTransform = double(1)) {
+      # previously inner_logLik
+      re <- reTrans$inverseTransform(reTransform)
+      values(model, randomEffectsNodes) <<- re
+      ans <- model$calculate(innerCalcNodesForDerivs) + reTrans$logDetJacobian(reTransform)
       return(ans)
       returnType(double())
     },
@@ -1324,7 +1338,7 @@ buildOneAGHQuad <- nimbleFunction(
       # renamed: previously had "internal" suffix
       #  previously gr_inner_logLik_internal
       do_reset <- forceReset | gr_RE_reset_once
-      ans <- derivs(logLik_RE(reTransform), wrt = reTrans_indices_inner, order = 1, model = model,
+      ans <- derivs(logLik_RE_forDerivs(reTransform), wrt = reTrans_indices_inner, order = 1, model = model,
                     updateNodes = inner_updateNodes, constantNodes = inner_constantNodes,
                     do_update = gr_RE_update_once | gr_RE_update_always | forceUpdate | do_reset,
                     reset=do_reset)
@@ -1428,6 +1442,9 @@ buildOneAGHQuad <- nimbleFunction(
       returnType(double(2))
     },
     logLik_P_RE = function(p = double(1), reTransform = double(1)) {
+        ## This uses full set of calcNodes, including Gaussian nodes as it is never used
+        ## when using analytic normality because AD-based 3rd deriv (gradient of Laplace)
+        ## is not used in that case. 
         re <- reTrans$inverseTransform(reTransform)
         values(model, paramNodes) <<- p
         values(model, randomEffectsNodes) <<- re
@@ -1438,7 +1455,8 @@ buildOneAGHQuad <- nimbleFunction(
     gr_P_RE_a = function(p = double(1), reTransform = double(1),
                          forceUpdate = logical(0, default = FALSE),
                          forceReset = logical(0, default = FALSE)) {
-        # previously gr_joint_logLik_wrt_p_re_internal (?)
+        ## previously gr_joint_logLik_wrt_p_re_internal (?)
+        
         do_reset <- forceReset | gr_P_RE_reset_once
         do_update <- gr_P_RE_update_once | gr_P_RE_update_always | forceUpdate | do_reset
         ans <- derivs(logLik_P_RE(p, reTransform), wrt = p_reTrans_indices, order = 1, model = model,
@@ -1453,7 +1471,7 @@ buildOneAGHQuad <- nimbleFunction(
     gr_P_RE_b = function(p = double(1), reTransform = double(1),
                          forceUpdate = logical(0, default = FALSE),
                          forceReset = logical(0, default = FALSE)) {
-      ## previously gr_joint_logLik_wrt_p_re
+        ## previously gr_joint_logLik_wrt_p_re
         do_reset <- forceReset | gr_P_RE_reset_once
         do_update <- gr_P_RE_update_once | gr_P_RE_update_always | forceUpdate | do_reset
         ans <- derivs(gr_P_RE_a(p, reTransform, forceUpdate=do_update, forceReset=do_reset), wrt = p_reTrans_indices, order = 0, model = model,
