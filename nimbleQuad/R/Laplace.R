@@ -1800,7 +1800,7 @@ buildOneAGHQuad <- nimbleFunction(
     ##   cache_inner_max <<- cache
     ## }
   ),
-  buildDerivs = list(logLik_RE              = list(),
+  buildDerivs = list(logLik_RE_forDerivs    = list(),
                      gr_RE_a                = list(),
                      he_RE_b                = list(),
                      he_RE_b_asvec          = list(),
