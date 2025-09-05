@@ -912,7 +912,7 @@ buildOneAGHQuad <- nimbleFunction(
     p_indices  <-  S$p_indices
     quadRule_ <- S$quadRule
 
-    useNormalityAD <- extractControlElement(control, 'useNormalityAD', TRUE)
+    ADuseNormality <- extractControlElement(control, 'ADuseNormality', FALSE)
 
     ## OVERVIEW OF INDEXING SCHEME:
     ## We have two situations: Sometimes we need the logLik as a function of random effects only ("inner" or "_RE_"),
@@ -991,7 +991,7 @@ buildOneAGHQuad <- nimbleFunction(
     }
       
     ## Remove Gaussian priors from the inner likelihood.
-    if(useNormalityAD) {  
+    if(ADuseNormality) {  
         innerCalcNodesForDerivs <- innerCalcNodes[!innerCalcNodes %in% gaussRandomEffectsNodes]
     } else {
         innerCalcNodesForDerivs <- innerCalcNodes
@@ -1362,7 +1362,7 @@ buildOneAGHQuad <- nimbleFunction(
       gr_RE_update_once <<- FALSE
       gr_RE_reset_once <<- FALSE
       res <- ans$value
-      if(useNormalityAD) includeNormGrad(res, reTransform)  
+      if(ADuseNormality) includeNormGrad(res, reTransform)  
       return(res)
       returnType(double(1))
     },
@@ -1420,7 +1420,7 @@ buildOneAGHQuad <- nimbleFunction(
       res <- matrix(value = ans$value, nrow = nreTrans, ncol = nreTrans)
       ## Additional part from normality can only be included here outside of all derivs calls,
       ## as AD cannot be done on `includeNormPrec`, which has call to `getParam` via `getPrecision`.
-      if(useNormalityAD) includeNormPrec(res)
+      if(ADuseNormality) includeNormPrec(res)
       return(res)
       returnType(double(2))
     },
@@ -1827,7 +1827,7 @@ buildAGHQ <- nimbleFunction(
                    calcNodesOther, control = list()) {
     split <- extractControlElement(control, 'split', TRUE)
     check <- extractControlElement(control, 'check', TRUE)
-    useNormalityAD <- extractControlElement(control, 'useNormalityAD', TRUE)
+    ADuseNormality <- extractControlElement(control, 'ADuseNormality', TRUE)
     innerOptimWarning <- extractControlElement(control, 'innerOptimWarning', FALSE)
 
     if(!is.Rmodel(model))
@@ -1951,7 +1951,7 @@ buildAGHQ <- nimbleFunction(
                              optimStartValues=innerOptimStartValues,
                              optimWarning=innerOptimWarning,
                              quadTransform=quadTransform,
-                             useNormalityAD = useNormalityAD)
+                             ADuseNormality = ADuseNormality)
     if(nre > 0){
       ## Record the order of random effects processed internally
       internalRandomEffectsNodes <- NULL
@@ -2623,7 +2623,7 @@ buildAGHQ <- nimbleFunction(
 
       setLogDensType(includeJacobian = includeJacobian, includePrior = includePrior)
       if( !keepOneFixed_ ){
-        if(outerOptimUseAD & !useNormalityAD) {
+        if(outerOptimUseAD & !ADuseNormality) {
             ## If using analytic normality, can't do outer (3rd) deriv, as that would take deriv of `getParam`.  
             optRes <- optim(pStartTransform, calcLogDens_pTransformed, gr_logDens_pTransformed,
                             method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
@@ -2632,7 +2632,7 @@ buildAGHQ <- nimbleFunction(
         p <- paramsTransform$inverseTransform(optRes$par)
         if(parscale == "real") optRes$par <- p
       } else {
-        if(outerOptimUseAD & !useNormalityAD) {
+        if(outerOptimUseAD & !ADuseNormality) {
             optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, gr_logDens_pTransformedFix1,
                             method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
         } else optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1,
