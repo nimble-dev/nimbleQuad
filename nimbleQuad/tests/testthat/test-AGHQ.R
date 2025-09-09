@@ -91,6 +91,7 @@ test_that("AGH Quadrature Normal-Normal 1D works", {
   mle.tru <- optim(test.val1, ll.norm, gr.ll.norm, control = list(fnscale = -1))
   expect_equal(opt$value, mle.tru$value, tol = 1e-8) # Same log likelihood. Diff parameter values.
 
+  
   ## Check covariance?
 
                                         # Values from Laplace directly.
@@ -473,6 +474,8 @@ test_that("AGH Quadrature Comparison to LME4 1 RE for Poisson-Normal", {
 
   mleLME4_nquad21 <- c( 3.5136587320416126, 0.4568722479747411)
   mleLME4_laplace <- c( 3.5136586190857675, 0.4568710881066258)
+  ## This optimization seems fragile - we get a convergence "failure" on MacOS (Apple Silicon) but
+  ## not on Linux. MLEs differ by O(1e-6).
   for(v in m$getVarNames()) cm[[v]] <- m[[v]]
   mleLaplace <- cmLaplace$findMLE()$par
   for(v in m$getVarNames()) cm[[v]] <- m[[v]]
