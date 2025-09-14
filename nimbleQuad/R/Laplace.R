@@ -1003,6 +1003,7 @@ buildOneAGHQuad <- nimbleFunction(
     }
 
     nGNodes <- ndnorm + ndmnorm
+      
     gaussRandomEffectsNodes <- randomEffectsNodes[gaussNodes == 1]
 
     if(nreNodes == 1) {
@@ -2662,6 +2663,8 @@ buildAGHQ <- nimbleFunction(
       # optRes <- optim(pStartTransform, calcLogLik_pTransformed, gr_logLik_pTransformed, method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
 
       setLogDensType(includeJacobian = includeJacobian, includePrior = includePrior)
+      ## If none of the REs are normal, we will use AD entirely for inner, but the outer AD gradient will still not be used.
+      ## To use outer AD gradient we would need to surface result of checking for Gaussian nodes from the individual Laplaces.
       if( !keepOneFixed_ ){
         if(outerOptimUseAD & !ADuseNormality) {
             ## If using analytic normality, can't do outer (3rd) deriv, as that would take deriv of `getParam`.  
