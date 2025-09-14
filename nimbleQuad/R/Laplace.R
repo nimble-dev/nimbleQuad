@@ -143,11 +143,10 @@ buildOneAGHQuad1D <- nimbleFunction(
     ## Set up start values for the inner optimization of Laplace approximation
     if(!is.character(optimStart_) | length(optimStart_) != 1) stop("buildOneAGHQuad1D: There is a problem with `optimStart`: ", optimStart_)
     startID <- switch(optimStart_, last=1, last.best=2, constant=3, random=4, model=5)
-    if(startID==5) {
+    if(startID == 5) {
       constant_init_reTrans <- c(values(model, randomEffectsNodes), -1)
-    } else
-      constant_init_reTrans <- c(optimStartValues_, -1)
-
+      startID <- 3  
+    } else constant_init_reTrans <- c(optimStartValues_, -1)
     ## Update and constant nodes for obtaining derivatives using AD
     inner_derivsInfo    <- makeModelDerivsInfo(model = model, wrtNodes = randomEffectsNodes, calcNodes = innerCalcNodes)
     inner_updateNodes   <- inner_derivsInfo$updateNodes
@@ -343,9 +342,9 @@ buildOneAGHQuad1D <- nimbleFunction(
       saved_inner_argmax <<- reInitTrans
     },
     get_reInitTrans = function() {
-      if(startID == 1) ans <- saved_inner_argmax              ## last
+      if(startID == 1) ans <- saved_inner_argmax                        ## last
       else if(startID == 2) ans <- max_margLogLik_inner_argmax          ## last.best
-      else if(startID == 3) ans <- constant_init_reTrans                    ## constant
+      else if(startID == 3) ans <- constant_init_reTrans                ## constant
       else if(startID == 4){                                            ## random (prior).
         model$simulate(randomEffectsNodes)
         ans <- reTrans$transform(values(model, randomEffectsNodes))     ## From prior:
@@ -935,8 +934,9 @@ buildOneAGHQuad <- nimbleFunction(
     ## Set up start values for the inner optimization of Laplace approximation
     if(!is.character(optimStart_) | length(optimStart_) != 1) stop("problem with optimStart ", optimStart_)
     startID <- switch(optimStart_, last=1, last.best=2, constant=3, random=4, model=5)
-    if(startID==5) {
+    if(startID == 5) {
       constant_init_reTrans <- reTrans$transform(c(values(model, randomEffectsNodes)))
+      startID <- 3  
     } else {
       if(length(optimStartValues_) == 1)
         constant_init_reTrans <- rep(optimStartValues_, nreTrans)
