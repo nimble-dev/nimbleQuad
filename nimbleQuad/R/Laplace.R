@@ -1992,6 +1992,7 @@ buildAGHQ <- nimbleFunction(
                              optimWarning=innerOptimWarning,
                              quadTransform=quadTransform,
                              ADuseNormality = ADuseNormality)
+    nGNodes <- 0
     if(nre > 0){
       ## Record the order of random effects processed internally
       internalRandomEffectsNodes <- NULL
@@ -2020,6 +2021,7 @@ buildAGHQ <- nimbleFunction(
           AGHQuad_nfl[[1]] <- buildOneAGHQuad(model, nQuad = nQuad_, paramNodes, randomEffectsNodes,
                                               calcNodes, control = innerControlList)
           multiSetsCheck <- TRUE
+          nGNodes <- nGNodes + AGHQuad_nfl[[1]]$nGNodes
         } else {
           AGHQuad_nfl[[1]] <- buildOneAGHQuad1D(model, nQuad = nQuad_, paramNodes, randomEffectsNodes,
                                                 calcNodes, control = innerControlList)
@@ -2095,6 +2097,7 @@ buildAGHQ <- nimbleFunction(
             AGHQuad_nfl[[i]] <- buildOneAGHQuad(model, nQuad = nQuad_, paramNodes, these_reNodes, these_calcNodes,
                                                 paramDeps, innerControlList)
             multiSetsCheck <- TRUE
+            nGNodes <- nGNodes + AGHQuad_nfl[[i]]$nGNodes
           }
           else {
             AGHQuad_nfl[[i]] <- buildOneAGHQuad1D(model, nQuad = nQuad_, paramNodes, these_reNodes, these_calcNodes,
@@ -2663,10 +2666,8 @@ buildAGHQ <- nimbleFunction(
       # optRes <- optim(pStartTransform, calcLogLik_pTransformed, gr_logLik_pTransformed, method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
 
       setLogDensType(includeJacobian = includeJacobian, includePrior = includePrior)
-      ## If none of the REs are normal, we will use AD entirely for inner, but the outer AD gradient will still not be used.
-      ## To use outer AD gradient we would need to surface result of checking for Gaussian nodes from the individual Laplaces.
       if( !keepOneFixed_ ){
-        if(outerOptimUseAD & !ADuseNormality) {
+        if(outerOptimUseAD & (!ADuseNormality | nGNodes == 0)) {
             ## If using analytic normality, can't do outer (3rd) deriv, as that would take deriv of `getParam`.  
             optRes <- optim(pStartTransform, calcLogDens_pTransformed, gr_logDens_pTransformed,
                             method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
@@ -2675,7 +2676,7 @@ buildAGHQ <- nimbleFunction(
         p <- paramsTransform$inverseTransform(optRes$par)
         if(parscale == "real") optRes$par <- p
       } else {
-        if(outerOptimUseAD & !ADuseNormality) {
+        if(outerOptimUseAD & (!ADuseNormality | nGNodes == 0)) {
             optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1, gr_logDens_pTransformedFix1,
                             method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
         } else optRes <- optim(pStartTransform[pTransform_indices_other], calcLogDens_pTransformedFix1,
