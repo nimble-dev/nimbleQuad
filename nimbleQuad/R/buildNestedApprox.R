@@ -243,7 +243,8 @@ buildNestedApprox <- nimbleFunction(
         ## Posterior mode for hyperparameters. findMAP
         findMode = function(pStart = double(1, default = Inf),
                                  hessian = logical(0, default = TRUE),
-                                 parscale = character(0, default = "transformed")) {
+                            parscale = character(0, default = "transformed")) {
+            nimCat("Finding posterior mode for parameter(s).\n")
             optRes <- innerMethods$optimize(pStart = pStart, includePrior = TRUE,
                                             includeJacobian = TRUE,
                                             hessian = hessian, parscale = parscale)
@@ -253,7 +254,7 @@ buildNestedApprox <- nimbleFunction(
             if(any_nan(c(optRes$hessian)))
                 stop("While attempting to find posterior mode, invalid hessian calculated. Consider adjusting the control parameters for the optimization via the `control` argument of `buildNestedApprox`.")
             if(optRes$convergence != 0)
-                print("  [Warning] In optimization over parameters to find the posterior mode as the\n",
+                print("  [Warning] In optimization over parameter(s) to find the posterior mode as the\n",
                       "            starting point for setting up the parameter grid,\n",
                       "            `optim` has a non-zero convergence code: ", optRes$convergence, ".\n",
                       "            Approximation may not be accurate.")
