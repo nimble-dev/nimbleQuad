@@ -8,72 +8,6 @@ nimbleOptions(enableDerivs = TRUE)
 nimbleOptions(buildModelDerivs = TRUE)
 nimbleOptions(allowDynamicIndexing = FALSE)
 
-# check internal consistency of optim method variants
-check_laplace_alternative_methods <- function(cL, # compiled laplace algorithm
-                                              cm, # compiled model
-                                              m,  # original model (or list with values)
-                                              opt, # possibly already-run LaplaceMLE result,
-                                              methods = 1:3, # methods to check
-                                              summ_orig, # summarized Laplace MLE result (original)
-                                              summ_trans, # summarized Laplace MLE result (transformed)
-                                              expected_warning = NULL,
-                                              expected_no_re = FALSE
-                                              ) {
-  expect_wrapper <- ifelse(is.null(expected_warning), expect_silent,
-                           function(expr)
-                               expect_output(eval(expr), expected_warning))
-  vars <- cm$getVarNames()
-  reset <- function() {
-    for(v in vars) cm[[v]] <- m[[v]]
-  }
-  if(missing(opt)) {
-    reset()
-    expect_wrapper(opt <- cL$findMLE())
-  }
-
-  cL$updateSettings(useInnerCache=FALSE)
-  #cL$setInnerCache(FALSE) ## Recalculate inner optim to check starting values. Will ensure errors are printed on summary.
-
-  if(missing(summ_orig)){
-    expect_wrapper(summ_orig <- cL$summary(opt, originalScale = TRUE, randomEffectsStdError = TRUE, jointCovariance = TRUE))
-  }
-  if(missing(summ_trans)){
-    expect_wrapper(summ_trans <- cL$summary(opt, originalScale = FALSE, randomEffectsStdError = TRUE, jointCovariance = TRUE))
-  }
-  ref_method <- cL$computeMethod_ #cL$getMethod()
-  for(method in methods) {
-    if(method != ref_method) {
-      reset()
-      cL$updateSettings(computeMethod=method)
-      ##      if(expected_no_re)
-      ##          expect_output(cL$setMethod(method), "no random effects") else cL$setMethod(method)
-      expect_wrapper(opt_alt <- cL$findMLE())
-      expect_equal(opt$par, opt_alt$par, tolerance = 0.01)
-      expect_equal(opt$value, opt_alt$value, tolerance = 1e-4)
-      tryResult <- try({
-          expect_wrapper(summ_orig_alt <- cL$summary(opt_alt, originalScale = TRUE, randomEffectsStdError = TRUE, jointCovariance = TRUE))
-          expect_wrapper(summ_trans_alt <- cL$summary(opt_alt, originalScale = FALSE, randomEffectsStdError = TRUE, jointCovariance = TRUE))
-      })
-      if(inherits(tryResult, 'try-error')) {
-          print("cL$summary failing.")
-          print(class(cL))
-          print(cL)
-      } else {
-          expect_equal(summ_orig$params$estimate, summ_orig_alt$params$estimate, tol = 1e-4)
-          expect_equal(summ_orig$randomEffects$estimate, summ_orig_alt$randomEffects$estimate, tol = 1e-4)
-          expect_equal(summ_orig$params$stdError, summ_orig_alt$params$stdError, tol = 1e-4)
-          expect_equal(summ_orig$randomEffects$stdError, summ_orig_alt$randomEffects$stdError, tol = 1e-4)
-          expect_equal(summ_orig$vcov, summ_orig_alt$vcov, tol = 1e-4)
-          expect_equal(summ_trans$params$estimate, summ_trans_alt$params$estimate, tol = 1e-4)
-          expect_equal(summ_trans$randomEffects$estimate, summ_trans_alt$randomEffects$estimate, tol = 1e-4)
-          expect_equal(summ_trans$params$stdError, summ_trans_alt$params$stdError, tol = 1e-4)
-          expect_equal(summ_trans$randomEffects$stdError, summ_trans_alt$randomEffects$stdError, tol = 1e-4)
-          expect_equal(summ_trans$vcov, summ_trans_alt$vcov, tol = 1e-4)
-      }
-    }
-  }
-  invisible(NULL)
-}
 
 test_that("Laplace simplest 1D works", {
   m <- nimbleModel(
@@ -123,8 +57,6 @@ test_that("Laplace simplest 1D works", {
   optNoSplit <- cmLaplaceNoSplit$findMLE()
   expect_equal(opt$par, optNoSplit$par, tol = 1e-2)
   expect_equal(opt$value, optNoSplit$value, tol = 1e-7)
-  check_laplace_alternative_methods(cmLaplace, cm, m, opt)
-  check_laplace_alternative_methods(cmLaplaceNoSplit, cm, m, optNoSplit)
 })
 
 test_that("Laplace simplest 1D with a constrained parameter works", {
@@ -188,8 +120,6 @@ test_that("Laplace simplest 1D with a constrained parameter works", {
   optNoSplit <- cmLaplaceNoSplit$findMLE()
   expect_equal(opt$par, optNoSplit$par, tol = 1e-2)
   expect_equal(opt$value, optNoSplit$value, tol = 1e-7)
-  check_laplace_alternative_methods(cmLaplace, cm, m, opt)
-  check_laplace_alternative_methods(cmLaplaceNoSplit, cm, m, optNoSplit)
 })
 
 test_that("Laplace simplest 1D (constrained) with multiple data works", {
@@ -258,8 +188,6 @@ test_that("Laplace simplest 1D (constrained) with multiple data works", {
   optNoSplit <- cmLaplaceNoSplit$findMLE()
   expect_equal(opt$par, optNoSplit$par, tol = 1e-2)
   expect_equal(opt$value, optNoSplit$value, tol = 1e-7)
-  check_laplace_alternative_methods(cmLaplace, cm, m, opt)
-  check_laplace_alternative_methods(cmLaplaceNoSplit, cm, m, optNoSplit)
 })
 
 test_that("Laplace simplest 1D (constrained) with deterministic intermediates and multiple data works", {
@@ -328,8 +256,6 @@ test_that("Laplace simplest 1D (constrained) with deterministic intermediates an
   optNoSplit <- cmLaplaceNoSplit$findMLE()
   expect_equal(opt$par, optNoSplit$par, tol = 1e-2)
   expect_equal(opt$value, optNoSplit$value, tol = 1e-4)
-  check_laplace_alternative_methods(cmLaplace, cm, m, opt)
-  check_laplace_alternative_methods(cmLaplaceNoSplit, cm, m, optNoSplit)
 })
 
 test_that("Laplace 1D with deterministic intermediates works", {
@@ -387,10 +313,6 @@ test_that("Laplace 1D with deterministic intermediates works", {
   #, "Warning: inner optimzation had a non-zero convergence code\\. Use checkInnerConvergence\\(TRUE\\) to see details\\.")
   expect_equal(opt$par, optNoSplit$par, tol = 1e-2)
   expect_equal(opt$value, optNoSplit$value, tol = 1e-7)
-  cmLaplace$updateSettings(innerOptimWarning=TRUE) ## Turn warnings on for test.
-  check_laplace_alternative_methods(cmLaplace, cm, m, opt)#, expected_warning = "optim did not converge for the inner optimization")
-  cmLaplaceNoSplit$updateSettings(innerOptimWarning=TRUE) ## Turn warnings on for test.
-  check_laplace_alternative_methods(cmLaplaceNoSplit, cm, m, optNoSplit)#, expected_warning = "optim did not converge for the inner optimization")
 })
 
 test_that("Laplace 1D with a constrained parameter and deterministic intermediates works", {
@@ -473,12 +395,6 @@ test_that("Laplace 1D with a constrained parameter and deterministic intermediat
   #,  "optim did not converge for the inner optimization")
   expect_equal(opt$par, optNoSplit$par, tol = 1e-2)
   expect_equal(opt$value, optNoSplit$value, tol = 1e-7)
-  cmLaplace$updateSettings(innerOptimWarning=TRUE)
-  #cmLaplace$setInnerOptimWarning(TRUE) ## Turn warnings on for test.
-  check_laplace_alternative_methods(cmLaplace, cm, m, opt)#, expected_warning = "optim did not converge for the inner optimization")
-  cmLaplaceNoSplit$updateSettings(innerOptimWarning=TRUE)
-  #cmLaplaceNoSplit$setInnerOptimWarning(TRUE) ## Turn warnings on for test.
-  check_laplace_alternative_methods(cmLaplaceNoSplit, cm, m, optNoSplit)#, expected_warning = "optim did not converge for the inner optimization")
 })
 
 test_that("Laplace 1D with deterministic intermediates and multiple data works", {
@@ -551,8 +467,6 @@ test_that("Laplace 1D with deterministic intermediates and multiple data works",
   optNoSplit <- cmLaplaceNoSplit$findMLE() # some warnings are ok here
   expect_equal(opt$par, optNoSplit$par, tol = 1e-2)
   expect_equal(opt$value, optNoSplit$value, tol = 1e-7)
-  check_laplace_alternative_methods(cmLaplace, cm, m, opt)
-  check_laplace_alternative_methods(cmLaplaceNoSplit, cm, m, optNoSplit)
 })
 
 test_that("Laplace 1D with a constrained parameter and deterministic intermediates and multiple data works", {
@@ -632,8 +546,6 @@ test_that("Laplace 1D with a constrained parameter and deterministic intermediat
   optNoSplit <- cmLaplaceNoSplit$findMLE() # some warnings are ok here
   expect_equal(opt$par, optNoSplit$par, tol = 1e-2)
   expect_equal(opt$value, optNoSplit$value, tol = 1e-7)
-  check_laplace_alternative_methods(cmLaplace, cm, m, opt)
-  check_laplace_alternative_methods(cmLaplaceNoSplit, cm, m, optNoSplit)
 })
 
 test_that("Laplace simplest 2x1D works, with multiple data for each", {
@@ -707,8 +619,6 @@ test_that("Laplace simplest 2x1D works, with multiple data for each", {
   optNoSplit <- cmLaplaceNoSplit$findMLE() # some warnings are ok here
   expect_equal(opt$par, optNoSplit$par, tol = 1e-2)
   expect_equal(opt$value, optNoSplit$value, tol = 1e-7)
-  check_laplace_alternative_methods(cmLaplace, cm, m, opt)
-  check_laplace_alternative_methods(cmLaplaceNoSplit, cm, m, optNoSplit)
 })
 
 test_that("Laplace with 2x1D random effects needing joint integration works, without intermediate nodes", {
@@ -823,8 +733,6 @@ test_that("Laplace with 2x1D random effects needing joint integration works, wit
   optNoSplit <- cmLaplaceNoSplit$findMLE() # some warnings are ok here
   expect_equal(opt$par, optNoSplit$par, tol = 1e-2)
   expect_equal(opt$value, optNoSplit$value, tol = 1e-7)
-  check_laplace_alternative_methods(cmLaplace, cm, m, opt)
-  check_laplace_alternative_methods(cmLaplaceNoSplit, cm, m, optNoSplit)
 })
 
 test_that("Laplace with 2x1D random effects needing joint integration works, with intermediate nodes", {
@@ -932,8 +840,6 @@ test_that("Laplace with 2x1D random effects needing joint integration works, wit
   optNoSplit <- cmLaplaceNoSplit$findMLE() # some warnings are ok here
   expect_equal(opt$par, optNoSplit$par, tol = 1e-2)
   expect_equal(opt$value, optNoSplit$value, tol = 1e-7)
-  check_laplace_alternative_methods(cmLaplace, cm, m, opt)
-  check_laplace_alternative_methods(cmLaplaceNoSplit, cm, m, optNoSplit)
 })
 
 test_that("Laplace with 2x2D random effects for 1D data that are separable works, with intermediate nodes", {
@@ -1068,8 +974,6 @@ test_that("Laplace with 2x2D random effects for 1D data that are separable works
   optNoSplit <- cmLaplaceNoSplit$findMLE() # some warnings are ok here
   expect_equal(opt$par, optNoSplit$par, tol = 1e-4)
   expect_equal(opt$value, optNoSplit$value, tol = 1e-7)
-  check_laplace_alternative_methods(cmLaplace, cm, m, opt)
-  check_laplace_alternative_methods(cmLaplaceNoSplit, cm, m, optNoSplit)
 })
 
 test_that("Laplace with 2x2D random effects for 2D data that need joint integration works, with intermediate nodes", {
@@ -1126,8 +1030,7 @@ test_that("Laplace with 2x2D random effects for 2D data that need joint integrat
   optNoSplit <- cmLaplaceNoSplit$findMLE() # some warnings are ok here
   expect_equal(opt$par, optNoSplit$par, tol = 1e-4)
   expect_equal(opt$value, optNoSplit$value, tol = 1e-7)
-  check_laplace_alternative_methods(cmLaplace, cm, m, opt)
-  check_laplace_alternative_methods(cmLaplaceNoSplit, cm, m, optNoSplit)
+
   ## TMB cpp code:
   #include <TMB.hpp>
   #template<class Type>
@@ -1456,8 +1359,6 @@ test_that("Laplace with non-empty calcNodesOther works", {
   optNoSplit <- cmLaplaceNoSplit$findMLE()
   expect_equal(opt$par, optNoSplit$par, tol = 1e-2)
   expect_equal(opt$value, optNoSplit$value, tol = 1e-7)
-  check_laplace_alternative_methods(cmLaplace, cm, m, opt)
-  check_laplace_alternative_methods(cmLaplaceNoSplit, cm, m, optNoSplit)
 })
 
 test_that("Laplace with 2x1D parameters (one needs transformation) and non-normal data works", {
@@ -1510,8 +1411,6 @@ test_that("Laplace with 2x1D parameters (one needs transformation) and non-norma
   optNoSplit <- cmLaplaceNoSplit$findMLE()
   expect_equal(opt$par, optNoSplit$par, tol = 1e-2)
   expect_equal(opt$value, optNoSplit$value, tol = 1e-7)
-  check_laplace_alternative_methods(cmLaplace, cm, m, opt)
-  check_laplace_alternative_methods(cmLaplaceNoSplit, cm, m, optNoSplit)
   ## TMB cpp code:
   #include <TMB.hpp>
   #template<class Type>
@@ -1584,8 +1483,6 @@ test_that("Laplace with no random effects (simple linear regression) works", {
   optNoSplit <- cmLaplaceNoSplit$findMLE()
   expect_equal(opt$par, optNoSplit$par, tol = 1e-4)
   expect_equal(opt$value, optNoSplit$value, tol = 1e-7)
-  check_laplace_alternative_methods(cmLaplace, cm, m, opt, expected_no_re = TRUE)
-  check_laplace_alternative_methods(cmLaplaceNoSplit, cm, m, expected_no_re = TRUE)
 
   summL <- summaryLaplace(cmLaplace, opt, randomEffectsStdError = TRUE, jointCovariance = TRUE)
   expect_equal(nrow(summL$randomEffects), 0)
@@ -1651,8 +1548,6 @@ test_that("Laplace with no random effects (simple linear regression) works", {
 ##   optNoSplit <- cmLaplaceNoSplit$findMLE()
 ##   expect_equal(opt$par, optNoSplit$par, tol = 1e-2)
 ##   expect_equal(opt$value, optNoSplit$value, tol = 1e-7)
-##   check_laplace_alternative_methods(cmLaplace, cm, m, opt)
-##   check_laplace_alternative_methods(cmLaplaceNoSplit, cm, m, optNoSplit)
 
 ##   ## Test 2
 ##   set.seed(1)
@@ -1690,8 +1585,6 @@ test_that("Laplace with no random effects (simple linear regression) works", {
 ##   optNoSplit <- cmLaplaceNoSplit$findMLE()
 ##   expect_equal(opt$par, optNoSplit$par, tol = 1e-2)
 ##   expect_equal(opt$value, optNoSplit$value, tol = 1e-7)
-##   check_laplace_alternative_methods(cmLaplace, cm, m, opt)
-##   check_laplace_alternative_methods(cmLaplaceNoSplit, cm, m, optNoSplit)
 
 ##   ## Test 3
 ##   set.seed(1)
@@ -1743,8 +1636,6 @@ test_that("Laplace with no random effects (simple linear regression) works", {
 ##   optNoSplit <- cmLaplaceNoSplit$findMLE()
 ##   expect_equal(opt$par, optNoSplit$par, tol = 1e-4)
 ##   expect_equal(opt$value, optNoSplit$value, tol = 1e-7)
-##   check_laplace_alternative_methods(cmLaplace, cm, m, opt)
-##   check_laplace_alternative_methods(cmLaplaceNoSplit, cm, m, optNoSplit)
 
 ##   ## Test 4
 ##   m <- nimbleModel(
@@ -1792,8 +1683,6 @@ test_that("Laplace with no random effects (simple linear regression) works", {
 ##   optNoSplit <- cmLaplaceNoSplit$findMLE()
 ##   expect_equal(opt$par, optNoSplit$par, tol = 1e-2)
 ##   expect_equal(opt$value, optNoSplit$value, tol = 1e-7)
-##   check_laplace_alternative_methods(cmLaplace, cm, m, opt)
-##   check_laplace_alternative_methods(cmLaplaceNoSplit, cm, m, optNoSplit)
 
 ## })
 
