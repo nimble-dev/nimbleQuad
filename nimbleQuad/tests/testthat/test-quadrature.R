@@ -149,8 +149,8 @@ test_that("AGHQ Pruning works.", {
   expect_equal(sum(wgts.adj > q)/nQ, nQp/nQ, tol = 1e-14)
   expect_equal(wgts[wgts.adj > q], wgts.p)
 
-  expect_equal(cquadGrid2$gridSize(), length(wgts))  ## Make sure cache is correct:
-  expect_equal(length(wgts), nrow(nodes))
+  expect_equal(cquadGrid2$gridSize(), length(wgts.p))  ## Make sure cache is correct:
+  expect_equal(length(wgts.p), nrow(nodes.p))
   modei <- cquadGrid2$modeIndex()
   expect_equal(nodes.p[modei,], c(0,0,0))
  
@@ -162,9 +162,9 @@ test_that("AGHQ Pruning works.", {
   expect_equal(wgts, wgts.up, tol = 1e-16)
 
   expect_equal(cquadGrid2$gridSize(), length(wgts))  ## Make sure cache is correct:
-  expect_equal(length(wgts), nrow(nodes))
+  expect_equal(length(wgts), nrow(nodes.up))
   modei <- cquadGrid2$modeIndex()
-  expect_equal(nodes[modei,], c(0,0,0))
+  expect_equal(nodes.up[modei,], c(0,0,0))
 
   ## Error checks:
   expect_error(cquadGrid2$buildGrid(prune = 0.999), "Will not prune to less than 3 quadrature points. Choose another pruning proportion or switch to Laplace, one quadrature node.")
