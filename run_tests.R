@@ -10,6 +10,10 @@ testFiles <-
          list.files('nimbleQuad/tests/testthat', full.names = TRUE),
          value = TRUE)
 
+## Put test-AGHQ last to see if that resolves failure on Windows.
+testFiles <- testFiles[c(2:length(testFiles),1)]
+
+
 for(test in testFiles) {
     cat('===========================================================\n')
     cat(paste0('Running test-', gsub('.*test-', '', test), '\n'))
