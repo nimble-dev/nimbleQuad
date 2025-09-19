@@ -453,6 +453,8 @@ test_that("AGH Quadrature Comparison to LME4 1 RE for Poisson-Normal", {
   m$calculate()
 
   cm <- compileNimble(m)
+  ## With former (through 2025-09-15) tolerance of 1e-12, get 'lack of convergence' warning,
+  ## but estimates are very similar to LME4 and to previous estimates.
   mQuad <- buildAGHQ(model = m, nQuad = 21, control = list(outerOptimControl = list(reltol = 1e-10)))
   mLaplace <- buildAGHQ(model = m, nQuad = 1, control = list(outerOptimControl = list(reltol = 1e-10)))
   cQL <- compileNimble(mQuad, mLaplace, project = m)
