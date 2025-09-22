@@ -62,6 +62,7 @@ jobs:
             eval sudo $cmd
           done < <(Rscript -e 'writeLines(remotes::system_requirements("ubuntu", "24.04", "./nimbleQuad"))')
           sudo apt-get install libcurl4-openssl-dev  # needed for R pkg curl -> covr
+          sudo apt-get install libglpk40  # need for igraph (apparently as of Ubuntu 24.04)
 
       - name: Install dependencies
         run: source('install_requirements.R')
