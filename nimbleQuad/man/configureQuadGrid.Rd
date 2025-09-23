@@ -24,7 +24,7 @@ all the features of the grids.
 }
 \details{
 \itemize{
-\item \code{buildGrid} method for creating the quadrature grid. Inputs are \code{method} includes ("AGHQ", "CCD", "USER") to choose the quadrature rule. 
+  \item \code{buildGrid} method for creating the quadrature grid. Inputs are \code{method} includes ("AGHQ", "CCD", "USER") to choose the quadrature rule. 
   \code{nQuad} number of quadrature points (nQuad) per dimension, \code{prune} proportion of points in the product construction to use, and \code{constructionRule} 
   includes ("product", "sparse"). Default behaviour for all input is to use whatever values are currently being used. 
 
