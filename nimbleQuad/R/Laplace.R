@@ -2761,12 +2761,12 @@ buildAGHQ <- nimbleFunction(
       }
       else{
         ## Random effects
-        optreTransform <- optimRandomEffects(pTransform)  ## *** Replace this with cached inner modes.
+        optreTransform <- optimRandomEffects(pTransform)  
         optre <- reInverseTransform(optreTransform)
         ntot <- npar + nreTrans
         if(jointCovariance) {
           ## Inverse of the negative Hessian of log-likelihood wrt transformed random effects at MLEs
-          inv_negHess <- inverse_negHess(p, optreTransform)   ## *** Replace this with cached inner modes.
+          inv_negHess <- inverse_negHess(p, optreTransform)   
           jointInvNegHessZero <- matrix(0, nrow = ntot, ncol = ntot)
           jointInvNegHessZero[(npar+1):ntot, (npar+1):ntot] <- inv_negHess
           ## Hessian of log-likelihood wrt to params and transformed random effects
