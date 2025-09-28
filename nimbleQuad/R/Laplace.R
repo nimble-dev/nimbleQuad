@@ -1952,8 +1952,8 @@ buildAGHQ <- nimbleFunction(
     } else outerOptimMethod_ <- "nlminb"
 
     innerOptimStart <- extractControlElement(control, "innerOptimStart", "last.best")
-    if(!is.character(innerOptimStart) |
-       length(innerOptimStart) != 1 |
+    if(!is.character(innerOptimStart) ||
+       length(innerOptimStart) != 1 ||
        !(innerOptimStart %in% (validIOS <- c("last", "last.best", "constant", "random", "model", "zero"))))
       stop("buildAGHQ: `control$innerOptimStart` must be one of ", paste0('\'', validIOS, '\'', collapse=","))
 
@@ -1971,7 +1971,7 @@ buildAGHQ <- nimbleFunction(
     } else {
         innerOptimStartValues <- extractControlElement(control, "innerOptimStartValues", 0)
         if(is.character(innerOptimStartValues))
-            if(length(innerOptimStartValues) != 1 |
+            if(length(innerOptimStartValues) != 1 ||
                !(innerOptimStartValues == "model"))
                 stop("buildAGHQ: The only valid character value for `control$innerOptimStartValues` is 'model'")
     }
