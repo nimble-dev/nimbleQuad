@@ -1027,8 +1027,8 @@ buildOneAGHQuad <- nimbleFunction(
     inner_updateNodes   <- inner_derivsInfo$updateNodes
     inner_constantNodes <- inner_derivsInfo$constantNodes
 
-    ## This is used for 3rd deriv (gradient of Laplace) and is not used in the analytic normality case,
-    ## as that would use AD on `getParam`.      
+    ## This is used for 3rd deriv (gradient of Laplace) as well as for
+    ## joint covariance information (including in the analytic normality case).
     joint_derivsInfo    <- makeModelDerivsInfo(model = model, wrtNodes = wrtNodes, calcNodes = calcNodes)
     joint_updateNodes   <- joint_derivsInfo$updateNodes
     joint_constantNodes <- joint_derivsInfo$constantNodes
@@ -1465,9 +1465,8 @@ buildOneAGHQuad <- nimbleFunction(
       returnType(double(2))
     },
     logLik_P_RE = function(p = double(1), reTransform = double(1)) {
-        ## This uses full set of calcNodes, including Gaussian nodes as it is never used
-        ## when using analytic normality because AD-based 3rd deriv (gradient of Laplace)
-        ## is not used in that case. 
+        ## This uses full set of calcNodes, including Gaussian nodes, as it is used
+        ## for getting covariance information via the mixed second derivs wrt p and re.
         re <- reTrans$inverseTransform(reTransform)
         values(model, paramNodes) <<- p
         values(model, randomEffectsNodes) <<- re
