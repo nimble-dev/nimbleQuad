@@ -2018,7 +2018,6 @@ buildAGHQ <- nimbleFunction(
     ## Set cached values for calculating prior and posterior in log density.
     includePrior_ <- TRUE
     includeJacobian_ <- TRUE
-    keepOneFixed_ <- FALSE
 
     ## Set up cached values for doing profile likelihood construction:
     pTransform_fixed <- 0
@@ -2478,12 +2477,12 @@ buildAGHQ <- nimbleFunction(
         if(length(pStartTransform) == nparTrans) pStart <- paramsTransform$inverseTransform(pStartTransform)
         else pStart <- numeric(value = Inf, length = 1)
       }
-      keepOneFixed_ <<- TRUE
       maxRes <- optimize(pStart = pStart,
                          includePrior = includePrior,
                          includeJacobian = includeJacobian,
                          hessian = hessian,
-                         parscale = "transformed")
+                         parscale = "transformed",
+                         keepOneFixed = TRUE)
       return(maxRes)
       returnType(optimResultNimbleList())
     },
@@ -2492,7 +2491,8 @@ buildAGHQ <- nimbleFunction(
                         includePrior = logical(0, default = FALSE),
                         includeJacobian = logical(0, default = FALSE),
                         hessian = logical(0, default = TRUE),
-                        parscale = character(0, default = "transformed")) {
+                        parscale = character(0, default = "transformed"),
+                        keepOneFixed = logical(0, default = FALSE)) {
       if(!one_time_fixes_done) one_time_fixes() ## Otherwise summary will look bad.
       if(multiSetsCheck & nQuad_ > 1) stop("Currently only Laplace (`nQuad = 1`) is supported for maximization when integrations have more than one dimension at a time. Use `updateSettings(nQuad = 1)` to change.")
       if(any(abs(pStart) == Inf)) pStart <- values(model, paramNodes)
@@ -2520,7 +2520,7 @@ buildAGHQ <- nimbleFunction(
       # optRes <- optim(pStartTransform, calcLogLik_pTransformed, gr_logLik_pTransformed, method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
 
       setLogDensType(includeJacobian = includeJacobian, includePrior = includePrior)
-      if( !keepOneFixed_ ){
+      if( !keepOneFixed ){
         if(outerOptimUseAD) {
             optRes <- optim(pStartTransform, calcLogDens_pTransformed, gr_logDens_pTransformed,
                             method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
@@ -2538,7 +2538,6 @@ buildAGHQ <- nimbleFunction(
         p <- paramsTransform$inverseTransform(fullpar)
       }
       setLogDensType()  ## Reset it to default to posterior.
-      keepOneFixed_ <<- FALSE ## Can only be switched on by calling findMax_fixedp.
 
       if(optRes$convergence != 0)
           print("  [Warning] In maximizing the Laplace/AGHQ approximation,\n",
@@ -2571,12 +2570,12 @@ buildAGHQ <- nimbleFunction(
       pTransform_fixed <<- pTransformValue
       pTransform_indices_other <<- pTransform_indices[pTransform_indices != pTransform_index_fixed]
 
-      keepOneFixed_ <<- TRUE
       maxRes <- optimize(pStart = pStart,
                          includePrior = includePrior,
                          includeJacobian = includeJacobian,
                          hessian = FALSE,
-                         parscale = "transformed")
+                         parscale = "transformed",
+                         keepOneFixed = TRUE)
       ans <- maxRes$value - maxLogDens + limit/2
       return(ans)
       returnType(double())
