@@ -1106,7 +1106,7 @@ buildOneAGHQuad <- nimbleFunction(
     max_margLogLik<- -Inf
     max_margLogLik_inner_argmax <- constant_init_reTrans #if(nreTrans > 1) rep(Inf, nreTrans) else as.numeric(c(0, -1))
     margLogLik_saved_value <- -Inf
-    ## Cache values for relevant to outer calls. 
+    ## Cache values for relevant to outer calls.
     max_outer_logLik <- -Inf
     outer_mode_inner_negHess <- matrix(0, nrow = nre, ncol = nre)
     outer_mode_inner_negHess_chol <- matrix(0, nrow = nre, ncol = nre)
