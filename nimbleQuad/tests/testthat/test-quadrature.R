@@ -173,7 +173,7 @@ test_that("AGHQ Pruning works.", {
 })
 
 ## Test a user provided quadrature rule. ***Note that `QUAD_RULE_BASE` needs to be exported which requires a new install of nimbleQuad.
-test_that("User provided quadratuture rule.", {
+test_that("User provided quadrature rule.", {
   # Try to include a user defined quadrature rule:
   .GlobalEnv$RmvQuad <- function(levels, d) {
     out <- mvQuad::createNIGrid(dim=d, type = "GLe", level=levels)
