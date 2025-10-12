@@ -3525,7 +3525,7 @@ runAGHQ <- function(AGHQ, pStart,
 #' @section \code{control} list arguments:
 #'
 #' The \code{control} list allows additional settings to be made using named
-#' elements of the list. Most (or all) of these can be updated later using the
+#' elements of the list. Most (but not all) of these can be updated later using the
 #' `updateSettings` method. Supported elements include:
 #'
 #' \itemize{
@@ -3658,22 +3658,23 @@ runAGHQ <- function(AGHQ, pStart,
 #'  eigenvalues) for the corresponding matrix decompositions on which the grid
 #'  can be based.
 #'
-#' \item \code{outerOptimUseAD}. The optimization of the (hyper)parameters (the
-#' "outer" optimization can provide an AD-based gradient to the chosen outer
-#' optimization function or can omit this, causing any derivative-based
-#' optimization method to use finite differences. Turning this off allows one
-#' to avoid any complexity associatend with use of AD applied to the inner
-#' Laplace/AGHQ approximation. Note that when \code{ADuseNormality = TRUE}
-#' (see next item) as is the case by default, outer optimization does not
-#' (and cannot because of limitations in NIMBLE's AD implementation) use
-#' the AD-based gradient.
-#'
 #' \item \code{ADuseNormality}. For random effects nodes that are distributed
 #' univariate or multivariate normal (Gaussian), the derivatives with respect
 #' to those nodes are known in closed form. By default, the approximation
 #' for multivariate Laplace/AGHQ will make use of this closed form. Set to
 #' \code{FALSE} to have the derivatives determined entirely using AD. Doing
 #' so may use more memory but may be faster for low-dimensional cases.
+#'
+#' \item \code{outerOptimUseAD}. The optimization of the (hyper)parameters (the
+#' "outer" optimization can provide an AD-based gradient to the chosen outer
+#' optimization function or can omit this, causing any derivative-based
+#' optimization method to use finite differences. Turning this off allows one
+#' to avoid any complexity associatend with use of AD applied to the inner
+#' Laplace/AGHQ approximation. This option is not active when
+#' when \code{ADuseNormality = TRUE}, as is the case by default,
+#' because outer optimization does not (and cannot because of limitations in
+#' NIMBLE's AD implementation) use the AD-based gradient in that situation.
+#'
 #'
 #' } # end itemize
 #'
