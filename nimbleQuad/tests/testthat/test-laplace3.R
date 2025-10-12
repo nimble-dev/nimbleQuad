@@ -670,6 +670,62 @@ test_that("Laplace with crossed random effects works", {
   expect_equal(nimres$randomEffects$estimate[1:24], as.vector(t(ranef(lme4_fit)$plate)), tol = 1e-4)
 })
 
+test_that("Laplace with crossed random effects works, without using normality", {
+  library(lme4)
+  data(Penicillin)
+  N <- nrow(Penicillin)
+  plate <- rep(1:24, each = 6)
+  np <- 24
+  sample <- rep(1:6, 24)
+  ns <- 6
+
+  m <- nimbleModel(
+    nimbleCode({
+      ## Intercept
+      beta ~ dnorm(0, sd = 100)
+      ## Standard deviations
+      sigma ~ dgamma(1.0, 1.0)
+      sigma_p ~ dgamma(1.0, 1.0)
+      sigma_s ~ dgamma(1.0, 1.0)
+      ## Random effects for plate
+      for(i in 1:np){
+        mup[i] ~ dnorm(0, sd = sigma_p)
+      }
+      ## Random effects for sample
+      for(i in 1:ns){
+        mus[i] ~ dnorm(0, sd = sigma_s)
+      }
+      ## Observations
+      for(i in 1:N){
+        mu_y[i] <- beta + mus[sample[i]] + mup[plate[i]]
+        y[i] ~ dnorm(mu_y[i], sd = sigma)
+      }
+    }),
+    constants = list(N = N, np = np, ns = ns, plate = plate, sample = sample),
+    data = list(y = Penicillin$diameter),
+    inits = list(beta = 20, sigma = 1, sigma_p = 1, sigma_s = 1, mus = rep(0, ns), mup = rep(0, np)),
+    buildDerivs = TRUE
+  )
+  mLaplace <- buildLaplace(model = m, control = list(ADuseNormality = FALSE))#, control=list(innerOptimStart = "last.best"))
+  cm <- compileNimble(m)
+  cmLaplace <- compileNimble(mLaplace, project = m)
+  ## cmLaplace$updateSettings(innerOptimMethod = "nlminb")
+  opt <- cmLaplace$findMLE()
+  nimres <- cmLaplace$summary(opt, randomEffectsStdError = TRUE)
+
+  lme4_fit <- lmer(diameter ~ 1 + (1|plate) + (1|sample), data = Penicillin, REML = FALSE)
+  lme4res <- summary(lme4_fit)
+
+  expect_equal(nimres$params$estimate[1], lme4res$coefficients[,"Estimate"], tol=1e-3)
+  expect_equal(nimres$params$estimate[c(3,4,2)], as.data.frame(VarCorr(lme4_fit))[,"sdcor"], tol = 5e-4)
+  # Note that with innerOptimMethod "nlminb", the next check is far off, within only about 0.2
+  # on Mac, and getting a NaN on ubuntu CI tests. (Also I don't know why those differ.)
+  expect_equal(nimres$params$stdError[1], lme4res$coefficients[,"Std. Error"], tol=2e-3)
+  expect_equal(nimres$randomEffects$estimate[25:30], as.vector(t(ranef(lme4_fit)$sample)), tol = 1e-3)
+  expect_equal(nimres$randomEffects$estimate[1:24], as.vector(t(ranef(lme4_fit)$plate)), tol = 1e-4)
+})
+
+
 test_that("Laplace with nested random effects works", {
   library(lme4)
   data(Pastes)

@@ -540,5 +540,111 @@ test_that("Laplace with 2x2D random effects for 2D data that need joint integrat
   # tmbvcov <- inverse(tmbrep$jointPrecision)
 })
 
+
+test_that("Laplace with 2x2D random effects for 2D data that need joint integration works, with intermediate nodes, without using normality", {
+  set.seed(1)
+  cov_a <- matrix(c(2, 1.5, 1.5, 2), nrow = 2)
+  cov_y <- matrix(c(1, 0.5, 0.5, 1), nrow = 2)
+  y <- rmnorm_chol(1, c(1, 1), chol(cov_y), prec_param = FALSE)
+  y <- rbind(y, rmnorm_chol(1, c(1, 1), chol(cov_y), prec_param = FALSE))
+  m <- nimbleModel(
+    nimbleCode({
+      for(i in 1:2) mu[i] ~ dnorm(0, sd = 10)
+      mu_a[1] <- 0.8 * mu[1]
+      mu_a[2] <- 0.2 * mu[2]
+      for(i in 1:2) a[i, 1:2] ~ dmnorm(mu_a[1:2], cov = cov_a[1:2, 1:2])
+      mu_y[1:2] <- 0.5*a[1, 1:2] + 0.1*a[2, 1:2]
+      for(i in 1:2) {
+        y[i, 1:2] ~ dmnorm(mu_y[1:2], cov = cov_y[1:2, 1:2])
+      }
+    }),
+    data = list(y = y),
+    inits = list(a = matrix(c(-2, -3, 0,  -1), nrow = 2), mu = c(0, 0.5)),
+    constants = list(cov_a = cov_a, cov_y = cov_y),
+    buildDerivs = TRUE
+  )
+
+  mLaplace <- buildLaplace(model = m, control = list(ADuseNormality = FALSE))
+  mLaplaceNoSplit <- buildLaplace(model = m, control = list(split = FALSE,ADuseNormality = FALSE))
+  cm <- compileNimble(m)
+  cL <- compileNimble(mLaplace, mLaplaceNoSplit, project = m)
+  cmLaplace <- cL$mLaplace
+  cmLaplaceNoSplit <- cL$mLaplaceNoSplit
+
+  opt <- cmLaplace$findMLE()
+  ## Check using TMB results
+  expect_equal(opt$par, c(0.5603309, 11.7064674 ), tol = 1e-4)
+  expect_equal(opt$value, -4.503796, tol = 1e-7)
+  # Check covariance matrix
+  summ <- cmLaplace$summary(opt, jointCovariance = TRUE)
+  tmbvcov <- matrix(nrow = 6, ncol = 6)
+  tmbvcov[1,] <- c(4.4270833,  11.111111, 1.4583333, 3.1250000, 0.6597222,  1.9097222)
+  tmbvcov[2,] <- c(11.1111111, 70.833333, 2.6388889, 7.6388889, 5.8333333, 12.5000000)
+  tmbvcov[3,] <- c(1.4583333,   2.638889, 1.5000000, 0.8333333, 0.7777778,  0.2777778)
+  tmbvcov[4,] <- c(3.1250000,   7.638889, 0.8333333, 4.1666667, 0.2777778,  2.7777778)
+  tmbvcov[5,] <- c(0.6597222,   5.833333, 0.7777778, 0.2777778, 1.5000000,  0.8333333)
+  tmbvcov[6,] <- c(1.9097222,  12.500000, 0.2777778, 2.7777778, 0.8333333,  4.1666667)
+  # The ordering of a[1, 1:2] and a[2, 1:2] is flipped between nimble and TMB:
+  expect_equal(summ$vcov[c(1:3, 5, 4, 6), c(1:3, 5, 4, 6)], tmbvcov, tol = 1e-4)
+
+  # Check covariance matrix for params only
+  summ2 <- cmLaplace$summary(opt, originalScale = TRUE, randomEffectsStdError = TRUE, jointCovariance = FALSE)
+  expect_equal(summ2$vcov, tmbvcov[1:2,1:2], tol=1e-4)
+
+  for(v in cm$getVarNames()) cm[[v]] <- m[[v]]
+  optNoSplit <- cmLaplaceNoSplit$findMLE() # some warnings are ok here
+  expect_equal(opt$par, optNoSplit$par, tol = 1e-4)
+  expect_equal(opt$value, optNoSplit$value, tol = 1e-7)
+
+  ## TMB cpp code:
+  #include <TMB.hpp>
+  #template<class Type>
+  #Type objective_function<Type>::operator() ()
+  # {
+  #   DATA_MATRIX(y);
+  #   DATA_MATRIX(cov_a);
+  #   DATA_MATRIX(cov_y);
+  #   PARAMETER_VECTOR(mu);
+  #   PARAMETER_MATRIX(a);
+  #   int i;
+  #   Type ans = 0.0;
+  #
+  #   using namespace density;
+  #   // Negative log-likelihood of mv normal
+  #   vector<Type> mu_a(2);
+  #   mu_a(0) = 0.8 * mu(0);
+  #   mu_a(1) = 0.2 * mu(1);
+  #   vector<Type> residual_a(2);
+  #   MVNORM_t<Type> dmvnorm_a(cov_a);
+  #   for(i = 0; i < 2; i++)
+  #   {
+  #     residual_a = vector<Type>(a.row(i)) - mu_a;
+  #     ans += dmvnorm_a(residual_a);
+  #   }
+  #   vector<Type> mu_y(2);
+  #   mu_y(0) = 0.5*a(0, 0) + 0.1*a(1, 0);
+  #   mu_y(1) = 0.5*a(0, 1) + 0.1*a(1, 1);
+  #   vector<Type> residual_y(2);
+  #   MVNORM_t<Type> dmvnorm_y(cov_y);
+  #   for(i = 0; i < 2; i++){
+  #     residual_y = vector<Type>(y.row(i)) - mu_y;
+  #     ans += dmvnorm_y(residual_y);
+  #   }
+  #   return ans;
+  # }
+  # library(TMB)
+  # compile("test.cpp")
+  # dyn.load(dynlib("test"))
+  # data <- list(y = m$y,  cov_a = m$cov_a, cov_y = m$cov_y)
+  # parameters <- list(mu = m$mu, a = m$a)
+  #
+  # ## Fit model
+  # obj <- MakeADFun(data, parameters, random="a", DLL="test")
+  # tmbopt <- nlminb(obj$par, obj$fn, obj$gr)
+  # tmbrep <- sdreport(obj, getJointPrecision = TRUE)
+  # tmbvcov <- inverse(tmbrep$jointPrecision)
+})
+
+
 nimbleOptions(enableDerivs = EDopt)
 nimbleOptions(buildModelDerivs = BMDopt)
