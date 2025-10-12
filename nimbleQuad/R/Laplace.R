@@ -2665,7 +2665,7 @@ buildAGHQ <- nimbleFunction(
       # optRes <- optim(pStartTransform, calcLogLik_pTransformed, gr_logLik_pTransformed, method = outerOptimMethod_, control = outerOptimControl_, hessian = hessian)
 
       setLogDensType(includeJacobian = includeJacobian, includePrior = includePrior)
-      if( !keepOneFixed_ ){
+      if( !keepOneFixed ){
         if(outerOptimUseAD & (!ADuseNormality | nGNodes == 0)) {
             ## If using analytic normality, can't do outer (3rd) deriv, as that would take deriv of `getParam`.  
             optRes <- optim(pStartTransform, calcLogDens_pTransformed, gr_logDens_pTransformed,
