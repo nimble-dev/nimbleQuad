@@ -470,7 +470,7 @@ test_that("Basic interface and user input errors", {
     expect_false(identical(q1,q2))
     expect_false(identical(q2,q3))
     expect_false(identical(q3,q4))
-    # result$improveParamMarginals(quadRule = 'CCD') # Need to trap more cleanly with informative msg about CCD not allowed.
+    expect_error(result$improveParamMarginals(quadRule = 'CCD'), "Only AGHQ-based grids")
                                         
     ## Try various interface interactions.
     expect_silent(result <- runNestedApprox(capprox))
