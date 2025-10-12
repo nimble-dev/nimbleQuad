@@ -151,11 +151,10 @@ buildOneAGHQuad1D <- nimbleFunction(
     ## Set up start values for the inner optimization of Laplace approximation
     if(!is.character(optimStart_) | length(optimStart_) != 1) stop("buildOneAGHQuad1D: There is a problem with `optimStart`: ", optimStart_)
     startID <- switch(optimStart_, last=1, last.best=2, constant=3, random=4, model=5)
-    if(startID==5) {
+    if(startID == 5) {
       constant_init_reTrans <- c(values(model, randomEffectsNodes), -1)
-    } else
-      constant_init_reTrans <- c(optimStartValues_, -1)
-
+      startID <- 3  
+    } else constant_init_reTrans <- c(optimStartValues_, -1)
     ## Update and constant nodes for obtaining derivatives using AD
     inner_derivsInfo    <- makeModelDerivsInfo(model = model, wrtNodes = randomEffectsNodes, calcNodes = innerCalcNodes)
     inner_updateNodes   <- inner_derivsInfo$updateNodes
@@ -351,9 +350,9 @@ buildOneAGHQuad1D <- nimbleFunction(
       saved_inner_argmax <<- reInitTrans
     },
     get_reInitTrans = function() {
-      if(startID == 1) ans <- saved_inner_argmax              ## last
+      if(startID == 1) ans <- saved_inner_argmax                        ## last
       else if(startID == 2) ans <- max_margLogLik_inner_argmax          ## last.best
-      else if(startID == 3) ans <- constant_init_reTrans                    ## constant
+      else if(startID == 3) ans <- constant_init_reTrans                ## constant
       else if(startID == 4){                                            ## random (prior).
         model$simulate(randomEffectsNodes)
         ans <- reTrans$transform(values(model, randomEffectsNodes))     ## From prior:
@@ -962,8 +961,9 @@ buildOneAGHQuad <- nimbleFunction(
     ## Set up start values for the inner optimization of Laplace approximation
     if(!is.character(optimStart_) | length(optimStart_) != 1) stop("problem with optimStart ", optimStart_)
     startID <- switch(optimStart_, last=1, last.best=2, constant=3, random=4, model=5)
-    if(startID==5) {
+    if(startID == 5) {
       constant_init_reTrans <- reTrans$transform(c(values(model, randomEffectsNodes)))
+      startID <- 3  
     } else {
       if(length(optimStartValues_) == 1)
         constant_init_reTrans <- rep(optimStartValues_, nreTrans)
@@ -2162,7 +2162,6 @@ buildAGHQ <- nimbleFunction(
     ## Set cached values for calculating prior and posterior in log density.
     includePrior_ <- TRUE
     includeJacobian_ <- TRUE
-    keepOneFixed_ <- FALSE
 
     ## Set up cached values for doing profile likelihood construction:
     pTransform_fixed <- 0
@@ -2623,12 +2622,12 @@ buildAGHQ <- nimbleFunction(
         if(length(pStartTransform) == nparTrans) pStart <- paramsTransform$inverseTransform(pStartTransform)
         else pStart <- numeric(value = Inf, length = 1)
       }
-      keepOneFixed_ <<- TRUE
       maxRes <- optimize(pStart = pStart,
                          includePrior = includePrior,
                          includeJacobian = includeJacobian,
                          hessian = hessian,
-                         parscale = "transformed")
+                         parscale = "transformed",
+                         keepOneFixed = TRUE)
       return(maxRes)
       returnType(optimResultNimbleList())
     },
@@ -2637,7 +2636,8 @@ buildAGHQ <- nimbleFunction(
                         includePrior = logical(0, default = FALSE),
                         includeJacobian = logical(0, default = FALSE),
                         hessian = logical(0, default = TRUE),
-                        parscale = character(0, default = "transformed")) {
+                        parscale = character(0, default = "transformed"),
+                        keepOneFixed = logical(0, default = FALSE)) {
       if(!one_time_fixes_done) one_time_fixes() ## Otherwise summary will look bad.
       if(multiSetsCheck & nQuad_ > 1) stop("Currently only Laplace (`nQuad = 1`) is supported for maximization when integrations have more than one dimension at a time. Use `updateSettings(nQuad = 1)` to change.")
       if(any(abs(pStart) == Inf)) pStart <- values(model, paramNodes)
@@ -2684,7 +2684,6 @@ buildAGHQ <- nimbleFunction(
         p <- paramsTransform$inverseTransform(fullpar)
       }
       setLogDensType()  ## Reset it to default to posterior.
-      keepOneFixed_ <<- FALSE ## Can only be switched on by calling findMax_fixedp.
 
       if(optRes$convergence != 0)
           print("  [Warning] In maximizing the Laplace/AGHQ approximation,\n",
@@ -2717,12 +2716,12 @@ buildAGHQ <- nimbleFunction(
       pTransform_fixed <<- pTransformValue
       pTransform_indices_other <<- pTransform_indices[pTransform_indices != pTransform_index_fixed]
 
-      keepOneFixed_ <<- TRUE
       maxRes <- optimize(pStart = pStart,
                          includePrior = includePrior,
                          includeJacobian = includeJacobian,
                          hessian = FALSE,
-                         parscale = "transformed")
+                         parscale = "transformed",
+                         keepOneFixed = TRUE)
       ans <- maxRes$value - maxLogDens + limit/2
       return(ans)
       returnType(double())
@@ -2934,12 +2933,12 @@ buildAGHQ <- nimbleFunction(
       }
       else{
         ## Random effects
-        optreTransform <- optimRandomEffects(pTransform)  ## *** Replace this with cached inner modes.
+        optreTransform <- optimRandomEffects(pTransform)  
         optre <- reInverseTransform(optreTransform)
         ntot <- npar + nreTrans
         if(jointCovariance) {
           ## Inverse of the negative Hessian of log-likelihood wrt transformed random effects at MLEs
-          inv_negHess <- inverse_negHess(p, optreTransform)   ## *** Replace this with cached inner modes.
+          inv_negHess <- inverse_negHess(p, optreTransform)   
           jointInvNegHessZero <- matrix(0, nrow = ntot, ncol = ntot)
           jointInvNegHessZero[(npar+1):ntot, (npar+1):ntot] <- inv_negHess
           ## Derivative of inverse transformation for params

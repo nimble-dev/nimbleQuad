@@ -147,10 +147,10 @@ Any of the input node vectors, when provided, will be processed using
 
 In many (but not all) cases, one only needs to provide a NIMBLE model object
   and then the function will construct reasonable defaults necessary for
-  Laplace approximation to marginalize over all continuous latent states 
-  (aka random effects) in a model. The default values for the four groups of 
-  nodes are obtained by calling \code{\link{setupMargNodes}}, whose arguments 
-  match those here (except for a few arguments which are taken from control 
+  Laplace approximation to marginalize over all continuous latent states
+  (aka random effects) in a model. The default values for the four groups of
+  nodes are obtained by calling \code{\link{setupMargNodes}}, whose arguments
+  match those here (except for a few arguments which are taken from control
   list elements here).
 
 \code{setupMargNodes} tries to give sensible defaults from
@@ -256,7 +256,7 @@ elements of the list. Most (or all) of these can be updated later using the
         elements based on some default inspections of the model. If
         unnecessary warnings are emitted, simply set \code{check=FALSE}.
 
-  \item \code{innerOptimControl}. An `optimControlNimbleList` list 
+  \item \code{innerOptimControl}. An `optimControlNimbleList` list
         of control parameters (an R list is sufficient for uncompiled operation) for the inner
         optimization of Laplace approximation using \code{nimOptim}. See
         'Details' of \code{\link{nimOptim}} for further information. Default
@@ -458,7 +458,7 @@ In more detail, \code{summary} accepts the following optional arguments:
 
           \item \code{jointCovariance}. Logical. If TRUE, the joint
           variance-covariance matrix of the parameters and the random effects
-          will be returned. If FALSE, the variance-covariance matrix of the 
+          will be returned. If FALSE, the variance-covariance matrix of the
           parameters will be returned. Defaults to FALSE.
 
        }
@@ -482,7 +482,7 @@ In more detail, \code{summary} accepts the following optional arguments:
           \code{jointCovariance=TRUE}), the joint variance-covariance
           matrix of the parameters and random effects, on original or
           transformed scale. If \code{jointCovariance=FALSE}, the
-          covariance matrix of the parameters, on original or transformed 
+          covariance matrix of the parameters, on original or transformed
           scale.
 
           \item \code{scale}. \code{"original"} or \code{"transformed"}, the
@@ -517,7 +517,7 @@ approximation include:
   TRUE/FALSE}. Use this if there is more than one node.
 
   \item \code{getNodeNameSingle(returnParams)}. Return the name of a
-  single parameter/random effect node, according to \code{returnParams = 
+  single parameter/random effect node, according to \code{returnParams =
   TRUE/FALSE}. Use this if there is only one node.
 
   \item \code{checkInnerConvergence(message)}. Checks whether all internal
@@ -526,9 +526,9 @@ approximation include:
   convergence for each conditionally independent set.
 
   \item \code{gr_logLik(p, trans)}. Gradient of the (approximated)
-  marginal log-likelihood at parameter value \code{p}. Argument \code{trans} 
+  marginal log-likelihood at parameter value \code{p}. Argument \code{trans}
   is similar to that in \code{calcLaplace}. If there are multiple parameters,
-  the vector \code{p} is given in the order of parameter names returned by 
+  the vector \code{p} is given in the order of parameter names returned by
   \code{getNodeNamesVec(returnParams=TRUE)}.
 
   \item \code{gr_Laplace(p, trans)}. This is the same as \code{gr_logLik}.
@@ -564,7 +564,7 @@ Currently these are provided for point calculations without estimation methods.
   \item \code{calcPostLogDens_pTransformed (pTransform)}. Marginal log posterior density in terms of the transformed
   parameter, which includes the Jacobian transformation.
 
-  \item \code{gr_postLogDens_pTransformed(pTransform)}. Graident of marginal log posterior density on the transformed scale. 
+  \item \code{gr_postLogDens_pTransformed(pTransform)}. Graident of marginal log posterior density on the transformed scale.
   Other available options that are used in the derivative for more flexible include \code{logDetJacobian(pTransform)} and
   \code{gr_logDeJacobian(pTransform)}, as well as \code{gr_prior(p)}.
 }
@@ -574,7 +574,7 @@ Finally, methods that are primarily for internal use by other methods include:
 \itemize{
 
    \item \code{gr_logLik_pTransformed}. Gradient of the Laplace
-    approximation (\code{calcLogLik_pTransformed(pTransform)}) at transformed 
+    approximation (\code{calcLogLik_pTransformed(pTransform)}) at transformed
     (unconstrained) parameter value \code{pTransform}.
 
    \item \code{pInverseTransform(pTransform)}. Back-transform the transformed
@@ -626,7 +626,7 @@ Finally, methods that are primarily for internal use by other methods include:
   This is obtained using automatic differentiation (AD) with single-taping.
   First call will always be slower than later calls.
 
-  \item \code{cache_outer_logLik(logLikVal)}. Save the marginal log likelihood value 
+  \item \code{cache_outer_logLik(logLikVal)}. Save the marginal log likelihood value
   to the inner Laplace mariginlization functions to track the outer maximum internally.
 
   \item \code{reset_outer_inner_logLik()}. Reset the internal saved maximum marginal log likelihood.
@@ -643,7 +643,7 @@ Finally, methods that are primarily for internal use by other methods include:
 }
 
 \examples{
-pumpCode <- nimbleCode({ 
+pumpCode <- nimbleCode({
   for (i in 1:N){
     theta[i] ~ dgamma(alpha, beta)
     lambda[i] <- theta[i] * t[i]
@@ -655,9 +655,9 @@ pumpCode <- nimbleCode({
 pumpConsts <- list(N = 10, t = c(94.3, 15.7, 62.9, 126, 5.24, 31.4, 1.05, 1.05, 2.1, 10.5))
 pumpData <- list(x = c(5, 1, 5, 14, 3, 19, 1, 1, 4, 22))
 pumpInits <- list(alpha = 0.1, beta = 0.1, theta = rep(0.1, pumpConsts$N))
-pump <- nimbleModel(code = pumpCode, name = "pump", constants = pumpConsts, 
+pump <- nimbleModel(code = pumpCode, name = "pump", constants = pumpConsts,
                     data = pumpData, inits = pumpInits, buildDerivs = TRUE)
-                    
+
 # Build Laplace approximation
 pumpLaplace <- buildLaplace(pump)
 

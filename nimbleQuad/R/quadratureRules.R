@@ -2,7 +2,10 @@
 ## Grids are implementations of the rule to generate the actual nodes and
 ## weights.
 
-## Base class for nimble function list quadrature rules.
+#' Base class for nimble function list quadrature rules.
+#'
+#' @author Paul van Dam-Bates
+#' @export
 QUAD_RULE_BASE <- nimbleFunctionVirtual(
     name = "QUAD_RULE_BASE",
     run = function() {
