@@ -477,8 +477,6 @@ buildNestedApprox <- nimbleFunction(
         ## Quadrature based marginal log-likelihood
         ## Probably not particularly accurate for CCD.
         calcMarginalLogLikQuad = function() {
-            if (I_GRID == I_CCD)
-                print("  [Note]: Estimating marginal log-likelihood based on CCD grid.\n          Estimation based on an AGHQ grid may be more accurate\n          (but more computationally expensive).")
             if(!paramGridCached[I_GRID])
                 calcParamGrid()
             returnType(double())
