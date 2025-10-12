@@ -3663,7 +3663,17 @@ runAGHQ <- function(AGHQ, pStart,
 #' optimization function or can omit this, causing any derivative-based
 #' optimization method to use finite differences. Turning this off allows one
 #' to avoid any complexity associatend with use of AD applied to the inner
-#' Laplace/AGHQ approximation.
+#' Laplace/AGHQ approximation. Note that when \code{ADuseNormality = TRUE}
+#' (see next item) as is the case by default, outer optimization does not
+#' (and cannot because of limitations in NIMBLE's AD implementation) use
+#' the AD-based gradient.
+#'
+#' \item \code{ADuseNormality}. For random effects nodes that are distributed
+#' univariate or multivariate normal (Gaussian), the derivatives with respect
+#' to those nodes are known in closed form. By default, the approximation
+#' for multivariate Laplace/AGHQ will make use of this closed form. Set to
+#' \code{FALSE} to have the derivatives determined entirely using AD. Doing
+#' so may use more memory but may be faster for low-dimensional cases.
 #'
 #' } # end itemize
 #'
