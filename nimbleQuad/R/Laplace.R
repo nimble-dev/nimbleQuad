@@ -1866,7 +1866,7 @@ buildAGHQ <- nimbleFunction(
                    calcNodesOther, control = list()) {
     split <- extractControlElement(control, 'split', TRUE)
     check <- extractControlElement(control, 'check', TRUE)
-    ADuseNormality <- extractControlElement(control, 'ADuseNormality', FALSE)
+    ADuseNormality <- extractControlElement(control, 'ADuseNormality', TRUE)
     innerOptimWarning <- extractControlElement(control, 'innerOptimWarning', FALSE)
 
     if(!is.Rmodel(model))
