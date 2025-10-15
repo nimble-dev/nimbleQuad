@@ -250,7 +250,7 @@ improveParamMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad, quad
             nodes <- Rapprox$innerMethods$paramNodes
         } else nodes <- seq_len(Rapprox$nParamTrans)
 
-    if(!quadRule %in% c("AGHQ", "AGHQSPARSE"))
+    if(!quadRule %in% c("NULL", "AGHQ", "AGHQSPARSE"))
         stop("Only AGHQ-based quadrature rules are available for integration-based estimation of marginals.")
     
     if(originalScale) {
