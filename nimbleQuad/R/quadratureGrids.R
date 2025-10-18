@@ -424,7 +424,6 @@ configureQuadGrid <- nimbleFunction(
             success <- FALSE
             i <- 1
             while(i <= nRules & !success){
-                print("method ", method, " quadRules[i] ", quadRules[i], "\n")
               if(quadRules[i] == method){
                 I_RULE <<- i
                 success <- TRUE
