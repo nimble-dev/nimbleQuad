@@ -2,6 +2,51 @@ library(nimbleQuad)
 library(testthat)
 # Tests of Quadrature Rules and Grids for numerical integration:
 
+test_that("Check Basic Quad Rules work.", {
+  ## Basic Virtual List Wrapper:
+  rule_wrapper <- nimbleFunction(
+    setup = function(){
+      quadRule_nfl <- nimbleFunctionList(QUAD_RULE_BASE)
+      quadRule_nfl[[1]] <- quadRule_GH(type="GHe")
+      quadRule_nfl[[2]] <- quadRule_CCD(f0 = 1.1)
+    },
+    run = function(){},
+    methods = list(
+      ccd = function(d = double()){
+         out <- quadRule_nfl[[2]]$buildGrid(levels = 1, d = d)
+         returnType(double(2))
+         return(out)
+      },
+      gh = function(levels = double()){
+         out <- quadRule_nfl[[1]]$buildGrid(levels = levels, d = 1)
+         returnType(double(2))
+         return(out)
+      }
+    )
+  )
+  rules <- rule_wrapper()
+  rulesc <- compileNimble(rules)
+  gh <- rulesc$gh(3)
+  ccd <- rulesc$ccd(2)
+
+  ## Should integrate standard normal to 1.
+  F1 <- sum(gh[,1]*dnorm(gh[,2]))
+  expect_equal(F1, 1, 1e-16)
+  ## CCD2 integrates bivariate normal
+  F2 <- sum(ccd[,1]*dnorm(ccd[,2])*dnorm(ccd[,3]))
+  expect_equal(F2, 1, 1e-16)
+  
+  ccd21 <- rulesc$ccd(21)
+  F21 <- sum(ccd21[,1]*exp(colSums(apply(ccd21[,-1], 1, dnorm, log = TRUE))))
+  expect_equal(F21, 1, 1e-14)
+
+  ## pracma check on AGHQ
+  gh21 <- rulesc$gh(21)
+  pgh <- pracma::gaussHermite(21)
+  expect_equal(pgh$x*sqrt(2), gh21[,2], 1e-14)
+  expect_equal(pgh$w*sqrt(2)*exp(pgh$x^2), gh21[,1], 1e-8)
+})
+
 test_that("Returns Laplace when nQuad = 1, and one rule is passed.", {
   ## 1D Case
   quadGrid <- configureQuadGrid(d=1, levels=1, quadRule = "AGHQ")
