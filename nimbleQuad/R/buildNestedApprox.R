@@ -8,7 +8,7 @@
 #' @param model a NIMBLE model object created by calling \code{nimbleModel}. 
 #' The model must have automatic derivatives (AD) turned on, e.g., by using
 #'   \code{buildDerivs=TRUE} in \code{nimbleModel}.
-#' @param paramNodes optional character vector of (hyper)parameter nodes in the model. If missing this
+#' @param paramNodes optional character vector of (hyper)parameter nodes in the model. If missing, this
 #' will be the stochastic non-data nodes with no parent stochastic nodes.
 #' @param latentNodes optional character vector of latent nodes (e.g., random and fixed
 #' effects) in the model. If missing this will be the stochastic non-data nodes 
@@ -24,7 +24,7 @@
 #'   terms in the log-likelihood that do not depend on any
 #'   \code{randomEffectsNodes}, and thus are not part of the marginalization,
 #'   but should be included for purposes of finding the approximation. 
-#'   Note that users will generally not need to provide this.This defaults to
+#'   Note that users will generally not need to provide this. This defaults to
 #'   stochastic nodes that depend on \code{paramNodes} but are not part of and
 #'   do not depend on \code{latentNodes}. There may be deterministic
 #'   nodes between \code{paramNodes} and \code{calcNodesOther}. These will be
@@ -57,6 +57,11 @@
 #' However, for more granular control, one can also call the internal methods of the nested approximation,
 #' discussed briefly below.
 #' 
+#' In general, the theory that underpins these approximations assumes that the latent nodes (fixed and random effects) 
+#' are Gaussian. \code{buildNestedApprox} makes no such assumptions, allowing the user to extend these approximations to any imaginable
+#' set of models in NIMBLE. However, the accuracy of the approximation is then not supported theoretically, and it is up to the user to 
+#' determine whether or not the posterior approximation is valid.
+#'
 #' @section Computational considerations:
 #' 
 #' The computational cost of the nested approximation can vary depending on what 
@@ -136,9 +141,9 @@
 #' Supported elements include:
 #'
 #' \itemize{
-#'     \item \code{nQuadOuter}. Number of outer quadrature points (for parameter nodes). 
+#'     \item \code{nQuadOuter}. Number of outer quadrature points in each dimension (for parameter nodes). 
 #'           Default is 3 for d > 1, 5 for d = 1. Not used with CCD grid.
-#'     \item \code{nQuadInner}. Number of inner quadrature points (for latent nodes). 
+#'     \item \code{nQuadInner}. Number of inner quadrature points in each dimension (for latent nodes). 
 #'           Default is 1, corresponding to Laplace approximation. 
 #'     \item \code{paramGridRule}. Quadrature rule for the parameter grid. Defaults to \code{"CCD"} for
 #'          d > 2 and to \code{"AGHQ"} otherwise. Can also be \code{"AGHQSPARSE"} or \code{"USER"},
@@ -148,7 +153,7 @@
 #'              with \code{"AGHQSPARSE"} as the other current option.
 #'     \item \code{marginalGridPrune}. Pruning parameter for marginal grid. Default is 0, corresponding to no pruning.
 #'     \item \code{quadTransform}. Quadrature transformation method. Default is \code{"spectral"}, with
-#'           \code{"cholesky"} as the other current option.
+#'           \code{"cholesky"} as the other option.
 #'   }
 #' 
 #' @section Parameter transformations used internally:
@@ -170,7 +175,7 @@
 #' \item \code{buildParamGrid}: Build the parameter grid using specified quadrature rule and settings.
 #' \item \code{setParamGridRule}: Set the quadrature rule for the parameter grid (AGHQ, CCD, USER, AGHQSPARSE).
 #' \item \code{calcEigen}: Calculate eigendecomposition of the negative Hessian for spectral transformations. 
-#' \item \code{calcCholesky}: Calculate Cholesky decomposition of the negative Hessian.
+#' \item \code{calcCholesky}: Calculate Cholesky decomposition of the negative Hessian for Cholesky transformations.
 #' \item \code{setTransformations}: Set transformation method between spectral and Cholesky approaches.
 #' \item \code{z_to_paramTrans}: Transform from standard (z) scale to parameter transform scale.
 #' \item \code{paramTrans_to_z}: Transform from parameter transform scale to standard (z) scale.
@@ -181,7 +186,7 @@
 #' \item \code{calcParamGrid}: Calculate inner approximation at parameter grid values and cache results.
 #'        Required only for latent node simulation and quadrature-based marginal log-likelihood.
 #' \item \code{calcMarginalLogLikQuad}: Calculate quadrature-based marginal log-likelihood.
-#' \item \code{calcMarginalParamQuad}: Calculate univariate marginal parameter distributions using AGHQ.
+#' \item \code{calcMarginalParamQuad}: Calculate univariate marginal parameter distributions using selected quadrature rule.
 #' \item \code{calcMarginalParamIntegFree}: Calculate univariate marginal parameter distributions using INLA-like
 #'         integration-free method based on approximate Gaussian approximations.
 #' \item \code{simulateLatents}: Simulate from the posterior distribution of (transformed) latent nodes.
