@@ -125,14 +125,14 @@ approxSummary <- R6Class("approxSummary",
 )
 
 
-#' Run a nested approximation, returning a summary object with initial inference
+#' Run a nested approximation, returning a summary object with default inference
 #'
 #' Uses a nested approximation (compiled or uncompiled) returned from \code{buildNestedApprox}) 
-#' to do initial inference and return a summary object that can be used for additional tailored inference.
+#' to do default inference and return a summary object that can be used for additional tailored inference.
 #' It estimates marginal distributions for parameters (quantiles and expectations), and can 
 #' optionally return posterior samples for the latent nodes and parameters
 #'
-#' @param approx a compiled or uncompiled nestedApprox object.
+#' @param approx a compiled or uncompiled nestedApprox object created by \code{buildNestedApprox}.
 #' @param quantiles numeric vector of quantiles to estimate for each parameter. Default is \code{c(0.025, 0.25, 0.5, 0.75, 0.975)}.
 #' @param originalScale logical; if \code{TRUE}, report results on the original scales of the parameters and latent nodes. 
 #'   Default is \code{TRUE}.
@@ -145,10 +145,27 @@ approxSummary <- R6Class("approxSummary",
 #' @details 
 #' 
 #' This is the main user interface for running a nested approximation. It carries out
-#' initial inference and then returns a summary object that can be used for further inference
+#' default inference and then returns a summary object that can be used for further inference
 #' by calling methods on the summary object, as seen in the examples (or running the equivalent 
 #' function calls with the first argument being the summary object).
 #' 
+#' @section Methods available for object of class \code{approxSummary}
+#'
+#' Once the default inference has been run, inference can then be improved by calling different available methods within the returned object.
+#' Each method is explained in detail in their documentation, but the user may choose
+#' 
+#' \itemize{
+#'     \item \code{setParamGrid}. Allows the user to change the parameter grid used in the nested approximation.         
+#'     \item \code{improveParamMarginals}. Improve univariate parameter marginals using grid-based quadrature.
+#'     \item \code{calcMarginalLogLikImproved}. Calculate improved marginal log-likelihood using grid-based quadrature.
+#'     \item \code{sampleParams}. Sample from the parameter posterior distribution.
+#'     \item \code{sampleLatents}. Sample from the posterior distribution of the latent nodes.
+#'     \item \code{qmarginal}. Compute quantiles for a parameter.
+#'     \item \code{rmarginal}. Draw random samples from the marginal posterior of a parameter.
+#'     \item \code{emarginal}. Compute the expectation of a function of a parameter under the marginal posterior distribution.
+#'     \item \code{plotMarginal}. Plot the marginal posterior for a parameter.
+#'   }
+#'
 #' @return An object of class \code{approxSummary} containing initial results that can be used to carry out further inference.
 #' 
 #' @author Christopher Paciorek
@@ -281,10 +298,14 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
 #' @param nQuad number of quadrature points (not used for \code{"CCD"}.
 #' @param prune pruning parameter for removing AGHQ points at low-density points.
 #' 
+#' @details If the chosen quadrature rule is \code{"AGHQSPARSE"}, then \code{sampleLatents} will no longer work
+#' as it requires that all the quadrature weights are non-negative, which is no longer true for sparse AGHQ. To use a 
+#' \code{"USER"} supplied quadrature rule, then this will need to be defined prior to calling \code{buildNestedApprox}.
+#'
 #' @return None. Modifies the summary object in place.
 #' @export
 setParamGrid <- function(summary, quadRule = "NULL", nQuad = -1, prune = -1){
-  summary$approx$buildHyperGrid(quadRule, nQuad, prune)
+  summary$approx$buildParamGrid(quadRule, nQuad, prune)
 }
 
 
@@ -485,7 +506,8 @@ sampleParams <- function(summary, n = 1000, matchMarginals = TRUE) {
 #' where the weights are based on the
 #' approximate marginal density at each grid point in the parameter grid. For each point, the multivariate normal
 #' is based on Laplace approximation, using the maximum for the mean and the inverse Hessian for the covariance
-#' matrix. 
+#' matrix. This approach is not valid for sparse AGHQ due to negative quadrature weights. This can be updated by
+#' \code{setParamGrid} and any quadrature rule other than \code{AGHQSPARSE}.
 #' 
 #' The parameter values corresponding to the samples can be requested via \code{includeParams}.
 #' 
