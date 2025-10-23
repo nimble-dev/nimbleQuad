@@ -9,6 +9,10 @@ QUAD_RULE_BASE()
 \description{
 Base class for nimble function list quadrature rules.
 }
+\details{
+This is a class definition that must be included via \code{contains = QUADE_RULE_BASE} in a `nimbleFunction`
+if intending to make a quadrature rule to be used.
+}
 \author{
 Paul van Dam-Bates
 }

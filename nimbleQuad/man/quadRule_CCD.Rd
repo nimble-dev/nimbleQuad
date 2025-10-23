@@ -7,20 +7,25 @@
 quadRule_CCD(f0 = 1.1)
 }
 \arguments{
-\item{d}{Number of dimensions.}
-
-\item{nQuad}{Ignored.}
+\item{f0}{multiplier for the how far to extend nodes (default = 1.1).}
 }
 \description{
 Generate a d dimension CCD grid via a nimble function list.
 }
 \details{
-This function generates a CCD grid to be used in approximate posteriors. It cannot be compiled without being
-included within a virtual nimble list "QUAD_RULE_BASE".
+This function generates a Central Composite Design (CCD) grid to be used in approximate posteriors. It cannot be compiled without being
+included within a virtual nimble list "QUAD_RULE_BASE". On setup, f0 multiplier for the CCD grid for how much past the radius sqrt(d) to extend the nodes. 
+Unless an advanced user, keep at default of 1.1.
+
+Once the function is setup, it has a method `buildGrid` which can be called to build the CCD grid. Input is d, the  number of dimensions and nQuad, which
+is ignored but part of the default quadrature methods. Details of how the CCD grid works can be found in Rue et al. (2009). Full details for CCD as a 
+quadrature tool are described in the thesis by Pietil{\"a}inen (2010).
 }
 \references{
 Rue, H., Martino, S., and Chopin, N. (2009). Approximate Bayesian Inference for Latent Gaussian Models by Using 
 Integrated Nested Laplace Approximations. Journal of the Royal Statistical Society, Series B 71 (2): 319–92.
+
+Pietil{\"a}inen, V. (2010). Approximations for Integration over the Hyperparameters in Gaussian Processes. [Master's Thesis]
 }
 \author{
 Paul van Dam-Bates
