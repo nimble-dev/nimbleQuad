@@ -429,15 +429,25 @@ test_that("nested REs in Bernoulli GLMM", {
         library(INLA)
         dat <- data.frame(y = y, gender = gender, race = race, livingarrangement=livingarrangement, state = as.character(state), town = as.character(town))
 
-        ## Need to make priors consistent for comparison of statistical results.
+        ## Need to make fixed effect priors consistent for comparison of statistical results.
         fit <- inla(
             y ~ gender + race + livingarrangement + 
                 f(state,model = "iid",hyper = list(prec = list(prior = "pc.prec",param = c(.5,.5)))) +
                 f(town,model = "iid",hyper = list(prec = list(prior = "pc.prec",param = c(.5,.5)))),
             data = dat, quantiles = qpts,
-            family = 'binomial')
+            family = 'binomial', control.compute=list(config=TRUE))
+        ## Order of random effects has gotten shuffled...
+        ord1 <- order(as.numeric(fit$summary.random$state$ID))
+        ord2 <- order(as.numeric(fit$summary.random$town$ID))
 
-
+        qs_inla <- t(rbind(fit$summary.random$state[ord1, paste0(as.character(qpts), "quant")],
+                         fit$summary.random$town[ord2, paste0(as.character(qpts), "quant")]))
+            
+        sampled <- inla.posterior.sample(n = 10000, fit)
+        smp <- t(sapply(sampled, function(x) x$latent[10001:10307,1]))
+        smp <- cbind(smp[ , 1:(nstates-2)][ , ord1],
+                     smp[ , (nstates+1-2):(nstates+ntowns-2)][ , ord2])
+        qs_inla_smp <- apply(smp, 2, quantile, qpts)
     }
     
     if(FALSE) {
@@ -527,7 +537,8 @@ test_that("nested REs in Bernoulli GLMM", {
     out_cen[,u2cols] <- out[,'sigma_town']*out[,u2cols]
     qs_mcmc <- apply(out_cen,2,quantile,qpts)
     ## Random effects (omit u1[c(9,28)]).
-    expect_lt(max(abs(qs_mcmc[,c(11:18,20:37,39:319)] - qs_nest[,9:315])), .05)
+    expect_lt(max(abs(qs_mcmc[,c(11:18,20:37,39:319)] - qs_nest[,9:315])), .05) # Max is .046, while for INLA, .034 and .036 for marginal and sampled.
+    ## Unlike crossed case, not much evidence of systematic error.
     
 })
 
@@ -573,6 +584,33 @@ test_that("crossed REs in Bernoulli GLMM", {
 
     y <- rbinom(n, 1, p)
 
+    if(FALSE) {
+        library(INLA)
+        dat <- data.frame(y = y, gender = gender, race = race, livingarrangement=livingarrangement, state = as.character(state), town = as.character(town))
+
+        ## Need to make fixed effect priors consistent for full comparison of statistical results,
+        ## though it doesn't seem to make a difference in this case.
+        fit <- inla(
+            y ~ gender + race + livingarrangement + 
+                f(state,model = "iid",hyper = list(prec = list(prior = "pc.prec",param = c(.5,.5)))) +
+                f(town,model = "iid",hyper = list(prec = list(prior = "pc.prec",param = c(.5,.5)))),
+            data = dat, quantiles = qpts,
+            family = 'binomial', control.compute=list(config=TRUE))
+        ## Order of random effects has gotten shuffled...
+        ord1 <- order(as.numeric(fit$summary.random$state$ID))
+        ord2 <- order(as.numeric(fit$summary.random$town$ID))
+
+        qs_inla <- t(rbind(fit$summary.random$state[ord1, paste0(as.character(qpts), "quant")],
+                         fit$summary.random$town[ord2, paste0(as.character(qpts), "quant")]))
+            
+        sampled <- inla.posterior.sample(n = 10000, fit)
+        ## sampled <- inla.posterior.sample(n = 10000, fit, use.improved.mean = FALSE, skew.corr = FALSE)
+        smp <- t(sapply(sampled, function(x) x$latent[10001:10309,1]))
+        smp <- cbind(smp[ , 1:nstates][ , ord1],
+                     smp[ , (nstates+1):(nstates+ntowns)][ , ord2])
+        qs_inla_smp <- apply(smp, 2, quantile, qpts)
+        
+    }
     if(FALSE) {
         ## Use noncentered for better HMC mixing.
         code <- nimbleCode({
@@ -649,7 +687,7 @@ test_that("crossed REs in Bernoulli GLMM", {
     latent_sample <- result$sampleLatents(10000)
     qs_nest <- apply(latent_sample,2, quantile, qpts)
     
-    expect_lt(max(abs(qs_mcmc[,1:8] - qs_nest[,c(1,3,4,5:8,2)])), .006)  # Fixed effects
+    expect_lt(max(abs(qs_mcmc[,1:8] - qs_nest[,c(1,3:8,2)])), .006)  # Fixed effects
                                         
     u1cols <- grep("u1", colnames(out))
     u2cols <- grep("u2", colnames(out))
@@ -659,11 +697,102 @@ test_that("crossed REs in Bernoulli GLMM", {
     out_cen[,u1cols] <- out[,'sigma_state']*out[,u1cols]
     out_cen[,u2cols] <- out[,'sigma_town']*out[,u2cols]
     qs_mcmc <- apply(out_cen,2,quantile,qpts)
-    expect_lt(max(abs(qs_mcmc[,c(11:319)] - qs_nest[,9:317])), .08)     
+    expect_lt(max(abs(qs_mcmc[,c(11:319)] - qs_nest[,9:317])), .08)  ## Max is 0.0567 for us and 0.0286 for INLA samples and 0.0208 for INLA marginals.
+    ## Also pattern of error in our values is systematic (for town but not state estimates) here, but not for nested case.
+    ## Even if don't use corrected mean/skew in INLA samples, they don't show the pattern, so it's not INLA's adjustment.
+    ## Finally, our Laplace gives point estimates that are right on. CCD grid is fine!
 })
 
-## Tests to consider developing: nested-dirichlet, nested-latentDir,
-## nested-lkj, nested-spatial, nested-wishart, penicillin
+test_that("inhaler (Dirichlet) example", {
+
+    load(inhaler.Rda)
+
+    ## Mimic INLA parameterization
+    code <- nimbleCode({
+        psi[1:K] ~ ddirch(threes[1:K])
+        alpha[1] <- logit(psi[1])
+        alpha[2] <- logit(psi[1]+psi[2])
+        alpha[3] <- logit(psi[1]+psi[2]+psi[3])
+        for (i in 1:n) {
+            rating[i] ~ dcat(p[i,1:K])
+            eta[i] <- beta_int + beta_treat*treat[i] + beta_period*period[i] + beta_carry*carry[i]
+            for(k in 1:(K-1)) {
+                gamma[i,k] <- alpha[k] - eta[i]
+                F[i,k] <- expit(gamma[i,k])
+            }
+            p[i,1] <- F[i,1]
+            p[i,2] <- F[i,2] - F[i,1]
+            p[i,3] <- F[i,3] - F[i,2]
+            p[i,4] <- 1-F[i,3]
+        }
+        beta_int ~ dflat() ## intercept has flat prior in INLA
+        beta_treat ~ dnorm(0, .001)
+        beta_period ~ dnorm(0, .001)
+        beta_carry ~ dnorm(0, .001)
+    })
+
+    if(FALSE) {
+        library(INLA)
+        fit <- inla(rating ~ treat + period + carry, data = inhaler, family='pom', quantiles = qpts,
+                    control.family=list(hyper=list(theta1=list(prior="dirichlet", param=3))))
+        qs_inla_fixed <- fit$summary.fixed[ , paste0(as.character(qpts), "quant")]
+        qs_inla_theta <- fit$summary.hyperpar[ , paste0(as.character(qpts), "quant")]
+    }
+
+    if(FALSE) {
+        library(nimbleHMC)
+        K <- 4
+        m <- nimbleModel(code, data = list(rating = inhaler$rating),inits = list(psi = rep(.25, 4), beta_int = 0, beta_treat = 0, beta_period = 0, beta_carry = 0),
+                         constants = list(K = K, n = nrow(inhaler), period = inhaler$period, carry = inhaler$carry, treat = inhaler$treat, threes = rep(3, K)), buildDerivs = TRUE)
+        cm <- compileNimble(m)
+        mcmc <- buildHMC(m, monitors = c('beta_int','beta_treat','beta_period','beta_carry',
+                                         'psi','alpha'))
+        cmcmc <- compileNimble(mcmc, project = m)
+        
+        out <- runMCMC(cmcmc, niter = 11000, nburnin = 1000)
+        
+        ## For comparison with nimble's nested approx
+        param <- cbind(logit(out[,'psi[1]']), logit(out[,'psi[2]']/(1-out[,'psi[1]'])),
+                       logit(out[,'psi[3]']/(1-out[,'psi[1]']-out[,'psi[2]'])))
+        qs_param <- apply(param, 2, quantile, qpts)
+
+        ##  For comparison with INLA
+        theta <- cbind(out[,'alpha[1]'],
+                       log(out[,'alpha[2]']-out[,'alpha[1]']),
+                       log(out[,'alpha[3]']-out[,'alpha[2]']))
+        qs_theta <- apply(theta, 2, quantile, qpts)
+        
+        save(out, param, theta, file = 'mcmc-results6.Rda')
+    } else load('mcmc-results6.Rda')
+
+    qs_mcmc <- apply(out, 2, quantile, qpts)
+    
+    K <- 4
+    m <- nimbleModel(code, data = list(rating = inhaler$rating),inits = list(psi = rep(.25, 4), beta_int = 0, beta_treat = 0, beta_period = 0, beta_carry = 0),
+                     constants = list(K = K, n = nrow(inhaler), period = inhaler$period, carry = inhaler$carry, treat = inhaler$treat, threes = rep(3, K)), buildDerivs = TRUE)
+    
+    approx <- buildNestedApprox(m, latentNodes = c('beta_int','beta_treat','beta_period','beta_carry'), paramNodes = c('psi'))
+    cm <- compileNimble(m)
+    capprox <- compileNimble(approx, project = m)
+    result <- runNestedApprox(capprox)
+    result_orig <- runNestedApprox(capprox, originalScale = FALSE)  # Use originalScale=FALSE for comparison with INLA. 
+
+    expect_lt(max(abs(qs_param - unlist(result_orig$quantiles))), .07)  # .067
+    result_orig$improveParamMarginals(1:3, nMarginalGrid = 7)          
+    expect_lt(max(abs(qs_param - unlist(result_orig$quantiles))), .025)  # .023
+    ## INLA max diff is 0.017 on theta scale.
+
+    ## We want latents on original scale. They will be either with result or result_orig, but naming clearer with result.
+    latent_sample <- result$sampleLatents(10000)
+
+    qs_nest <- apply(latent_sample, 2, quantile, qpts)
+    fixed <- c('beta_int','beta_treat','beta_period','beta_carry')
+    expect_lt(max(abs(qs_mcmc[ , fixed] - qs_nest[ , fixed])), 0.15)   # .130
+    # max(abs(qs_mcmc[ , fixed] - t(qs_inla_fixed)))    # .180
+    expect_lt(max(abs(qs_nest[ , fixed] - t(qs_inla_fixed))), 0.11)    # .102
+    
+})
+## Tests to consider developing: nested-dirichlet, nested-lkj, nested-wishart, penicillin, nested-spatial
 
 
 nimbleOptions(enableDerivs = EDopt)
