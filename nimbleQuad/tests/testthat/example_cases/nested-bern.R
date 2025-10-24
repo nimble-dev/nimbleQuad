@@ -7,7 +7,7 @@ crossed <- FALSE # crossed or nested REs?
 qpts <- c(.025,.25,.5,.75,.975)
 
 set.seed(1)
-n <- 1e5 # 1000, 10000, 100000, 1e6, 7283575
+n <- 1e4 # 1000, 10000, 100000, 1e6, 7283575
 
 ntowns <- 262
 nstates <- 47
