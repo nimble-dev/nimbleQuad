@@ -7,7 +7,7 @@ buildNestedApprox <- nimbleFunction(
         check <- extractControlElement(control, "check", TRUE)
         innerOptimWarning <- extractControlElement(control, "innerOptimWarning", FALSE)
 
-        nQuadInner <- extractControlElement(control, "nQuadInner", 1)
+        nQuadLatent <- extractControlElement(control, "nQuadLatent", 1)
         quadRuleMarginal <- extractControlElement(control, "marginalGridRule", "AGHQ")
         pruneMargGrid <- extractControlElement(control, "marginalGridPrune", 0)
 
@@ -48,13 +48,13 @@ buildNestedApprox <- nimbleFunction(
         paramsTransform <- parameterTransform(model, paramNodes, control = list(allowDeterm = FALSE))
         nParamTrans <- paramsTransform$getTransformedLength()
 
-        nQuadOuter <- extractControlElement(control, "nQuadOuter", ifelse(nParamTrans == 1, 5, 3))
+        nQuadParam <- extractControlElement(control, "nQuadParam", ifelse(nParamTrans == 1, 5, 3))
         
         ## Configure all grids before calling AGHQ to make sure it builds
         ## correctly.  DO NOT MOVE WHEN THIS IS CALLED
         allGridRules <- c("CCD", "AGHQ", "AGHQSPARSE")
 
-        ## Default outer grid to CCD unless low dimensional.
+        ## Default param (outer) grid to CCD unless low dimensional.
         paramGridRule <- extractControlElement(control, "paramGridRule", "none")
         pruneParamGrid <- extractControlElement(control, "paramGridPrune", 0)
         if(paramGridRule == "none")
@@ -63,7 +63,7 @@ buildNestedApprox <- nimbleFunction(
         messageIfVerbose("Building nested posterior approximation for the following node sets:\n",
                          "  - parameter nodes: ", makeNodeString(paramNodes, model), "\n",
                          "  - latent nodes: ", makeNodeString(latentNodes, model), "\n",
-                         "  with ", paramGridRule, " grid for the parameters and ", ifelse(nQuadInner > 1, "AGHQ", "Laplace"), " approximation for the latent nodes.")
+                         "  with ", paramGridRule, " grid for the parameters and ", ifelse(nQuadLatent > 1, "AGHQ", "Laplace"), " approximation for the latent nodes.")
  
         if(length(intersect(latentNodes, paramNodes)))
             stop("some nodes appear in both the parameter and latent sets")
@@ -71,13 +71,13 @@ buildNestedApprox <- nimbleFunction(
             messageIfVerbose("  [Warning] There is a large number of parameter node elements. Computation may be slow.")
 
         
-        if(paramGridRule == "AGHQ" && nQuadOuter %% 2 == 0)
-            messageIfVerbose("  [Note] For computational efficiency, it is recommended to use an odd number of quadrature points\n         for the parameter (outer) grid (`nQuadOuter`).")
+        if(paramGridRule == "AGHQ" && nQuadParam %% 2 == 0)
+            messageIfVerbose("  [Note] For computational efficiency, it is recommended to use an odd number of quadrature points\n         for the parameter (outer) grid (`nQuadParam`).")
         
-        ## Default to CCD (in which case `nQuadOuter` is ignored).
-        paramGrid <- configureQuadGrid(d = 1, levels = nQuadOuter, quadRule = paramGridRule, control = list(quadRules = allGridRules))
+        ## Default to CCD (in which case `nQuadParam` is ignored).
+        paramGrid <- configureQuadGrid(d = 1, levels = nQuadParam, quadRule = paramGridRule, control = list(quadRules = allGridRules))
 
-        innerMethods <- buildAGHQ(model, nQuadInner, paramNodes, latentNodes, calcNodes,
+        innerMethods <- buildAGHQ(model, nQuadLatent, paramNodes, latentNodes, calcNodes,
                                   calcNodesOther, control)
 
         if(!identical(paramNodes, innerMethods$paramNodes))
@@ -275,12 +275,12 @@ buildNestedApprox <- nimbleFunction(
                                   prune = double(0, default = -1)) {
             one_time_fixes()
             if(nQuadUpdate != -1)
-                nQuadOuter <<- nQuadUpdate
+                nQuadParam <<- nQuadUpdate
             if(quadRule != "NULL" )
               setParamGridRule(quadRule)
             if(prune != -1)
                 pruneParamGrid <<- prune
-            paramGrid$buildGrid(method = paramGridRule, nQuad = nQuadOuter, prune = pruneParamGrid)
+            paramGrid$buildGrid(method = paramGridRule, nQuad = nQuadParam, prune = pruneParamGrid)
             nGrid <- paramGrid$gridSize()
             nCache <- inner_grid_cache_nfl[[I_GRID]]$gridSize()
             inner_grid_cache_nfl[[I_GRID]]$buildCache(nGridUpdate = nGrid, nLatents = nreTrans)
@@ -424,7 +424,7 @@ buildNestedApprox <- nimbleFunction(
             if (!skewedSDCached & skew) calcSkewedSD()
             ans <- 0
             ## Now fill in the grid values.
-            nimCat("Calculating inner AGHQ/Laplace approximation at ", nGrid, " outer (parameter) grid points (one dot per point): ")
+            nimCat("Calculating inner AGHQ/Laplace approximation at ", nGrid, " parameter (outer) grid points (one dot per point): ")
             for (i in 1:nGrid) {
                 nimCat(".")
                 ## Operations at the mode:

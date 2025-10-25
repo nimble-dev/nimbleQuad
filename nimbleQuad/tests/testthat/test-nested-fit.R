@@ -207,7 +207,7 @@ test_that("Marginal log-likelihood, 2-d case", {
     result$calcMarginalLogLikImproved()
     expect_lt(abs(mll - result$marginalLogLikImproved), 0.05)
 
-    approx <- buildNestedApprox(m, control = list(nQuadOuter = 7, nQuadInner = 5))
+    approx <- buildNestedApprox(m, control = list(nQuadParam = 7, nQuadLatent = 5))
     capprox <- compileNimble(approx, project = m)
     result <- runNestedApprox(capprox) 
     result$calcMarginalLogLikImproved()
