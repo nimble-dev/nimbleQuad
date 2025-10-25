@@ -697,10 +697,7 @@ test_that("crossed REs in Bernoulli GLMM", {
     out_cen[,u1cols] <- out[,'sigma_state']*out[,u1cols]
     out_cen[,u2cols] <- out[,'sigma_town']*out[,u2cols]
     qs_mcmc <- apply(out_cen,2,quantile,qpts)
-    expect_lt(max(abs(qs_mcmc[,c(11:319)] - qs_nest[,9:317])), .08)  ## Max is 0.0567 for us and 0.0286 for INLA samples and 0.0208 for INLA marginals.
-    ## Also pattern of error in our values is systematic (for town but not state estimates) here, but not for nested case.
-    ## Even if don't use corrected mean/skew in INLA samples, they don't show the pattern, so it's not INLA's adjustment.
-    ## Finally, our Laplace gives point estimates that are right on. CCD grid is fine!
+    expect_lt(max(abs(qs_mcmc[,c(11:319)] - qs_nest[,9:317])), .025)  ## Max is 0.023 for us and 0.028 for INLA samples (x w/o mean/skew correction) and 0.021 for INLA marginals.
 })
 
 test_that("inhaler (Dirichlet) example", {
@@ -792,7 +789,154 @@ test_that("inhaler (Dirichlet) example", {
     expect_lt(max(abs(qs_nest[ , fixed] - t(qs_inla_fixed))), 0.11)    # .102
     
 })
-## Tests to consider developing: nested-dirichlet, nested-lkj, nested-wishart, penicillin, nested-spatial
+
+test_that("Wishart example", {
+
+    code <- nimbleCode({
+        for(j in 1:J) {
+            for(i in 1:n)
+                y[i,j] ~ dnorm(b[j,1] + b[j,2]*x[i,j,1] + b[j,3]*x[i,j,2], sd = sigma)
+            b[j,1:3] ~ dmnorm(z[1:3], Q[1:3,1:3])
+        }
+        Q[1:3,1:3] ~ dwish(R=R[1:3,1:3], df = 5)
+        sigma ~ dhalfflat()  
+    })
+    
+    n <- 25
+    J <- 8
+    
+    set.seed(1)
+    x <- array(rnorm(n*J*2),c(n,J,2))
+    
+    Sigma <- matrix(c(1,-.2,0,-.2,1,.5,0,.5,1),3)
+    L <- t(chol(Sigma))
+    b <- L%*%matrix(rnorm(J*3),3,J)
+    
+    y <- matrix(0, n, J)
+    
+    for(j in 1:J) {
+        y[,j] <- b[1,j] + b[2,j]*x[,j,1] + b[3,j]*x[,j,2] + rnorm(n)
+    }    
+        
+    
+    if(FALSE) {
+        library(nimbleHMC)
+        m <- nimbleModel(code, data=list(y=y,x=x),inits = list(z = rep(0,3), Q = diag(3), b = matrix(0,J,3),sigma=1), constants = list(R=diag(3),n=n,J=J), buildDerivs = TRUE)
+        cm <- compileNimble(m)
+        mcmc <- buildHMC(m, monitors = c('b','Q','sigma'))
+        cmcmc <- compileNimble(mcmc, project = m)
+        
+        system.time(out <- runMCMC(cmcmc, niter = 11000, nburnin = 1000))
+        
+        trans <- parameterTransform(m, nodes = 'Q')
+        trSmp <- t(apply(out[,1:9], 1, trans$transform))
+        out <- cbind(log(out[,'sigma']), trSmp, out[,10:ncol(out)][ , c(1,9,17,2,10,18,3,11,19,4,12,20,5,13,21,6,14,22,7,15,23,8,16,24)])
+        save(out, file = 'mcmc-results7.Rda')
+    } else load('mcmc-results7.Rda')
+    qs_mcmc <- apply(out, 2, quantile, qpts)
+
+    m <- nimbleModel(code, data=list(y=y,x=x),inits = list(z = rep(0,3), Q = diag(3), b = matrix(0,J,3),sigma=1), constants = list(R=diag(3),n=n,J=J), buildDerivs = TRUE)
+    cm <- compileNimble(m)
+    
+    approx <- buildNestedApprox(m)
+    capprox <- compileNimble(approx, project = m)
+    result <- runNestedApprox(capprox, originalScale = FALSE)  
+    expect_lt(max(abs(qs_mcmc[ , 1:7] - unlist(result$quantiles))), .1)
+    result$improveParamMarginals(1:7, nMarginalGrid = 5) # Much better; fairly slow to compute with so many params and grid points.
+    expect_lt(max(abs(qs_mcmc[ , 1:7] - unlist(result$quantiles))), .02)
+
+    result <- runNestedApprox(capprox)
+    latent_sample <- result$sampleLatents(10000)
+    qs_nest <- apply(latent_sample,2,quantile,qpts) 
+    expect_lt(max(abs(qs_mcmc[ , 8:31] - qs_nest)), .04)
+})
+
+test_that("LKJ example", {
+    uppertri_mult_diag <- nimbleFunction(
+        run = function(mat = double(2), vec = double(1)) {
+            returnType(double(2))
+            p <- length(vec)
+            out <- matrix(nrow = p, ncol = p, init = FALSE)
+            for(i in 1:p)
+                out[ , i] <- mat[ , i] * vec[i]
+            return(out)
+        }, buildDerivs = list(run = list(ignore='i'))
+    )
+
+    code <- nimbleCode({
+        for(j in 1:J) {
+            for(i in 1:n)
+                y[i,j] ~ dnorm(b[j,1] + b[j,2]*x[i,j,1] + b[j,3]*x[i,j,2], sd = sigma)
+            b[j,1:3] ~ dmnorm(z[1:3], cov = C[1:3,1:3])
+        }
+        sigma ~ dhalfflat()
+        Ustar[1:3,1:3] ~ dlkj_corr_cholesky(1.3, 3)
+        U[1:3,1:3] <- uppertri_mult_diag(Ustar[1:3, 1:3], sds[1:3])
+        C[1:3,1:3] <- t(U[1:3,1:3])%*%U[1:3,1:3]
+        for(i in 1:3)
+            sds[i] ~ dhalfflat()
+    })
+
+    n <- 25
+    J <- 8
+
+    set.seed(1)
+    x <- array(rnorm(n*J*2),c(n,J,2))
+
+    Sigma <- matrix(c(1,-.2,0,-.2,1,.5,0,.5,1),3)
+    L <- t(chol(Sigma))
+    b <- L%*%matrix(rnorm(J*3),3,J)
+
+    y <- matrix(0, n, J)
+    for(j in 1:J) {
+        y[,j] <- b[1,j] + b[2,j]*x[,j,1] + b[3,j]*x[,j,2] + rnorm(n)
+    }
+
+    if(FALSE) {
+        library(nimbleHMC)
+        m <- nimbleModel(code, data=list(y=y,x=x),inits = list(z = rep(0,3), Ustar = diag(3), sds = rep(1, 3), b = matrix(0,J,3),sigma=1), constants = list(n=n,J=J), buildDerivs = TRUE)
+        cm <- compileNimble(m)
+        mcmc <- buildHMC(m, monitors = c('b','Ustar','sigma','sds'))
+        cmcmc <- compileNimble(mcmc, project = m)
+        
+        system.time(out <- runMCMC(cmcmc, niter = 11000, nburnin = 1000))
+        
+        trans <- parameterTransform(m, nodes = 'Ustar')
+        trSmp <- t(apply(out[,1:9], 1, trans$transform))
+
+        out <- cbind(log(out[,'sigma']), trSmp, log(out[ , grep("sds", colnames(out))]), out[ , grep("b\\[", colnames(out))])
+        
+        ## transformer <- function(tmp) {
+        ##     U <- uppertri_mult_diag(matrix(tmp[1:9],3), tmp[10:12])
+        ##    return(c(t(U)%*%U))
+        ## }
+        ## cvHMC <- t(apply(out[ ,c(1:9, 34:36)], 1, transformer))
+        ## t(apply(cvHMC, 2, quantile, qpts))
+        save(out, file = 'mcmc-results8.Rda')
+        
+    } else load('mcmc-results8.Rda')
+    qs_mcmc <- apply(out, 2, quantile, qpts)
+
+    m <- nimbleModel(code, data=list(y=y,x=x),inits = list(z = rep(0,3), Ustar = diag(3), sds = rep(1, 3), b = matrix(0,J,3),sigma=1), constants = list(n=n,J=J), buildDerivs = TRUE)
+    cm <- compileNimble(m)
+    
+    approx <- buildNestedApprox(m)
+    capprox <- compileNimble(approx, project = m)
+    
+    result <- runNestedApprox(capprox, originalScale = FALSE) ## some rather far off
+    max(abs(qs_mcmc[,1:7] - unlist(result$quantiles)))
+    
+    result$improveParamMarginals(1:7, nMarginalGrid=5)  # time-consuming
+    expect_lt(max(abs(qs_mcmc[,1:7] - unlist(result$quantiles))), .06)  # .056, .044 with nMarginalGrid=7
+
+    result <- runNestedApprox(capprox)
+    latent_sample <- result$sampleLatents(10000)
+    
+    qs_nest <- apply(latent_sample,2,quantile,qpts)
+    expect_lt(max(abs(qs_mcmc[,8:31] - qs_nest[ , c(1,4,7,10,13,16,19,22,2,5,8,11,14,17,20,23,3,6,9,12,15,18,21,24)])), .04) # .035
+})
+
+## Tests to consider developing: penicillin, nested-spatial
 
 
 nimbleOptions(enableDerivs = EDopt)
