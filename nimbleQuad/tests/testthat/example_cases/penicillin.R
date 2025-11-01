@@ -4,6 +4,9 @@ library(nimbleQuad)
 ## Not clear it's useful to relax that as key here is to assess accuracy
 ## for model as constructed.
 
+## 2025-11-01: gamma(1,5e-5) is very informative on sd scale that sd is small.
+## I really don't think it makes sense to use it.
+
 data(penicillin, package="faraway")
 
 qpts <- c(.025,.25,.5,.75,.975)
