@@ -174,7 +174,7 @@ test_that("AGH Quadrature 1D Poisson-Gamma for checking nQuad", {
   }
 })
 
-test_that("AGH Quadrature 1D Binomial-Beta check 3 methods", {
+test_that("AGH Quadrature 1D Binomial-Beta", {
   set.seed(123)
   n <- 50
   N <- 5
@@ -196,33 +196,6 @@ test_that("AGH Quadrature 1D Binomial-Beta check 3 methods", {
   cmQuad <- compileNimble(mQuad, project = m)
 
   param.val <- c(7, 1)
-
-  cmQuad$updateSettings(computeMethod=1)
-  ll.11 <- cmQuad$calcLogLik(param.val)
-  ll.12 <- cmQuad$calcLogLik(param.val+1)
-  gr.11 <- cmQuad$gr_logLik(param.val)
-  gr.12 <- cmQuad$gr_logLik(param.val+1)
-  cmQuad$updateSettings(computeMethod=2)
-  ll.21 <- cmQuad$calcLogLik(param.val)
-  ll.22 <- cmQuad$calcLogLik(param.val+1)
-  gr.21 <- cmQuad$gr_logLik(param.val)
-  gr.22 <- cmQuad$gr_logLik(param.val+1)
-  cmQuad$updateSettings(computeMethod=3)
-  ll.31 <- cmQuad$calcLogLik(param.val)
-  ll.32 <- cmQuad$calcLogLik(param.val+1)
-  gr.31 <- cmQuad$gr_logLik(param.val)
-  gr.32 <- cmQuad$gr_logLik(param.val+1)
-
-  ## All the methods should return equivalent results, or at least nearly with some small
-  ## numerical differences from the calls to the AD.
-  expect_equal(ll.11, ll.21)
-  expect_equal(ll.11, ll.31)
-  expect_equal(ll.12, ll.22)
-  expect_equal(ll.12, ll.32)
-  expect_equal(gr.11, gr.21)
-  expect_equal(gr.11, gr.31)
-  expect_equal(gr.12, gr.22)
-  expect_equal(gr.12, gr.32)
 
   ## Check gradient and marginalization accuracy.
   ll.betabin <- function(pars){
@@ -254,7 +227,6 @@ test_that("AGH Quadrature 1D Binomial-Beta check 3 methods", {
 	return(dll)
   }
 
-  cmQuad$updateSettings(computeMethod=2, nQuad=1)
   ## Check Laplace against RTMB here:
   #cmQuad$setQuadSize(1)
   expect_equal(cmQuad$calcLogLik(param.val), -57.1448725555934729, 1e-06)

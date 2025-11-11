@@ -691,3 +691,17 @@ buildNestedApprox <- nimbleFunction(
         }
     )
 )
+
+
+makeNodeString <- function(nodes, model) {
+    if (!length(nodes))
+        return("")
+    elements <- model$expandNodeNames(nodes, returnScalarComponents = TRUE)
+    vars <- sapply(strsplit(elements, "[", fixed = TRUE), `[[`, 1)    
+    nodesCount <- table(vars)
+    items <- elements[nodesCount[vars] == 1]
+    multiples <- names(nodesCount[nodesCount > 1])
+    if(length(multiples)) 
+        items <- c(items, paste0(multiples, " (", nodesCount[nodesCount > 1], " elements)"))
+    return(paste0(items, collapse = ", "))
+}
