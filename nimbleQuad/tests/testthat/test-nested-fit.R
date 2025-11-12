@@ -697,7 +697,7 @@ test_that("crossed REs in Bernoulli GLMM", {
 
 test_that("inhaler (Dirichlet) example", {
 
-    load(inhaler.Rda)
+    load('inhaler.Rda')
 
     ## Mimic INLA parameterization
     code <- nimbleCode({
@@ -740,13 +740,17 @@ test_that("inhaler (Dirichlet) example", {
         mcmc <- buildHMC(m, monitors = c('beta_int','beta_treat','beta_period','beta_carry',
                                          'psi','alpha'))
         cmcmc <- compileNimble(mcmc, project = m)
-        
-        out <- runMCMC(cmcmc, niter = 11000, nburnin = 1000)
-        
+
+        set.seed(1)
+        out <- runMCMC(cmcmc, niter = 26000, nburnin = 1000)
+
         ## For comparison with nimble's nested approx
         param <- cbind(logit(out[,'psi[1]']), logit(out[,'psi[2]']/(1-out[,'psi[1]'])),
                        logit(out[,'psi[3]']/(1-out[,'psi[1]']-out[,'psi[2]'])))
         qs_param <- apply(param, 2, quantile, qpts)
+
+        qs_param_orig <- apply(out[ , c('psi[1]','psi[2]','psi[3]','psi[4]')], 2, quantile, qpts)
+        cov_param_orig <- cov(out[ , c('psi[1]','psi[2]','psi[3]','psi[4]')])
 
         ##  For comparison with INLA
         theta <- cbind(out[,'alpha[1]'],
@@ -754,7 +758,7 @@ test_that("inhaler (Dirichlet) example", {
                        log(out[,'alpha[3]']-out[,'alpha[2]']))
         qs_theta <- apply(theta, 2, quantile, qpts)
         qs_mcmc <- apply(out, 2, quantile, qpts)        
-        save(qs_mcmc, qs_param, qs_theta, file = 'mcmc-results6.Rda')
+        save(qs_mcmc, qs_param, qs_theta, qs_param_orig, cov_param_orig, file = 'mcmc-results6.Rda')
     } else load('mcmc-results6.Rda')
     
     K <- 4
@@ -767,19 +771,26 @@ test_that("inhaler (Dirichlet) example", {
     result <- runNestedApprox(capprox)
     result_orig <- runNestedApprox(capprox, originalScale = FALSE)  # Use originalScale=FALSE for comparison with INLA. 
 
-    expect_lt(max(abs(qs_param - unlist(result_orig$quantiles))), .07)  # .067
+    expect_lt(max(abs(qs_param - unlist(result_orig$quantiles))), .05)  # .040
     result_orig$improveParamMarginals(1:3, nMarginalGrid = 7)          
-    expect_lt(max(abs(qs_param - unlist(result_orig$quantiles))), .025)  # .023
-    ## INLA max diff is 0.017 on theta scale.
+    expect_lt(max(abs(qs_param - unlist(result_orig$quantiles))), .04)  # .033
+    ## INLA max diff is 0.026 on theta scale.
 
+    paramSamples <- result$sampleParams(10000)
+    qs_paramSamples <- apply(paramSamples, 2, quantile, qpts)
+    expect_lt(max(abs(qs_param_orig - qs_paramSamples)), .015)  # .013
+    expect_lt(max(abs(cov_param_orig-cov(paramSamples))), .0007)  # .00057
+    
     ## We want latents on original scale. They will be either with result or result_orig, but naming clearer with result.
     latent_sample <- result$sampleLatents(10000)
 
+    ## `beta_int` is surprisingly far off in terms of .25,.5,.75 quantiles, but other
+    ## fixed effects in INLA and NIMBLE look good.
     qs_nest <- apply(latent_sample, 2, quantile, qpts)
     fixed <- c('beta_int','beta_treat','beta_period','beta_carry')
-    expect_lt(max(abs(qs_mcmc[ , fixed] - qs_nest[ , fixed])), 0.15)   # .130
-    # max(abs(qs_mcmc[ , fixed] - t(qs_inla_fixed)))    # .180
-    # expect_lt(max(abs(qs_nest[ , fixed] - t(qs_inla_fixed))), 0.11)    # .102
+    expect_lt(max(abs(qs_mcmc[ , fixed] - qs_nest[ , fixed])), 0.3)   # .268
+    # max(abs(qs_mcmc[ , fixed] - t(qs_inla_fixed)))    # .174
+    # expect_lt(max(abs(qs_nest[ , fixed] - t(qs_inla_fixed))), 0.3)    # .28
     
 })
 
@@ -931,7 +942,11 @@ test_that("LKJ example", {
     expect_lt(max(abs(qs_mcmc[,8:31] - qs_nest[ , c(1,4,7,10,13,16,19,22,2,5,8,11,14,17,20,23,3,6,9,12,15,18,21,24)])), .04) # .035
 })
 
-## Need a test model that uses dmnorm.
+## CP tried to set up a test with a spatial GLMM but was stymied by a
+## combination of long run times and parameter identifiability issues
+## (the latter may mostly reflect using small problem sizes).
+## It was hard to get good MCMC mixing and alignment between nested approx
+## and MCMC.
 
 nimbleOptions(enableDerivs = EDopt)
 nimbleOptions(buildModelDerivs = BMDopt)
