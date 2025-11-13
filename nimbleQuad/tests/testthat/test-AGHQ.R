@@ -192,7 +192,7 @@ test_that("AGH Quadrature 1D Binomial-Beta", {
 
   cm <- compileNimble(m)
   # mQuad <- buildLaplace(model = m)
-  mQuad <- buildAGHQ(model = m, nQuad = 5, control=list(innerOptimMethod="nlminb")) # tolerances set for this result
+  mQuad <- buildAGHQ(model = m, control=list(innerOptimMethod="nlminb")) # tolerances set for this result
   cmQuad <- compileNimble(mQuad, project = m)
 
   param.val <- c(7, 1)
@@ -228,7 +228,6 @@ test_that("AGH Quadrature 1D Binomial-Beta", {
   }
 
   ## Check Laplace against RTMB here:
-  #cmQuad$setQuadSize(1)
   expect_equal(cmQuad$calcLogLik(param.val), -57.1448725555934729, 1e-06)
 
   ## Check against manual RTMB version 5 nodes.
