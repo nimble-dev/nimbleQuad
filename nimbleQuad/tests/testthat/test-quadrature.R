@@ -38,7 +38,7 @@ test_that("Check Basic Quad Rules work.", {
 
   ## Should integrate standard normal to 1.
   F1 <- sum(ghe[,1]*dnorm(ghe[,2]))
-  expect_equal(F1, 1, 1e-16)
+  expect_equal(F1, 1, 1e-15)  # MacOS gives F1 as 1+mach.epsilon
   ## CCD2 integrates bivariate normal
   F2 <- sum(ccd[,1]*dnorm(ccd[,2])*dnorm(ccd[,3]))
   expect_equal(F2, 1, 1e-16)
