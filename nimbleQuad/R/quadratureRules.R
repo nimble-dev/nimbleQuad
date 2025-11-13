@@ -55,7 +55,7 @@ quadGH <- nimbleFunction(run = function(levels = integer(0, default = 1), type =
     if (levels == 1) {
         ## Laplace Approximation:
         res[1, 2] <- 0
-        res[1, 1] <- sqrt(pi)
+        res[1, 1] <- 1
     } else {
         i <- 1:(levels - 1)
         dv <- sqrt(i/2)
@@ -77,18 +77,18 @@ quadGH <- nimbleFunction(run = function(levels = integer(0, default = 1), type =
             x[ceiling(levels/2)] <- 0
         V <- t(V[, inds])
 
-        w <- sqrt(pi)*V[, 1]^2
+        w <- V[, 1]^2
         
         res[, 1] <- w
         res[, 2] <- x
     }
     ## For GHe
-    ## Update nodes and weights in terms of z = x/sqrt(2) and include
+    ## Update weights in terms of z = x/sqrt(2) and include
     ## Gaussian kernel in weight to integrate an arbitrary function. (i.e. excludes normal distr)
     if(type == "GHe"){
-      res[,1] <- res[,1] * sqrt(2) * exp(res[,2]^2)
-      res[,2] <- res[,2] * sqrt(2)
+      res[,1] <- res[,1] * sqrt(2*pi) * exp(res[,2]^2)
     }
+    res[,2] <- res[,2] * sqrt(2) ## Always scale nodes by sqrt 2 but after updating weights.
 
     returnType(double(2))
     return(res)
@@ -102,21 +102,26 @@ quadGH <- nimbleFunction(run = function(levels = integer(0, default = 1), type =
 #'
 #' @details
 #' This function a 1D Gauss-Hermite Quadrature Grid (nodes and weights). When choosing `type = "GHe"`, 
-#' the nodes are adjusted to integrate a general function, adjusting the points by
-#' the sqrt(2) and the weights by sqrt(2) * exp(x^2). It cannot be compiled without being
-#' included within a virtual nimble list "QUAD_RULE_BASE".
+#' the nodes and weights are to integrate a general function. If `type = "GHN"`,
+#' the weights are multiplied by a standard normal. It cannot be compiled without being included within 
+#' a virtual nimble list "QUAD_RULE_BASE".
 #'
 #' @author Paul van Dam-Bates
 #'
 #' @references
 #'
 #' Jackel, P. (2005). A note on multivariate Gauss-Hermite quadrature. London: ABN-Amro. Re.
+#' Liu, Q. and Pierce, D. (1994) A Note on Gauss-Hermite Quadrature. Biometrika, 83, 624-629.
 #'
 #' @export
 quadRule_GH = nimbleFunction(
     contains = QUAD_RULE_BASE,
     name = "quadRule_GH",
-    setup = function(type = "GHe") {},
+    setup = function(type = "GHe") {
+      if(!type %in% c("GHN", "GHe")){
+        stop("Error:  Only types GHe (standard Gauss Hermite rule) or GHN (weights include normal density) are allowed for quadRule_GH.")
+      }
+    },
     run = function() {},
     methods = list(
         buildGrid = function(levels = integer(0, default = 0), d = integer(0, default = 1)) {

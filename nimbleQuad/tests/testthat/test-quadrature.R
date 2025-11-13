@@ -9,6 +9,7 @@ test_that("Check Basic Quad Rules work.", {
       quadRule_nfl <- nimbleFunctionList(QUAD_RULE_BASE)
       quadRule_nfl[[1]] <- quadRule_GH(type="GHe")
       quadRule_nfl[[2]] <- quadRule_CCD(f0 = 1.1)
+      quadRule_nfl[[3]] <- quadRule_GH(type="GHN")
     },
     run = function(){},
     methods = list(
@@ -17,20 +18,26 @@ test_that("Check Basic Quad Rules work.", {
          returnType(double(2))
          return(out)
       },
-      gh = function(levels = double()){
+      ghe = function(levels = double()){
          out <- quadRule_nfl[[1]]$buildGrid(levels = levels, d = 1)
          returnType(double(2))
          return(out)
-      }
+      },
+      ghn = function(levels = double()){
+         out <- quadRule_nfl[[3]]$buildGrid(levels = levels, d = 1)
+         returnType(double(2))
+         return(out)
+      }      
     )
   )
   rules <- rule_wrapper()
   rulesc <- compileNimble(rules)
-  gh <- rulesc$gh(3)
+  ghe <- rulesc$ghe(3)
   ccd <- rulesc$ccd(2)
+  ghn <- rulesc$ghn(3)
 
   ## Should integrate standard normal to 1.
-  F1 <- sum(gh[,1]*dnorm(gh[,2]))
+  F1 <- sum(ghe[,1]*dnorm(ghe[,2]))
   expect_equal(F1, 1, 1e-16)
   ## CCD2 integrates bivariate normal
   F2 <- sum(ccd[,1]*dnorm(ccd[,2])*dnorm(ccd[,3]))
@@ -41,10 +48,23 @@ test_that("Check Basic Quad Rules work.", {
   expect_equal(F21, 1, 1e-14)
 
   ## pracma check on AGHQ
-  gh21 <- rulesc$gh(21)
+  gh21 <- rulesc$ghe(21)
   pgh <- pracma::gaussHermite(21)
   expect_equal(pgh$x*sqrt(2), gh21[,2], 1e-14)
   expect_equal(pgh$w*sqrt(2)*exp(pgh$x^2), gh21[,1], 1e-8)
+  
+  ## Basic Laplace Test:
+  lap <- rulesc$ghe(1)
+  expect_equal(lap[1,], c(sqrt(2*pi),0), 1e-16)
+  lap2 <- rulesc$ghn(1)
+  expect_equal(lap2[1,], c(1,0), 1e-16)
+  
+  ## Test GHN vs mvQuad:
+  nw <- mvQuad::createNIGrid(dim=1, type="GHN", level=5)
+  ghn5 <- rulesc$ghn(5)
+  expect_equal(ghn5[,1], nw$weights[,1], 1e-14)
+  expect_equal(ghn5[,2], nw$nodes[,1], 1e-14)
+
 })
 
 test_that("Returns Laplace when nQuad = 1, and one rule is passed.", {
