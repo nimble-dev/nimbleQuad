@@ -24,6 +24,6 @@ install.packages('lme4', type = 'source')
 ## later, remove below:
 install.packages('devtools')
 library(devtools)
-devtools::install_github('nimble-dev/nimble', ref = 'devel', subdir = 'packages/nimble', INSTALL_opts = c("--install-tests"))
+devtools::install_github('nimble-dev/nimble', ref = 'no-laplace', subdir = 'packages/nimble', INSTALL_opts = c("--install-tests"))
 ## remove until here
 
