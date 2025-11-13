@@ -55,7 +55,7 @@ quadGH <- nimbleFunction(run = function(levels = integer(0, default = 1), type =
     if (levels == 1) {
         ## Laplace Approximation:
         res[1, 2] <- 0
-        res[1, 1] <- 1
+        res[1, 1] <- sqrt(pi)
     } else {
         i <- 1:(levels - 1)
         dv <- sqrt(i/2)
@@ -88,8 +88,6 @@ quadGH <- nimbleFunction(run = function(levels = integer(0, default = 1), type =
     if(type == "GHe"){
       res[,1] <- res[,1] * sqrt(2) * exp(res[,2]^2)
       res[,2] <- res[,2] * sqrt(2)
-    }else{
-      
     }
 
     returnType(double(2))
