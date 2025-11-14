@@ -250,7 +250,7 @@ test_that("3-d case", {
         out <- runMCMC(cmcmc, niter=51000, nburnin=1000)
         qs_mcmc <- apply(out, 2, quantile, qpts)
         save(qs_mcmc, file = 'mcmc-results1.Rda')
-    } else load('mcmc-results1.Rda')
+    } else load(system.file(file.path('tests', 'testthat', 'mcmc-results1.Rda'), package = 'nimbleQuad'))
     
     approx <- buildNestedApprox(m, latentNodes = c('eta'), paramNodes = c('mu','sigma','phi'))
     capprox <- compileNimble(approx, project = m)
@@ -299,7 +299,7 @@ test_that("3-d case, no RE variation", {
         system.time(out <- runMCMC(cmcmc, niter=501000, nburnin=1000, thin = 10) )
         qs_mcmc <- apply(out, 2, quantile, qpts)
         save(qs_mcmc, file = 'mcmc-results2.Rda')
-    } else load('mcmc-results2.Rda')
+    } else load(system.file(file.path('tests', 'testthat', 'mcmc-results2.Rda'), package = 'nimbleQuad'))
 
     approx <- buildNestedApprox(m, latentNodes = c('eta'), paramNodes = c('mu','sigma','phi'))
     capprox <- compileNimble(approx, project = m)
@@ -362,7 +362,7 @@ test_that("Poisson 2-d case", {
         out <- runMCMC(cmcmc, niter=51000,nburnin=1000)
         qs_mcmc <- apply(out, 2, quantile, qpts)
         save(qs_mcmc, file = 'mcmc-results3.Rda')
-    } else load('mcmc-results3.Rda')
+    } else load(system.file(file.path('tests', 'testthat', 'mcmc-results3.Rda'), package = 'nimbleQuad'))
 
     ## Treating mu as latent. Results are closer to INLA and HMC than if mu is parameter.
     m <- nimbleModel(code, data = list(y = y), constants = list(n=n, J=J),
@@ -490,7 +490,7 @@ test_that("nested REs in Bernoulli GLMM", {
         qs_mcmc <- apply(out,2,quantile,qpts)
 
         save(qs_mcmc, file = 'mcmc-results4.Rda')
-    } else load('mcmc-results4.Rda')   
+    } else load(system.file(file.path('tests', 'testthat', 'mcmc-results4.Rda'), package = 'nimbleQuad'))
 
 
 
@@ -652,7 +652,8 @@ test_that("crossed REs in Bernoulli GLMM", {
         
         qs_mcmc <- apply(out, 2, quantile, qpts)
         save(qs_mcmc, file = 'mcmc-results5.Rda')
-    } else load('mcmc-results5.Rda')   
+    } else load(system.file(file.path('tests', 'testthat', 'mcmc-results5.Rda'), package = 'nimbleQuad'))
+   
 
     code <- nimbleCode({
         for(j in 1:nstates)
@@ -699,7 +700,7 @@ test_that("crossed REs in Bernoulli GLMM", {
 
 test_that("inhaler (Dirichlet) example", {
 
-    load('inhaler.Rda')
+    load(system.file(file.path('tests', 'testthat', 'inhaler.Rda'), package = 'nimbleQuad'))
 
     ## Mimic INLA parameterization
     code <- nimbleCode({
@@ -761,7 +762,8 @@ test_that("inhaler (Dirichlet) example", {
         qs_theta <- apply(theta, 2, quantile, qpts)
         qs_mcmc <- apply(out, 2, quantile, qpts)        
         save(qs_mcmc, qs_param, qs_theta, qs_param_orig, cov_param_orig, file = 'mcmc-results6.Rda')
-    } else load('mcmc-results6.Rda')
+    } else load(system.file(file.path('tests', 'testthat', 'mcmc-results6.Rda'), package = 'nimbleQuad'))
+
     
     K <- 4
     m <- nimbleModel(code, data = list(rating = inhaler$rating),inits = list(psi = rep(.25, 4), beta_int = 0, beta_treat = 0, beta_period = 0, beta_carry = 0),
@@ -839,7 +841,8 @@ test_that("Wishart example", {
         out <- cbind(log(out[,'sigma']), trSmp, out[,10:ncol(out)][ , c(1,9,17,2,10,18,3,11,19,4,12,20,5,13,21,6,14,22,7,15,23,8,16,24)])
         qs_mcmc <- apply(out, 2, quantile, qpts)
         save(qs_mcmc, file = 'mcmc-results7.Rda')
-    } else load('mcmc-results7.Rda')
+    } else load(system.file(file.path('tests', 'testthat', 'mcmc-results7.Rda'), package = 'nimbleQuad'))
+
 
 
     m <- nimbleModel(code, data=list(y=y,x=x),inits = list(z = rep(0,3), Q = diag(3), b = matrix(0,J,3),sigma=1), constants = list(R=diag(3),n=n,J=J), buildDerivs = TRUE)
@@ -923,8 +926,7 @@ test_that("LKJ example", {
         qs_mcmc <- apply(out, 2, quantile, qpts)
         save(qs_mcmc, file = 'mcmc-results8.Rda')
         
-    } else load('mcmc-results8.Rda')
-
+    } else load(system.file(file.path('tests', 'testthat', 'mcmc-results8.Rda'), package = 'nimbleQuad'))
 
     m <- nimbleModel(code, data=list(y=y,x=x),inits = list(z = rep(0,3), Ustar = diag(3), sds = rep(1, 3), b = matrix(0,J,3),sigma=1), constants = list(n=n,J=J), buildDerivs = TRUE)
     cm <- compileNimble(m)
