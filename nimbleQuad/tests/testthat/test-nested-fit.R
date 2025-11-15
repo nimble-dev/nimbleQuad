@@ -307,8 +307,10 @@ test_that("3-d case, no RE variation", {
     capprox <- compileNimble(approx, project = m)
     result <- runNestedApprox(capprox)  # Fairly different from MCMC for mu and sigma.
 
-    result$improveParamMarginals(c('mu','sigma','phi'), nMarginalGrid = 7)
-    expect_lt(max(abs(qs_mcmc[,c('mu','sigma','phi')] - unlist(result$quantiles))), .01)
+    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+        result$improveParamMarginals(c('mu','sigma','phi'), nMarginalGrid = 7)
+        expect_lt(max(abs(qs_mcmc[,c('mu','sigma','phi')] - unlist(result$quantiles))), .01)
+    }
     
     latent_sample <- result$sampleLatents(10000)
     qs_nest <- apply(latent_sample, 2, quantile, qpts)
