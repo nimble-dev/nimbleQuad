@@ -63,7 +63,9 @@ test_that("Laplace simplest 2x1D works, with multiple data for each", {
   expect_equal(summ$randomEffects$estimate, ahat, tol = 1e-6)
   # Covariance matrix
   vcov <- diag(c(0, rep(1/(3*0.8^2/4 + 1/9), 2))) + matrix(c(1, rep(0.09398496, 2)), ncol = 1) %*% (1/0.04511278) %*% t(matrix(c(1, rep(0.09398496, 2)), ncol = 1))
-  expect_equal(vcov, summ$vcov, tol = 1e-7)
+  if(Sys.info()['sysname'] != "Windows")  # Issue 66
+      expect_equal(vcov, summ$vcov, tol = 1e-7)
+      
   ## Check covariance matrix for params only
   tryResult <- try({
       summ2 <- cmLaplace$summary(opt, originalScale = TRUE, randomEffectsStdError = TRUE, jointCovariance = FALSE)

@@ -15,8 +15,8 @@ testFiles <- testFiles[c(2:length(testFiles),1)]
 
 ## See issues 65 and 66 for strange error preventing running some
 ## Laplace tests after earlier tests.
-if(Sys.info()['sysname'] == "Windows")
-    testFiles <- testFiles[!grepl("laplace[2-9]", testFiles)]
+#if(Sys.info()['sysname'] == "Windows")
+#    testFiles <- testFiles[!grepl("laplace[2-9]", testFiles)]
 
 for(test in testFiles) {
     cat('===========================================================\n')
