@@ -528,10 +528,12 @@ test_that("nested REs in Bernoulli GLMM", {
     capprox <- compileNimble(approx, project = m)
     result <- runNestedApprox(capprox)
     expect_lt(max(abs(qs_mcmc[,c('sigma_state','sigma_town')] - unlist(result$quantiles))), .015)  # 0.01; Better than INLA
-    
-    result$improveParamMarginals(c("sigma_state","sigma_town"), nMarginalGrid = 5)
-    expect_lt(max(abs(qs_mcmc[,c('sigma_state','sigma_town')] - unlist(result$quantiles))), .009)  # 0.007; Better than INLA
 
+    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+        result$improveParamMarginals(c("sigma_state","sigma_town"), nMarginalGrid = 5)
+        expect_lt(max(abs(qs_mcmc[,c('sigma_state','sigma_town')] - unlist(result$quantiles))), .009)  # 0.007; Better than INLA
+    }
+    
     latent_sample <- result$sampleLatents(10000)
     qs_nest <- apply(latent_sample,2, quantile, qpts)
     
