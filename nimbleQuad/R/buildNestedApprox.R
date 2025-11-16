@@ -532,7 +532,7 @@ buildNestedApprox <- nimbleFunction(
 
             ## For each value of paramTrans_i, we need to do AGHQ which means finding the
             ## mode of the other parameters, transforming and computing.
-            nimCat("Calculating inner AGHQ/Laplace approximation at (", nPts, ") marginal points with ", nQuadGrid, " quadrature grid points (one dot per grid point): ")
+            nimCat("  - calculating inner AGHQ/Laplace approximation at (", nPts, ") marginal points with ", nQuadGrid, " quadrature grid points (one dot per grid point): ")
             for (i in 1:nPts) {
                 res[i, 1] <- paramTrans1_nodes[i, 2] * stdDev + paramTransMode[pIndex]
                 paramTrans_j[pIndex] <- res[i, 1]

@@ -3669,7 +3669,7 @@ runAGHQ <- function(AGHQ, pStart,
 #' "outer" optimization can provide an AD-based gradient to the chosen outer
 #' optimization function or can omit this, causing any derivative-based
 #' optimization method to use finite differences. Turning this off allows one
-#' to avoid any complexity associatend with use of AD applied to the inner
+#' to avoid any complexity associated with use of AD applied to the inner
 #' Laplace/AGHQ approximation. This option is not active when
 #' when \code{ADuseNormality = TRUE}, as is the case by default,
 #' because outer optimization does not (and cannot because of limitations in
