@@ -992,6 +992,185 @@ test_that("LKJ example", {
     expect_lt(max(abs(qs_mcmc[,8:31] - qs_nest[ , c(1,4,7,10,13,16,19,22,2,5,8,11,14,17,20,23,3,6,9,12,15,18,21,24)])), .04) # .035
 })
 
+test_that("dmnorm case - revised nested RE example", {
+    
+    set.seed(1)
+    n <- 10000
+    ntowns <- 262
+    nstates <- 47
+
+    gender <- sample(c("M","F"), n, replace = TRUE)
+    livingarrangement <- sample(c("H","D","I"), n, prob = c(.5,.2,.3), replace = TRUE)
+    race <- sample(c("AI","AS","B","H", "W"), n, prob = c(.03,.05,.1,.32,.5), replace = TRUE)
+
+    sex <- as.numeric(gender == "F")
+    live1 <- as.numeric(livingarrangement == "D")
+    live2 <- as.numeric(livingarrangement == "I")
+
+    race1 <- as.numeric(race == "AI")
+    race2 <- as.numeric(race == "AS")
+    race3 <- as.numeric(race == "B")
+    race4 <- as.numeric(race == "H")
+
+    town <- rcat(n, prob = rep(1/ntowns, ntowns))
+    town2state <- sample(seq_len(nstates), ntowns, replace = TRUE)
+    state <- town2state[town]
+    sigma_state <- 0.5
+    sigma_town <- 0.25
+
+    beta0 <- 0.1
+    beta_sex <- 0.2
+    beta_live <- c(-.1, .05)
+    beta_race <- c(-.2, .1, -.05, 0)
+
+    u1 <- rnorm(nstates, 0, sigma_state)
+    u2 <- rnorm(ntowns, 0, sigma_town)
+
+    eta <- beta0 + beta_sex*sex + beta_live[1]*live1 + beta_live[2]*live2 +
+        beta_race[1]*race1 + beta_race[2]*race2 + beta_race[3]*race3 + beta_race[4]*race4 + u1[state] + u2[town]
+
+    u <- u1[town2state] + u2
+    
+    p <- expit(eta)
+
+    y <- rbinom(n, 1, p)
+
+   
+    if(FALSE) {
+        ## Use noncentered for better HMC mixing and use original hierarchical structure rather than compound symmetry.
+        code <- nimbleCode({
+            for(j in 1:nstates)
+                u1[j] ~ dnorm(0, sd = 1)
+            for(j in 1:ntowns)
+                u2[j] ~ dnorm(0, sd = 1)
+            sigma_state ~ dhalfflat()
+            sigma_town ~ dhalfflat()
+
+            for(i in 1:n) {
+                eta[i] <- beta0 + beta_sex*sex[i] + beta_live[1]*live1[i] + beta_live[2]*live2[i] +
+                    beta_race[1]*race1[i] + beta_race[2]*race2[i] + beta_race[3]*race3[i] + beta_race[4]*race4[i] +
+                    sigma_state*u1[state[i]] + sigma_town*u2[town[i]]
+                y[i] ~ dbern(expit(eta[i]))
+            }
+            beta0 ~ dflat()
+            beta_sex ~ dflat()
+            for(j in 1:2)
+                beta_live[j] ~ dflat()
+            for(j in 1:4)
+                beta_race[j] ~ dflat()
+        })
+
+        set.seed(1)
+        m <- nimbleModel(code, data = list(y=y), constants = list(ntowns = ntowns, nstates = nstates, n=n, state = state, town = town, sex = sex, race1=race1,race2=race2,race3=race3,race4=race4,live1=live1,live2=live2), inits = list(beta0 = 0, beta_sex = 0, beta_live = rep(0,2), beta_race = rep(0,4), sigma_state = 1, sigma_town = 1, u = rnorm(ntowns)), calculate = FALSE, buildDerivs = TRUE) 
+
+        cm <- compileNimble(m)
+
+        library(nimbleHMC)
+        mcmc <- buildHMC(m)
+        cmcmc <- compileNimble(mcmc, project = m)
+
+        system.time(out <- runMCMC(cmcmc, niter = 21000, nburnin = 1000)) #  n=1e4: 1367 sec.
+#HERE
+        u1cols <- grep("u1", colnames(out))
+        u2cols <- grep("u2", colnames(out))
+
+        ## Rescale noncentered estimates.
+        out[,u1cols] <- out[,'sigma_state']*out[,u1cols]
+        out[,u2cols] <- out[,'sigma_town']*out[,u2cols]
+
+        out_u <- out[,u2cols] + out[, u1cols][, town2state]
+        qs_mcmc <- apply(cbind(out[ , 1:10], out_u),2,quantile,qpts)
+
+        save(qs_mcmc, file = 'mcmc-results9.Rda')
+    } else load(system.file(file.path('tests', 'testthat', 'mcmc-results9.Rda'), package = 'nimbleQuad'))
+
+    compoundSymmetry <- nimbleFunction(
+        run = function(membership = double(1), sigma_state = double(0), sigma_town = double(0)) {
+            returnType(double(2))
+            p <- length(membership)
+
+            ss2 <- sigma_state^2
+            out <- matrix(nrow = p, ncol = p, init = TRUE)
+            for(i in 1:(p-1))
+                for(j in (i+1):p)
+                    if(membership[i] == membership[j]) {
+                        out[i, j] <- ss2
+                        out[j, i] <- ss2
+                    }
+            diag(out) <- sigma_state^2 + sigma_town^2
+            return(out)
+        }, buildDerivs = list(run = list(ignore=c('i','j')))
+    )
+    temporarilyAssignInGlobalEnv(compoundSymmetry)
+
+
+    code <- nimbleCode({
+        sigma_state ~ dhalfflat()
+        sigma_town ~ dhalfflat()
+
+        for(i in 1:n) {
+            eta[i] <- beta0 + beta_sex*sex[i] + beta_live[1]*live1[i] + beta_live[2]*live2[i] +
+                beta_race[1]*race1[i] + beta_race[2]*race2[i] + beta_race[3]*race3[i] + beta_race[4]*race4[i] +
+                u[town[i]]
+            y[i] ~ dbern(expit(eta[i]))
+        }
+        beta0 ~ dflat()
+        beta_sex ~ dflat()
+        for(j in 1:2)
+            beta_live[j] ~ dflat()
+        for(j in 1:4)
+            beta_race[j] ~ dflat()
+        C[1:ntowns,1:ntowns] <- compoundSymmetry(town2state[1:ntowns], sigma_state, sigma_town)
+        u[1:ntowns] ~ dmnorm(zeroes[1:ntowns], cov = C[1:ntowns,1:ntowns])
+    })
+    set.seed(1)
+    m <- nimbleModel(code, data = list(y=y), constants = list(ntowns = ntowns, n = n, town = town, sex = sex, race1=race1,race2=race2,race3=race3,race4=race4,live1=live1,live2=live2), inits = list(town2state = town2state, beta0 = 0, beta_sex = 0, beta_live = rep(0,2), beta_race = rep(0,4), sigma_state = 1, sigma_town = 1, u = rnorm(ntowns), zeroes = rep(0, ntowns)), calculate = FALSE, buildDerivs = TRUE)  
+    cm <- compileNimble(m)
+    
+    approx <- buildNestedApprox(m, latentNodes = c('u','beta0','beta_sex','beta_race','beta_live'),
+                                paramNodes = c('sigma_state','sigma_town'))
+    capprox <- compileNimble(approx, project = m)
+    result <- runNestedApprox(capprox)
+    expect_lt(max(abs(qs_mcmc[,c('sigma_state','sigma_town')] - unlist(result$quantiles))), .015)  # .0099
+
+    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+        result$improveParamMarginals(c("sigma_state","sigma_town"), nMarginalGrid = 5)
+        expect_lt(max(abs(qs_mcmc[,c('sigma_state','sigma_town')] - unlist(result$quantiles))), .01) # .007 
+    }
+    
+    latent_sample <- result$sampleLatents(10000)
+    qs_nest <- apply(latent_sample,2, quantile, qpts)
+    
+    expect_lt(max(abs(qs_mcmc[,1:8] - qs_nest[,c(1,3,4,5:8,2)])), .025) # .019
+
+    expect_lt(max(abs(qs_mcmc[,11:272] - qs_nest[,9:270])), .045) # .040
+
+    ## Now check if not using analytic normality.
+    
+    m <- nimbleModel(code, data = list(y=y), constants = list(ntowns = ntowns, n = n, town = town, sex = sex, race1=race1,race2=race2,race3=race3,race4=race4,live1=live1,live2=live2), inits = list(town2state = town2state, beta0 = 0, beta_sex = 0, beta_live = rep(0,2), beta_race = rep(0,4), sigma_state = 1, sigma_town = 1, u = rnorm(ntowns), zeroes = rep(0, ntowns)), calculate = FALSE, buildDerivs = TRUE)  
+    cm <- compileNimble(m)
+    
+    approx <- buildNestedApprox(m, latentNodes = c('u','beta0','beta_sex','beta_race','beta_live'),
+                                paramNodes = c('sigma_state','sigma_town'), control = list(ADuseNormality = FALSE))
+    capprox <- compileNimble(approx, project = m)
+    result <- runNestedApprox(capprox)
+    expect_lt(max(abs(qs_mcmc[,c('sigma_state','sigma_town')] - unlist(result$quantiles))), .015)  # .0096
+
+    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+        result$improveParamMarginals(c("sigma_state","sigma_town"), nMarginalGrid = 5)
+        expect_lt(max(abs(qs_mcmc[,c('sigma_state','sigma_town')] - unlist(result$quantiles))), .01) # .006
+    }
+    
+    latent_sample <- result$sampleLatents(10000)
+    qs_nest <- apply(latent_sample,2, quantile, qpts)
+    
+    expect_lt(max(abs(qs_mcmc[,1:8] - qs_nest[,c(1,3,4,5:8,2)])), .02) # .016
+
+    expect_lt(max(abs(qs_mcmc[,11:272] - qs_nest[,9:270])), .055) # .049
+
+
+})
+
 ## CP tried to set up a test with a spatial GLMM but was stymied by a
 ## combination of long run times and parameter identifiability issues
 ## (the latter may mostly reflect using small problem sizes).
