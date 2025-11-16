@@ -490,7 +490,9 @@ buildNestedApprox <- nimbleFunction(
                                                 quadRule = character(0, default = "NULL"),
                                                 prune = double(0, default = -1)) {
             one_time_fixes()
-                                  
+
+            if(pIndex <= 0 | pIndex > nParamTrans)
+                stop("calcMarginalParamQuad: Transformed parameter index, `pIndex`, requested is invalid.")
             ## Build the quadrature grid points:
             if (dim(paramTrans1_nodes)[1] != nPts) paramTrans1_nodes <<- quadGH(levels = nPts, type = "GHe")
 
@@ -600,7 +602,7 @@ buildNestedApprox <- nimbleFunction(
         calcMarginalParamIntegFree = function(pIndex = integer()) {
             ## Error Trapping:
             if(pIndex <= 0 | pIndex > nParamTrans)
-                stop("Transformed parameter index requested is larger than available.")
+                stop("calcMarginalParamQuad: Transformed parameter index, `pIndex`, requested is invalid.")
                 
             ## Requires running `calcSkewedSD()` first.
             if (!skewedSDCached) calcSkewedSD()
