@@ -67,7 +67,10 @@ approxSummary <- R6Class("approxSummary",
             if (is.null(self$params)) self$params <- self$generateParamsMatrix()
             if(length(self$params)) {
                 print(self$params)
+                if(nrow(self$params) < approx$innerMethods$npar)
+                    cat("Analytic marginals for remaining parameters not available (non-1:1 transformations).\n  Use `sampleParams`.\n")
             } else cat("  No analytic marginals available for non-1:1 transformations; use `sampleParams`.\n")
+            
             cat("\nMarginal log-likelihood (asymmetric Gaussian approximation): ",
                 self$marginalLogLik, "(*)\n", sep = "")
             if(self$approx$paramGridRule == "CCD")
