@@ -863,7 +863,26 @@ test_that("Wishart example", {
     latent_sample <- result$sampleLatents(10000)
     qs_nest <- apply(latent_sample,2,quantile,qpts) 
     expect_lt(max(abs(qs_mcmc[ , 8:31] - qs_nest)), .08)  # .065; This was <0.04 at some point when I ran it.
+
+    ## Now check if not using analytic normality.
+ 
+    m <- nimbleModel(code, data=list(y=y,x=x),inits = list(z = rep(0,3), Q = diag(3), b = matrix(0,J,3),sigma=1), constants = list(R=diag(3),n=n,J=J), buildDerivs = TRUE)
+    cm <- compileNimble(m)
+    
+    approx <- buildNestedApprox(m, control = list(ADuseNormality = FALSE))
+    capprox <- compileNimble(approx, project = m)
+    result <- runNestedApprox(capprox, originalScale = FALSE)  
+    expect_lt(max(abs(qs_mcmc[ , 1:7] - unlist(result$quantiles))), .1)  # .092
+    result$improveParamMarginals(1:7, nMarginalGrid = 5) # Much better; fairly slow to compute with so many params and grid points.
+    expect_lt(max(abs(qs_mcmc[ , 1:7] - unlist(result$quantiles))), .025) # .022
+
+    result <- runNestedApprox(capprox)
+    latent_sample <- result$sampleLatents(10000)
+    qs_nest <- apply(latent_sample,2,quantile,qpts) 
+    expect_lt(max(abs(qs_mcmc[ , 8:31] - qs_nest)), .08)  # .065; This was <0.04 at some point when I ran it.
 })
+
+
 
 test_that("LKJ example", {
     uppertri_mult_diag <- nimbleFunction(
@@ -938,11 +957,31 @@ test_that("LKJ example", {
     approx <- buildNestedApprox(m)
     capprox <- compileNimble(approx, project = m)
     
-    result <- runNestedApprox(capprox, originalScale = FALSE) ## some rather far off
-    max(abs(qs_mcmc[,1:7] - unlist(result$quantiles)))
+    result <- runNestedApprox(capprox, originalScale = FALSE) 
+    # expect_lt(max(abs(qs_mcmc[,1:7] - unlist(result$quantiles))), ??)  # Some rather far off, so no test.
+
+    result$improveParamMarginals(1:7, nMarginalGrid=5)  # time-consuming
+    expect_lt(max(abs(qs_mcmc[,1:7] - unlist(result$quantiles))), .035)  # .028
+
+    result <- runNestedApprox(capprox)
+    latent_sample <- result$sampleLatents(10000)
+    
+    qs_nest <- apply(latent_sample,2,quantile,qpts)
+    expect_lt(max(abs(qs_mcmc[,8:31] - qs_nest[ , c(1,4,7,10,13,16,19,22,2,5,8,11,14,17,20,23,3,6,9,12,15,18,21,24)])), .04) # .035
+
+    ## Now check if not using analytic normality.
+
+    m <- nimbleModel(code, data=list(y=y,x=x),inits = list(z = rep(0,3), Ustar = diag(3), sds = rep(1, 3), b = matrix(0,J,3),sigma=1), constants = list(n=n,J=J), buildDerivs = TRUE)
+    cm <- compileNimble(m)
+    
+    approx <- buildNestedApprox(m, control = list(ADuseNormality = FALSE))
+    capprox <- compileNimble(approx, project = m)
+    
+    result <- runNestedApprox(capprox, originalScale = FALSE) 
+    ## expect_lt(max(abs(qs_mcmc[,1:7] - unlist(result$quantiles))), ??)   # Some rather far off, so no test. 
     
     result$improveParamMarginals(1:7, nMarginalGrid=5)  # time-consuming
-    expect_lt(max(abs(qs_mcmc[,1:7] - unlist(result$quantiles))), .06)  # .056, .044 with nMarginalGrid=7
+    expect_lt(max(abs(qs_mcmc[,1:7] - unlist(result$quantiles))), .035)  # .028
 
     result <- runNestedApprox(capprox)
     latent_sample <- result$sampleLatents(10000)
