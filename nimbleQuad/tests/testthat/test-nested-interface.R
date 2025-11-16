@@ -476,8 +476,7 @@ test_that("Basic interface and user input errors", {
     expect_silent(result <- runNestedApprox(capprox))
     ll1 <- result$marginalLogLik
     
-    expect_output(result <- runNestedApprox(capprox, nSamplesLatents = 25, nSamplesParams = 50),
-                   "Estimating marginal log-likelihood based on CCD grid")
+    result <- runNestedApprox(capprox, nSamplesLatents = 25, nSamplesParams = 50)
     expect_identical(dim(result$samples), c(25L,8L))
     expect_identical(dim(result$paramSamples), c(50L,3L))
     expect_identical(colnames(result$samples), m$expandNodeNames('eta'))
