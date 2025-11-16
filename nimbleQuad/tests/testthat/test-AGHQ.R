@@ -348,11 +348,8 @@ test_that("AGH Quadrature Comparison to LME4 1 RE", {
   m$calculate()
 
   cm <- compileNimble(m)
-  # N.B. It is not clear that setting reltol values less than sqrt(.Machine$double.eps) is useful, so we may want to update this:
-  mQuad <- buildAGHQ(model = m, nQuad = 21, control = list(outerOptimControl = list(reltol = 1e-16)))
-  mLaplace <- buildAGHQ(model = m, nQuad = 1, control = list(outerOptimControl = list(reltol = 1e-16),
-                                                             outerOptimMethod = 'BFGS'))
-  mQuad$updateSettings(innerOptimMethod="nlminb", outerOptimMethod="BFGS")
+  mQuad <- buildAGHQ(model = m, nQuad = 21)
+  mLaplace <- buildAGHQ(model = m, nQuad = 1)
   cQL <- compileNimble(mQuad, mLaplace, project = m)
   cmQuad <- cQL$mQuad
   cmLaplace <- cQL$mLaplace
@@ -369,8 +366,6 @@ test_that("AGH Quadrature Comparison to LME4 1 RE", {
     # sprintf("%.16f",   lme4::fixef(mod.tmb))
     # sprintf("%.16f",   attr(unclass(glmmTMB::VarCorr(mod.tmb))[[1]]$grp, 'stddev'))
 
-  # These findMLE calls work with "BFGS" and fail with "nlminb"
-  # But with BFGS we get lots of warnings about uncached inner optimization
   mleLME4 <- c( 3.5679609790094040, 1.4736809813876610, 0.3925194078627622 )
   mleTMB <-  c( 3.5679629394855974, 1.4736809255475793, 0.3925215998142128 )
   mleLaplace <- cmLaplace$findMLE()$par
@@ -378,14 +373,13 @@ test_that("AGH Quadrature Comparison to LME4 1 RE", {
   cm$calculate()
   mleQuad <- cmQuad$findMLE()$par
 
-  ## With analytic normality2 changes, seeming heisenbug causing need to change tolerance
-  ## from 1e-7 to 1e-6.
-  expect_equal(mleLaplace, mleLME4, tol = 1e-6)
-  expect_equal(mleQuad, mleLME4, tol = 1e-6)
-  expect_equal(mleQuad, mleLaplace, tol = 1e-6)
+  ## If use reltol=1e-10, max error is 2e-7; with default it is 8e-6.
+  expect_equal(mleLaplace, mleLME4, tol = 1e-5)
+  expect_equal(mleQuad, mleLME4, tol = 1e-5)
+  expect_equal(mleQuad, mleLaplace, tol = 1e-14)
 
-  expect_equal(mleLaplace, mleTMB, tol = 1e-6)
-  expect_equal(mleQuad, mleTMB, tol = 1e-6)
+  expect_equal(mleLaplace, mleTMB, tol = 1e-5)
+  expect_equal(mleQuad, mleTMB, tol = 1e-5)
 
   gr_mle <- cmQuad$gr_logLik(mleLME4) ## MLE gradient check.
   expect_equal(gr_mle, c(0,0,0), tol = 1e-5)
@@ -397,8 +391,8 @@ test_that("AGH Quadrature Comparison to LME4 1 RE", {
   for(v in m$getVarNames()) cm[[v]] <- m[[v]]
   cm$calculate()
   mleQuad2 <- cmQuad$findMLE()$par
-  expect_equal(mleLaplace, mleLaplace2, tol = 1e-6) # 1e-8
-  expect_equal(mleQuad, mleQuad2, tol = 1e-6) # 1e-8 until heisenbug mentioned above.
+  expect_equal(mleLaplace, mleLaplace2, tol = 1e-8) # 1e-8
+  expect_equal(mleQuad, mleQuad2, tol = 1e-8) 
 
 })
 
