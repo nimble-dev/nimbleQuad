@@ -2697,11 +2697,8 @@ buildAGHQ <- nimbleFunction(
           print("  [Warning] Inner optimization had a non-zero convergence code.\n",
                 "            Use the `checkInnerConvergence(TRUE)` method of the Laplace object to see details.")
 
-      ## Back transform results to original scale if requested.
-
       setModelValues(p) ## Make sure the model object contains all the updated parameter values.
 
-      ## Returns on transformed scale just like optim.
       return(optRes)
       returnType(optimResultNimbleList())
     },
