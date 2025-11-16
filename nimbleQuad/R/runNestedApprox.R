@@ -71,12 +71,12 @@ approxSummary <- R6Class("approxSummary",
             cat("\nMarginal log-likelihood (asymmetric Gaussian approximation): ",
                 self$marginalLogLik, "(*)\n", sep = "")
             if(self$approx$paramGridRule == "CCD")
-                extra <- "(**)" else extra <- ""
+                extra <- ",**" else extra <- ""
             if (!is.na(self$marginalLogLikImproved))
-                cat("Marginal log-likelihood (grid-based", extra, "): ", self$marginalLogLikImproved, "(*)\n", sep = "")
-            cat("(*) Marginal log-likelihood is invalid for improper priors and may not be useful\nfor non-informative priors.\n")
+                cat("Marginal log-likelihood (grid-based): ", self$marginalLogLikImproved, "(*", extra, ")\n", sep = "")
+            cat("  (*) Invalid for improper priors and may not be useful for non-informative priors.\n")
             if(!is.na(self$marginalLogLikImproved) && self$approx$paramGridRule == "CCD")
-                cat("(**) Estimated using CCD grid. Estimation based on an AGHQ grid may be more\naccurate (but more computationally expensive).\n")
+                cat("  (**) Estimated using CCD grid. Estimation based on an AGHQ grid may be more\naccurate (but more computationally expensive).\n")
             invisible(self)
         },
         setParamGrid = function(summary, quadRule = "NULL", nQuad = -1, prune = -1){
