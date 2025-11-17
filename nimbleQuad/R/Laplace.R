@@ -1088,8 +1088,8 @@ buildOneAGHQuad <- nimbleFunction(
     saved_inner_argmax <- constant_init_reTrans
     saved_inner_max_value <- -Inf #numeric(1)
     saved_inner_max_p <- if(npar > 1) rep(Inf, npar) else as.numeric(c(Inf, -1))
-    saved_inner_negHess <- matrix(0, nrow = nre, ncol = nre)
-    saved_inner_negHess_chol <- matrix(0, nrow = nre, ncol = nre)
+    saved_inner_negHess <- matrix(0, nrow = nreTrans, ncol = nreTrans)
+    saved_inner_negHess_chol <- matrix(0, nrow = nreTrans, ncol = nreTrans)
     saved_inner_logdetNegHess <- 0
 
     ## Cache for set_P
@@ -1108,8 +1108,8 @@ buildOneAGHQuad <- nimbleFunction(
     margLogLik_saved_value <- -Inf
     ## Cache values for relevant to outer calls.
     max_outer_logLik <- -Inf
-    outer_mode_inner_negHess <- matrix(0, nrow = nre, ncol = nre)
-    outer_mode_inner_negHess_chol <- matrix(0, nrow = nre, ncol = nre)
+    outer_mode_inner_negHess <- matrix(0, nrow = nreTrans, ncol = nreTrans)
+    outer_mode_inner_negHess_chol <- matrix(0, nrow = nreTrans, ncol = nreTrans)
     outer_mode_inner_argmax <- if(nreTrans > 1) numeric(nreTrans) else as.numeric(c(0, -1))
     outer_param_max <- if(npar > 1) rep(Inf, npar) else as.numeric(c(Inf, -1))
       
