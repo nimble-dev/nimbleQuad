@@ -1,10 +1,245 @@
-## Code to approximate the posterior distribution built on top of inner Laplace.
-#' @export
+#' Build Nested Bayesian Approximation Using Quadrature-based Methods
+#'
+#' Build a nested approximation for a given NIMBLE model, providing parameter estimation and 
+#' sampling for latent nodes. The approximation uses an inner Laplace (or AGHQ) approximation 
+#' to approximately marginalize over latent nodes and an outer quadrature grid on the
+#' parameters.
+#'
+#' @param model a NIMBLE model object created by calling \code{nimbleModel}. 
+#' The model must have automatic derivatives (AD) turned on, e.g., by using
+#'   \code{buildDerivs=TRUE} in \code{nimbleModel}.
+#' @param paramNodes optional character vector of (hyper)parameter nodes in the model. If missing, this
+#' will be the stochastic non-data nodes with no parent stochastic nodes.
+#' @param latentNodes optional character vector of latent nodes (e.g., random and fixed
+#' effects) in the model. If missing this will be the stochastic non-data nodes 
+#' that are not determined to be parameter nodes.
+#' @param calcNodes optional character vector of names of nodes for calculating the
+#'   integrand for Laplace/AGHQ approximation over the latent nodes; defaults are provided by
+#'   \code{\link{setupMargNodes}}. Note that users will generally not need to provide this. 
+#'   There may be deterministic nodes between
+#'   \code{paramNodes} and \code{calcNodes}. These will be included in
+#'   calculations automatically and thus do not need to be included in
+#'   \code{calcNodes} (but there is no problem if they are).
+#' @param calcNodesOther optional character vector of names of nodes for calculating
+#'   terms in the log-likelihood that do not depend on any
+#'   \code{randomEffectsNodes}, and thus are not part of the marginalization,
+#'   but should be included for purposes of finding the approximation. 
+#'   Note that users will generally not need to provide this. This defaults to
+#'   stochastic nodes that depend on \code{paramNodes} but are not part of and
+#'   do not depend on \code{latentNodes}. There may be deterministic
+#'   nodes between \code{paramNodes} and \code{calcNodesOther}. These will be
+#'   included in calculations automatically and thus do not need to be included
+#'   in \code{calcNodesOther} (but there is no problem if they are).
+#' @param control a named list for providing additional settings for the approximation,
+#' including settings for the inner Laplace/AGHQ approximation. See \code{control} section below. 
+#'
+#' @details
+#' 
+#' This function builds a nested Bayesian approximation for the provided model. NIMBLE's nested
+#' approximation provides approximate posterior inference using methodology similar to the 
+#' well-known INLA approach (Rue et al. 2009), implemented in the 
+#' R-INLA package and to the related methods for extended Gaussian latent models (EGLMs)
+#' of Stringer et al. (2023), implemented in the `aghq` R package. For more details on the 
+#' nested approximation algorithms, see the NIMBLE User Manual.
+#' 
+#' Unlike Laplace/AGHQ approximation, the nested approximation is Bayesian, requiring
+#' prior distributions for all parameters and providing functionality to estimate 
+#' the marginal posterior distributions of the individual parameters and to sample from the 
+#' marginal joint posterior distribution of the latent nodes. Similarly to Laplace,
+#' the nested approximation uses Laplace/AGHQ to approximately marginalize over the latent nodes.
+#' However, instead of then maximizing the approximate marginalized posterior density,
+#' the nested approximation uses a quadrature grid on the parameters to perform approximate Bayesian
+#' inference on the parameters and latent nodes.
+#' 
+#' The recommended way to use the nested approximation once it is built is to call
+#' \code{runNestedApprox} on the returned object, and then to call additional approximation
+#' functions on the output of \code{runNestedApprox} as needed. For details see \code{runNestedApprox}.
+#' However, for more granular control, one can also call the internal methods of the nested approximation,
+#' discussed briefly below.
+#' 
+#' In general, the theory that underpins these approximations assumes that the latent nodes (fixed and random effects) 
+#' are Gaussian. \code{buildNestedApprox} makes no such assumptions, allowing the user to extend these approximations to any imaginable
+#' set of models in NIMBLE. However, the accuracy of the approximation is then not supported theoretically, and it is up to the user to 
+#' determine whether or not the posterior approximation is valid.
+#'
+#' @section Computational considerations:
+#' 
+#' The computational cost of the nested approximation can vary depending on what 
+#' nodes are considered as parameter nodes and what nodes as latent nodes, as well as
+#' by the number of quadrature points (for both the latent and parameter nodes) and 
+#' type of grid used for the parameter nodes. Some details are provided in the User Manual.
+#' 
+#' \code{buildNestedApprox} will by default (unless changed
+#' manually by specifying sets of nodes) determine from the model which latent nodes
+#' can be integrated over (marginalized) independently. For example, in a GLMM
+#' with a grouping factor and an independent random effect intercept for each
+#' group (and no fixed effects), the random effects can be marginalized as a set of univariate
+#' approximations rather than one multivariate approximation. On the other hand,
+#' correlated or nested random effects would require multivariate marginalization,
+#' as would the presence of fixed effects (since they affect all the observations).
+#' Independent marginalizations result in lower-dimensional calculations (essentially 
+#' exploiting sparsity in the covariance structure of the latent nodes) and therefore
+#' improve computational efficiency. Note that at this time, the nested approximation
+#' cannot otherwise take advantage of sparsity in the covariance structure of the latent nodes.
+#' 
+#' @section How input nodes are processed:
+#' 
+#' In many cases, the selection of parameter and latent nodes will be handled automatically in a 
+#' reasonable fashion. However, random effects can be
+#' written in models in multiple equivalent ways, and customized use cases may
+#' call for integrating over chosen parts of a model. Hence, one can take full
+#' charge of how different parts of the model will be used, specifying explicitly the
+#' \code{paramNodes} and \code{latentNodes}. The User Manual provides more details on situations
+#' in which one may want to specify these nodes explicitly.
+#'
+#' Any of the input node vectors, when provided, will be processed using
+#'   \code{nodes <- model$expandNodeNames(nodes)}, where \code{nodes} may be
+#'   \code{paramNodes}, \code{latentNodes}, and so on. This step allows
+#'   any of the inputs to include node-name-like syntax that might contain
+#'   multiple nodes. For example, \code{paramNodes = 'beta[1:10]'} can be
+#'   provided if there are actually 10 scalar parameters, 'beta[1]' through
+#'   'beta[10]'. The actual node names in the model will be determined by the
+#'   \code{expandNodeNames} step.
+#'
+#' In many (but not all) cases, one only needs to provide a NIMBLE model object
+#'   and then the function will construct reasonable defaults necessary for
+#'   Laplace approximation to marginalize over all continuous latent nodes
+#'   (both random and fixed effects) in a model. 
+#'
+#' \code{buildNestedApprox} uses \code{setupMargNodes} (in a multi-step process)
+#'   to try to give sensible defaults from
+#'   any combination of \code{paramNodes}, \code{latentNodes},
+#'   \code{calcNodes}, and \code{calcNodesOther} that are provided. 
+#'
+#' \code{setupMargNodes} also determines which integration dimensions are
+#' conditionally independent, i.e., which can be done separately from each
+#' other. For example, when possible, 10 univariate random effects will be split
+#' into 10 univariate integration problems rather than one 10-dimensional
+#' integration problem. Note that models that include fixed effects as latent
+#' nodes often prevent this splitting into conditionally independent sets.
+#'
+#' The defaults make general assumptions such as that
+#'   \code{latentNodes} have \code{paramNodes} as parents or (for fixed effects)
+#' are also components of a linear predictor expression. However, the
+#'   steps for determining defaults are not simple, and it is possible that they
+#'   will be refined in the future. It is also possible that they simply don't
+#'   give what you want for a particular model. One example where they will not
+#'   give desired results can occur when random effects have no prior
+#'   parameters, such as `N(0,1)` nodes that will be multiplied by a scale
+#'   factor (e.g., `sigma``) and added to other explanatory terms in a model. Such
+#'   nodes look like top-level parameters in terms of model structure, so
+#'   you must provide a \code{latentNodes} argument to indicate which
+#'   they are.
+#'
+#' 
+#' @section \code{control} list arguments:
+#'
+#' The \code{control} list allows additional settings to be made using named
+#' elements of the list. Any elements in addition to those below are passed along
+#' as the \code{control} list for the inner Laplace/AGHQ approximation (see \code{buildAGHQ}).
+#' Below, `d` refers to the number of parameter nodes.
+#' Supported elements include:
+#'
+#' \itemize{
+#'     \item \code{nQuadOuter}. Number of outer quadrature points in each dimension (for parameter nodes). 
+#'           Default is 3 for d > 1, 5 for d = 1. Not used with CCD grid.
+#'     \item \code{nQuadInner}. Number of inner quadrature points in each dimension (for latent nodes). 
+#'           Default is 1, corresponding to Laplace approximation. 
+#'     \item \code{paramGridRule}. Quadrature rule for the parameter grid. Defaults to \code{"CCD"} for
+#'          d > 2 and to \code{"AGHQ"} otherwise. Can also be \code{"AGHQSPARSE"} or \code{"USER"},
+#'          the latter for user-defined grids.
+#'     \item \code{innerOptimWarning}. Whether to show inner optimization warnings. Default is \code{FALSE}.
+#'     \item \code{marginalGridRule}. Rule for marginal grid. Default is \code{"AGHQ"}, 
+#'              with \code{"AGHQSPARSE"} as the other current option.
+#'     \item \code{marginalGridPrune}. Pruning parameter for marginal grid. Default is 0, corresponding to no pruning.
+#'     \item \code{quadTransform}. Quadrature transformation method. Default is \code{"spectral"}, with
+#'           \code{"cholesky"} as the other option.
+#'   }
+#' 
+#' @section Parameter transformations used internally:
+#'
+#' If any \code{paramNodes} (parameters) or \code{latentNodes} have constraints on the range of valid values
+#'   (because of the distribution they follow), they will be used on a
+#'   transformed scale determined by \code{parameterTransform}. This means that internally the
+#'   Laplace/AGHQ approximation itself will be done on the transformed scale for
+#'   latent nodes and that the grid-based computation on the parameters will be done on the transformed scale.  
+#' 
+#' @section Available methods for advanced/development use:
+#' 
+#' Additional methods to access or control the Laplace/AGHQ
+#' approximation directly (as an alternative to the recommended use of \code{runNestedApprox}) 
+#' include the following, described only briefly:
+#'
+#' \itemize{
+#' \item \code{findMode}: Find the posterior mode for hyperparameters.
+#' \item \code{buildParamGrid}: Build the parameter grid using specified quadrature rule and settings.
+#' \item \code{setParamGridRule}: Set the quadrature rule for the parameter grid (AGHQ, CCD, USER, AGHQSPARSE).
+#' \item \code{calcEigen}: Calculate eigendecomposition of the negative Hessian for spectral transformations. 
+#' \item \code{calcCholesky}: Calculate Cholesky decomposition of the negative Hessian for Cholesky transformations.
+#' \item \code{setTransformations}: Set transformation method between spectral and Cholesky approaches.
+#' \item \code{z_to_paramTrans}: Transform from standard (z) scale to parameter transform scale.
+#' \item \code{paramTrans_to_z}: Transform from parameter transform scale to standard (z) scale.
+#' \item \code{calcSkewedSD}: Calculate skewed standard deviations for asymmetric Gaussian approximations.
+#' \item \code{getSkewedStdDev}: Retrieve the calculated skewed standard deviations.
+#' \item \code{calcMarginalLogLikApprox}: Calculate INLA-like approximation of marginal log-likelihood
+#'             using the approximate Gaussian.
+#' \item \code{calcParamGrid}: Calculate inner approximation at parameter grid values and cache results.
+#'        Required only for latent node simulation and quadrature-based marginal log-likelihood.
+#' \item \code{calcMarginalLogLikQuad}: Calculate quadrature-based marginal log-likelihood.
+#' \item \code{calcMarginalParamQuad}: Calculate univariate marginal parameter distributions using selected quadrature rule.
+#' \item \code{calcMarginalParamIntegFree}: Calculate univariate marginal parameter distributions using INLA-like
+#'         integration-free method based on approximate Gaussian approximations.
+#' \item \code{simulateLatents}: Simulate from the posterior distribution of (transformed) latent nodes.
+#' \item \code{simulateParams}: Simulate from the marginal posterior of (transformed) parameters using skewed normal.
+#' \item \code{getParamGrid}: Retrieve the parameter grid points on the transformed scale.
+#' }
+#' 
+#' 
+#' @aliases nestedApprox INLA nested
+#' 
+#' @export 
+#' 
+#' @author Paul van Dam-Bates, Christopher Paciorek, Perry de Valpine
+#' 
+#' @references 
+#' 
+#' Rue, H., Martino, S., and Chopin, N. (2009). Approximate Bayesian inference for 
+#' latent Gaussian models by using integrated nested Laplace approximations. 
+#' Journal of the Royal Statistical Society: Series B (Statistical Methodology), 
+#' 71(2), 319-392.
+#' 
+#' Stringer, A., Brown, P., and Stafford, J. (2023). Fast, scalable approximations to 
+#' posterior distributions in extended latent Gaussian models. 
+#' Journal of Computational and Graphical Statistics, 32(1), 84-98.
+#' 
+#' @examples 
+#' data(penicillin, package="faraway")
+#' code <- nimbleCode({
+#'     for(i in 1:n) {
+#'         mu[i] <- inprod(b[1:nTreat], x[i, 1:nTreat]) + re[blend[i]]
+#'         y[i] ~ dnorm(mu[i], tau = Tau)
+#'     }
+#'     # Priors corresponding simply to INLA defaults and not being recommended.
+#'     # Instead consider uniform or half-t distributions on the standard deviation scale
+#'     # or penalized complexity priors.
+#'     Tau ~ dgamma(1, 5e-05)
+#'     Tau_re ~ dgamma(1, 5e-05)
+#'     for( i in 1:nTreat ){ b[i] ~ dnorm(0, tau = 0.001) }
+#'     for( i in 1:nBlend ){ re[i] ~ dnorm(0, tau = Tau_re) }
+#' })
+#' X <- model.matrix(~treat, data = penicillin)
+#' data = list(y = penicillin$yield)
+#' constants = list(nTreat = 4, nBlend = 5, n = nrow(penicillin),
+#'                  x = X, blend = as.numeric(penicillin$blend))
+#' inits <- list(Tau = 1, Tau_re = 1, b = c(mean(data$y), rep(0,3)), re = rep(0,5))
+#' 
+#' model <- nimbleModel(code, data = data, constants = constants,
+#'                  inits = inits, buildDerivs = TRUE)
+#' approx <- buildNestedApprox(model = model)
+#' 
 buildNestedApprox <- nimbleFunction(
     name = "nestedApprox",
     setup = function(model, paramNodes, latentNodes, calcNodes, calcNodesOther, control = list()) {
-        split <- extractControlElement(control, "split", TRUE)
-        check <- extractControlElement(control, "check", TRUE)
         innerOptimWarning <- extractControlElement(control, "innerOptimWarning", FALSE)
 
         nQuadLatent <- extractControlElement(control, "nQuadLatent", 1)
