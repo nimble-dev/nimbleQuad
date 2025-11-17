@@ -691,10 +691,12 @@ test_that("crossed REs in Bernoulli GLMM", {
     capprox <- compileNimble(approx, project = m)
     result <- runNestedApprox(capprox)
     expect_lt(max(abs(qs_mcmc[,c('sigma_state','sigma_town')] - unlist(result$quantiles))), .008)  # .0065
-    
-    result$improveParamMarginals(c("sigma_state","sigma_town"), nMarginalGrid = 5)
-    expect_lt(max(abs(qs_mcmc[,c('sigma_state','sigma_town')] - unlist(result$quantiles))), .007)  # .0057
 
+    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+        result$improveParamMarginals(c("sigma_state","sigma_town"), nMarginalGrid = 5)
+        expect_lt(max(abs(qs_mcmc[,c('sigma_state','sigma_town')] - unlist(result$quantiles))), .007)  # .0057
+    }
+    
     latent_sample <- result$sampleLatents(10000)
     qs_nest <- apply(latent_sample,2, quantile, qpts)
     
