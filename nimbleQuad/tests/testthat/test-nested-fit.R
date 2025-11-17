@@ -707,7 +707,7 @@ test_that("crossed REs in Bernoulli GLMM", {
 })
 
 test_that("inhaler (Dirichlet) example", {
-
+    
     load(system.file(file.path('tests', 'testthat', 'inhaler.Rda'), package = 'nimbleQuad'))
 
     ## Mimic INLA parameterization
@@ -789,6 +789,9 @@ test_that("inhaler (Dirichlet) example", {
         expect_lt(max(abs(qs_param - unlist(result_orig$quantiles))), .04)  # .033
         ## INLA max diff is 0.026 on theta scale.
     }
+    ## Note that on MacOS on CI (but not Chris' M2 Mac), we get a warning about non-zero convergence code
+    ## in `improveParamMarginals`.
+
     
     paramSamples <- result$sampleParams(10000)
     qs_paramSamples <- apply(paramSamples, 2, quantile, qpts)
