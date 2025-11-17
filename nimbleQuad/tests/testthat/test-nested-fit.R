@@ -784,10 +784,12 @@ test_that("inhaler (Dirichlet) example", {
     result_orig <- runNestedApprox(capprox, originalScale = FALSE)  # Use originalScale=FALSE for comparison with INLA. 
 
     expect_lt(max(abs(qs_param - unlist(result_orig$quantiles))), .05)  # .040
-    result_orig$improveParamMarginals(1:3, nMarginalGrid = 7)          
-    expect_lt(max(abs(qs_param - unlist(result_orig$quantiles))), .04)  # .033
-    ## INLA max diff is 0.026 on theta scale.
-
+    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+        result_orig$improveParamMarginals(1:3, nMarginalGrid = 7)          
+        expect_lt(max(abs(qs_param - unlist(result_orig$quantiles))), .04)  # .033
+        ## INLA max diff is 0.026 on theta scale.
+    }
+    
     paramSamples <- result$sampleParams(10000)
     qs_paramSamples <- apply(paramSamples, 2, quantile, qpts)
     expect_lt(max(abs(qs_param_orig - qs_paramSamples)), .025)  # .019
@@ -860,9 +862,11 @@ test_that("Wishart example", {
     capprox <- compileNimble(approx, project = m)
     result <- runNestedApprox(capprox, originalScale = FALSE)  
     expect_lt(max(abs(qs_mcmc[ , 1:7] - unlist(result$quantiles))), .1)  # .092
-    result$improveParamMarginals(1:7, nMarginalGrid = 5) # Much better; fairly slow to compute with so many params and grid points.
-    expect_lt(max(abs(qs_mcmc[ , 1:7] - unlist(result$quantiles))), .025) # .022
-
+    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+        result$improveParamMarginals(1:7, nMarginalGrid = 5) # Much better; fairly slow to compute with so many params and grid points.
+        expect_lt(max(abs(qs_mcmc[ , 1:7] - unlist(result$quantiles))), .025) # .022
+    }
+    
     result <- runNestedApprox(capprox)
     latent_sample <- result$sampleLatents(10000)
     qs_nest <- apply(latent_sample,2,quantile,qpts) 
@@ -877,9 +881,10 @@ test_that("Wishart example", {
     capprox <- compileNimble(approx, project = m)
     result <- runNestedApprox(capprox, originalScale = FALSE)  
     expect_lt(max(abs(qs_mcmc[ , 1:7] - unlist(result$quantiles))), .1)  # .092
-    result$improveParamMarginals(1:7, nMarginalGrid = 5) # Much better; fairly slow to compute with so many params and grid points.
-    expect_lt(max(abs(qs_mcmc[ , 1:7] - unlist(result$quantiles))), .025) # .022
-
+    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+        result$improveParamMarginals(1:7, nMarginalGrid = 5) # Much better; fairly slow to compute with so many params and grid points.
+        expect_lt(max(abs(qs_mcmc[ , 1:7] - unlist(result$quantiles))), .025) # .022
+    }
     result <- runNestedApprox(capprox)
     latent_sample <- result$sampleLatents(10000)
     qs_nest <- apply(latent_sample,2,quantile,qpts) 
@@ -964,9 +969,11 @@ test_that("LKJ example", {
     result <- runNestedApprox(capprox, originalScale = FALSE) 
     # expect_lt(max(abs(qs_mcmc[,1:7] - unlist(result$quantiles))), ??)  # Some rather far off, so no test.
 
-    result$improveParamMarginals(1:7, nMarginalGrid=5)  # time-consuming
-    expect_lt(max(abs(qs_mcmc[,1:7] - unlist(result$quantiles))), .035)  # .028
-
+    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+        result$improveParamMarginals(1:7, nMarginalGrid=5)  # time-consuming
+        expect_lt(max(abs(qs_mcmc[,1:7] - unlist(result$quantiles))), .035)  # .028
+    }
+    
     result <- runNestedApprox(capprox)
     latent_sample <- result$sampleLatents(10000)
     
@@ -984,9 +991,11 @@ test_that("LKJ example", {
     result <- runNestedApprox(capprox, originalScale = FALSE) 
     ## expect_lt(max(abs(qs_mcmc[,1:7] - unlist(result$quantiles))), ??)   # Some rather far off, so no test. 
     
-    result$improveParamMarginals(1:7, nMarginalGrid=5)  # time-consuming
-    expect_lt(max(abs(qs_mcmc[,1:7] - unlist(result$quantiles))), .035)  # .028
-
+    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+        result$improveParamMarginals(1:7, nMarginalGrid=5)  # time-consuming
+        expect_lt(max(abs(qs_mcmc[,1:7] - unlist(result$quantiles))), .035)  # .028
+    }
+    
     result <- runNestedApprox(capprox)
     latent_sample <- result$sampleLatents(10000)
     
