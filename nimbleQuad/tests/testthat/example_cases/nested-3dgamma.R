@@ -158,8 +158,9 @@ cm <- compileNimble(m)
 conf <- configureMCMC(m, monitors = c('mu','tau','phi','eta'), onlySlice = TRUE)
 mcmc <- buildMCMC(conf)
 cmcmc <- compileNimble(mcmc, project=m)
-out <- runMCMC(cmcmc, niter=50000, nburnin=0)  ## Mixing not good enough to use for comparison.
+out <- runMCMC(cmcmc, niter=501000, nburnin=1000,thin=10)  ## Mixing not good enough to use for comparison.
 
+## Actually as of 2025-10-19 MCMC here seems ok
 
 ## INLA
 library(INLA)
@@ -169,7 +170,10 @@ formula <- y ~ 1 + f(group, model = "iid")
 fit <- inla(formula, family="gamma", data=data.frame(y=yc,group=group), quantiles = qpts,
             control.compute=list(config = TRUE))
 
-summary(fit)  # tau is quite small and not similar to MCMC
+summary(fit)  # Quite different from MCMC
+## precision for group seems to be log(precision)
+
+inla.priors.used(fit)
 
 fit$summary.random
 

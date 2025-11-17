@@ -8,13 +8,18 @@ quadGH(levels = 1, type = "GHe")
 }
 \arguments{
 \item{levels}{How many quadrature points to generate.}
+
+\item{type}{Choose type of Gauss-Hermite nodes and weights. Defaults to `GHe`}
 }
 \description{
 Generates GH quadrature weights and nodes for integrating a general univariate function from -Inf to Inf.
 }
 \details{
-This function generates Gauss-Hermite points and returns a matrix with the first column as weights and
+This function generates Gauss-Hermite (GH) points and returns a matrix with the first column as weights and
 the second nodes. Some numerical issues occur in Eigen decomposition making the grid weights only accurate up to 35 quadrature nodes.
+GH nodes approximately integrate the function g(x) = f(x)*exp(-x^2). If the type is chosen as
+`type = "GHe"`, the nodes are adjusted to integrate a general function, f(x), adjusting the nodes by
+the sqrt(2) and the weights by sqrt(2) * exp(x^2).
 }
 \references{
 Golub, G. H. and Welsch, J. H. (1969). Calculation of Gauss Quadrature Rules. 

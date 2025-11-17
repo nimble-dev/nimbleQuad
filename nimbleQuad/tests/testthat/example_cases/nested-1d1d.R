@@ -2,6 +2,7 @@
 ## These need to be transitioned into actual tests.
 
 ## d=1 case, posterior for variance, sd a bit skewed, but not near 0.
+library(nimbleQuad)
 
 dig00 <- nimbleFunction(
     run = function(x = double(0), log = logical(0, default = FALSE)) {
@@ -60,7 +61,7 @@ mu_sample <- result$sampleLatents(1000, includeParams = TRUE)
 ## Check results on transformed scale.
 result <- runNestedApprox(capprox, originalScale = FALSE)
 log(qs)
-result  
+result
 result$improveParamMarginals(1, nMarginalGrid = 5)
 result$improveParamMarginals(1, nMarginalGrid = 31)
 
@@ -224,7 +225,7 @@ fit <- inla(y ~ 1,  family="gaussian", data=data.frame(y=y),quantiles = qpts,
                        prior = "loggamma", param=c(1,1)))),
             control.fixed = list(prec.intercept = 1/9))
 
-summary(fit)  
+summary(fit)
 
 fit$mlik # -43.66045 (integr), -44.04549 (Gaussian)
 
@@ -285,4 +286,3 @@ qqplot(sigma2_direct, sigma2_sample)
 mu_sample <- result$sampleLatents(1000)
 mu_direct <- rt_nonstandard(1000, n-1, mean(m$y), sqrt(var(m$y)/n))
 qqplot(mu_direct, mu_sample)
-

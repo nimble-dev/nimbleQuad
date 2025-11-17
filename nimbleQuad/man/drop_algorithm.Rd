@@ -16,7 +16,11 @@ Generates a matrix of all permutations of 'd' cols that sum to 'order' with no z
 }
 \details{
 This function generates permutation matrix in order to be used for sparse grid quadrature building.
-It is adapted from the library `mvQuad`.
+It is adapted from the library `mvQuad` (Weiser, 2023).
+}
+\references{
+Weiser, C. (2023). _mvQuad: Methods for Multivariate Quadrature._. (R package version 1.0-8),
+<https://CRAN.R-project.org/package=mvQuad>.
 }
 \author{
 Paul van Dam-Bates

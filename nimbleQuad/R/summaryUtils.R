@@ -26,7 +26,7 @@ fitMarginalSpline <- function(gridded, normalize = TRUE, xnew = NULL, refine = T
     }
     ## Normalize the PDF.
     pdf <- exp(logPDF)
-    # Trapezoidal rule (could use Simpson as (2M+T)/3, but it would require additional spline evaluation.
+    # Trapezoidal rule: could use Simpson as (2M+T)/3, but it would require additional spline evaluation.
     trapezoids <- diff(finegrid) * (pdf[-length(pdf)] + pdf[-1])/2  
     if (normalize) {
         norm <- sum(trapezoids) 
@@ -48,6 +48,8 @@ fitMarginalSpline <- function(gridded, normalize = TRUE, xnew = NULL, refine = T
 
 estimateQuantiles <- function(marginalApprox, transform = NULL,
                               quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)) {
+    if(any(quantiles < 0 | quantiles > 1))
+        stop("quantile probabilities are outside [0,1]")
     finegridTrans <- marginalApprox[, "finegrid"]
     cdf <- marginalApprox[, "cdf"]
 

@@ -2,7 +2,13 @@
 ## Grids are implementations of the rule to generate the actual nodes and
 ## weights.
 
-## Base class for nimble function list quadrature rules.
+#' Base class for nimble function list quadrature rules.
+#'
+#' @details This is a class definition that must be included via \code{contains = QUADE_RULE_BASE} in a `nimbleFunction`
+#' if intending to make a quadrature rule to be used.
+#'
+#' @author Paul van Dam-Bates
+#' @export
 QUAD_RULE_BASE <- nimbleFunctionVirtual(
     name = "QUAD_RULE_BASE",
     run = function() {
@@ -14,37 +20,19 @@ QUAD_RULE_BASE <- nimbleFunctionVirtual(
     )
 )
 
-
-#' Nimble List Quadrature Data type
-#'
-#' Creates a quadrature nimble list type to be used internally and for making new custom
-#' quadrature rules to marginalize random effects and for posterior approximations.  
-#'
-#' @details
-#' 
-#'
-#' List is generated with three data types. An integer that is the mode index `modeIndex` that indicates
-#' which quadrature node is the mode, values are all zero. A numeric vector, `wgts`, that is a weight for each
-#' quadrature node. A matrix, `nodes`, that are the quadrature nodes made by the rule that are of dimension `nQ` rows
-#' and `d` dimension columns.
-#'
-#' @author Paul van Dam-Bates
-#' @export
-quadGridListDef <- nimbleList(
-    modeIndex = integer(0),
-    wgts = double(1),
-    nodes = double(2),
-    name = "quadGridList")
-
 #' Gauss-Hermite Quadrature Points in one dimension
 #'
 #' Generates GH quadrature weights and nodes for integrating a general univariate function from -Inf to Inf.
 #' 
 #' @param levels How many quadrature points to generate.
+#' @param type Choose type of Gauss-Hermite nodes and weights. Defaults to `GHe`
 #'
 #' @details
-#' This function generates Gauss-Hermite points and returns a matrix with the first column as weights and
+#' This function generates Gauss-Hermite (GH) points and returns a matrix with the first column as weights and
 #' the second nodes. Some numerical issues occur in Eigen decomposition making the grid weights only accurate up to 35 quadrature nodes.
+#' GH nodes approximately integrate the function g(x) = f(x)*exp(-x^2). If the type is chosen as
+#' `type = "GHe"`, the nodes are adjusted to integrate a general function, f(x), adjusting the nodes by
+#' the sqrt(2) and the weights by sqrt(2) * exp(x^2).
 #'
 #' @author Paul van Dam-Bates
 #'
@@ -58,7 +46,7 @@ quadGridListDef <- nimbleList(
 #' Jackel, P. (2005). A note on multivariate Gauss-Hermite quadrature. London: ABN-Amro. Re.
 #'
 #' @export
-quadGH <- nimbleFunction(run = function(levels = integer(0, default = 1), type = character(0,default = "GHe")) {
+quadGH <- nimbleFunction(run = function(levels = integer(0, default = 1), type = character(0, default = "GHe")) {
     odd <- TRUE
     if (levels %% 2 == 0)
         odd <- FALSE
@@ -94,13 +82,13 @@ quadGH <- nimbleFunction(run = function(levels = integer(0, default = 1), type =
         res[, 1] <- w
         res[, 2] <- x
     }
-    ## For GHN
-    ## Update nodes and weights in terms of z = x/sqrt(2) and include
+    ## For GHe
+    ## Update weights in terms of z = x/sqrt(2) and include
     ## Gaussian kernel in weight to integrate an arbitrary function. (i.e. excludes normal distr)
     if(type == "GHe"){
-      res[,1] <- res[,1] * sqrt(2 * pi) * exp(res[,2]^2)
-      res[,2] <- res[,2] * sqrt(2)
+      res[,1] <- res[,1] * sqrt(2*pi) * exp(res[,2]^2)
     }
+    res[,2] <- res[,2] * sqrt(2) ## Always scale nodes by sqrt 2 but after updating weights.
 
     returnType(double(2))
     return(res)
@@ -114,21 +102,26 @@ quadGH <- nimbleFunction(run = function(levels = integer(0, default = 1), type =
 #'
 #' @details
 #' This function a 1D Gauss-Hermite Quadrature Grid (nodes and weights). When choosing `type = "GHe"`, 
-#' the nodes are adjusted to integrate a general function, adjusting the points by
-#' the sqrt(2) and the weights by sqrt(2*pi) * exp(x^2). It cannot be compiled without being
-#' included within a virtual nimble list "QUAD_RULE_BASE".
+#' the nodes and weights are to integrate a general function. If `type = "GHN"`,
+#' the weights are multiplied by a standard normal. It cannot be compiled without being included within 
+#' a virtual nimble list "QUAD_RULE_BASE".
 #'
 #' @author Paul van Dam-Bates
 #'
 #' @references
 #'
 #' Jackel, P. (2005). A note on multivariate Gauss-Hermite quadrature. London: ABN-Amro. Re.
+#' Liu, Q. and Pierce, D. (1994) A Note on Gauss-Hermite Quadrature. Biometrika, 83, 624-629.
 #'
 #' @export
 quadRule_GH = nimbleFunction(
     contains = QUAD_RULE_BASE,
     name = "quadRule_GH",
-    setup = function(type = "GHe") {},
+    setup = function(type = "GHe") {
+      if(!type %in% c("GHN", "GHe")){
+        stop("Error:  Only types GHe (standard Gauss Hermite rule) or GHN (weights include normal density) are allowed for quadRule_GH.")
+      }
+    },
     run = function() {},
     methods = list(
         buildGrid = function(levels = integer(0, default = 0), d = integer(0, default = 1)) {
@@ -159,9 +152,14 @@ quadRule_GH = nimbleFunction(
 #'
 #' @details
 #' This function generates permutation matrix in order to be used for sparse grid quadrature building.
-#' It is adapted from the library `mvQuad`.
+#' It is adapted from the library `mvQuad` (Weiser, 2023).
+#'
 #'
 #' @author Paul van Dam-Bates
+#'
+#' @references 
+#' Weiser, C. (2023). _mvQuad: Methods for Multivariate Quadrature._. (R package version 1.0-8),
+#' <https://CRAN.R-project.org/package=mvQuad>.
 #'
 #' @export
 drop_algorithm <- nimbleFunction(run = function(d = double(), order = double()) {
@@ -206,12 +204,16 @@ drop_algorithm <- nimbleFunction(run = function(d = double(), order = double()) 
 #'
 #' Generate a d dimension CCD grid via a nimble function list.
 #' 
-#' @param d Number of dimensions.
-#' @param nQuad Ignored.
+#' @param f0  multiplier for the how far to extend nodes (default = 1.1).
 #'
 #' @details
-#' This function generates a CCD grid to be used in approximate posteriors. It cannot be compiled without being
-#' included within a virtual nimble list "QUAD_RULE_BASE".
+#' This function generates a Central Composite Design (CCD) grid to be used in approximate posteriors. It cannot be compiled without being
+#' included within a virtual nimble list "QUAD_RULE_BASE". On setup, f0 multiplier for the CCD grid for how much past the radius sqrt(d) to extend the nodes. 
+#' Unless an advanced user, keep at default of 1.1.
+#'
+#' Once the function is setup, it has a method `buildGrid` which can be called to build the CCD grid. Input is d, the  number of dimensions and nQuad, which
+#' is ignored but part of the default quadrature methods. Details of how the CCD grid works can be found in Rue et al. (2009). Full details for CCD as a 
+#' quadrature tool are described in the thesis by Pietil{\"a}inen (2010).
 #'
 #' @author Paul van Dam-Bates
 #'
@@ -220,6 +222,7 @@ drop_algorithm <- nimbleFunction(run = function(d = double(), order = double()) 
 #' Rue, H., Martino, S., and Chopin, N. (2009). Approximate Bayesian Inference for Latent Gaussian Models by Using 
 #' Integrated Nested Laplace Approximations. Journal of the Royal Statistical Society, Series B 71 (2): 319–92.
 #'
+#' Pietil{\"a}inen, V. (2010). Approximations for Integration over the Hyperparameters in Gaussian Processes. [Master's Thesis]
 #'
 #' @export
 quadRule_CCD <- nimbleFunction(
@@ -330,19 +333,19 @@ quadRule_CCD <- nimbleFunction(
     )
 )
 
-#' User supplied quadrature grid
-#'
-#' Generate a d dimension custom grid via a nimble function list.
-#' 
-#' @param d Number of dimensions.
-#' @param nQuad Ignored.
-#'
-#' @details
-#' This function is a placeholder for a user supplied grid. 
-#'
-#' @author Paul van Dam-Bates
-#'
-#' @export
+##' User supplied quadrature grid
+##'
+##' Generate a d dimension custom grid via a nimble function list.
+##' 
+##' @param d Number of dimensions.
+##' @param nQuad Ignored.
+##'
+##' @details
+##' This function is a placeholder for a user supplied grid. 
+##'
+##' @author Paul van Dam-Bates
+##'
+##' @export
 # quadRule_USER <- nimbleFunction(
     # contains = QUAD_RULE_BASE,
     # name = "quadRule_USER",

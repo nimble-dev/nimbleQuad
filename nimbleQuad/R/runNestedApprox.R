@@ -70,13 +70,19 @@ approxSummary <- R6Class("approxSummary",
             if (is.null(self$params)) self$params <- self$generateParamsMatrix()
             if(length(self$params)) {
                 print(self$params)
+                if(nrow(self$params) < approx$innerMethods$npar)
+                    cat("Analytic marginals for remaining parameters not available (non-1:1 transformations).\n  Use `sampleParams`.\n")
             } else cat("  No analytic marginals available for non-1:1 transformations; use `sampleParams`.\n")
-            cat("\nMarginal log-likelihood (asymmetric Gaussian approximation): ",
-                self$marginalLogLik, "(*)\n")
-            if (!is.na(self$marginalLogLikImproved))
-                cat("Marginal log-likelihood (grid-based): ", self$marginalLogLikImproved, "(*)\n")
-            cat("(*) Marginal log-likelihood is invalid for improper priors and may not be useful\nfor non-informative priors.\n")
             
+            cat("\nMarginal log-likelihood (asymmetric Gaussian approximation): ",
+                self$marginalLogLik, "(*)\n", sep = "")
+            if(self$approx$paramGridRule == "CCD")
+                extra <- ",**" else extra <- ""
+            if (!is.na(self$marginalLogLikImproved))
+                cat("Marginal log-likelihood (grid-based): ", self$marginalLogLikImproved, "(*", extra, ")\n", sep = "")
+            cat("  (*) Invalid for improper priors and may not be useful for non-informative priors.\n")
+            if(!is.na(self$marginalLogLikImproved) && self$approx$paramGridRule == "CCD")
+                cat("  (**) Estimated using CCD grid. Estimation based on an AGHQ grid may be more\naccurate (but more computationally expensive).\n")
             invisible(self)
         },
         setParamGrid = function(summary, quadRule = "NULL", nQuad = -1, prune = -1){
@@ -112,8 +118,8 @@ approxSummary <- R6Class("approxSummary",
         approx = NULL,
         quantiles = NULL,
         expectations = NULL,
-        marginalsApprox = NULL,
-        marginalsRaw = NULL,
+        marginalsApprox = NULL,  # perhaps make private
+        marginalsRaw = NULL,     # perhaps make private
         indivParamTransforms = NULL,
         originalScale = NULL,
         marginalLogLik = NULL,
@@ -216,8 +222,16 @@ approxSummary <- R6Class("approxSummary",
 runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975),
                             originalScale = TRUE, improve1d = TRUE,
                             nSamplesLatents = 0, nSamplesParams = 0) {
-    if(is(approx, "nestedApprox")) 
-        Rapprox <- approx else Rapprox <- approx$Robject
+    if(is(approx, "nestedApprox")) {
+        Rapprox <- approx
+        messageIfVerbose('  [Warning] Running an uncompiled nested approximation.  Use compileNimble() for faster execution.')
+        tmp <- Rapprox$innerMethods$gr_logDens_pTransformed
+        tmp <- Rapprox$innerMethods$calcLogDens_pTransformed
+        for(i in seq_along(Rapprox$innerMethods$AGHQuad_nfl)) {
+            tmp <- Rapprox$innerMethods$AGHQuad_nfl[[i]]$gr_inner_logLik
+            tmp <- Rapprox$innerMethods$AGHQuad_nfl[[i]]$he_inner_logLik
+        }
+    } else Rapprox <- approx$Robject
 
     nParamTrans <- Rapprox$nParamTrans
 
@@ -362,6 +376,9 @@ improveParamMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad, quad
         if(originalScale) {
             nodes <- Rapprox$innerMethods$paramNodes
         } else nodes <- seq_len(Rapprox$nParamTrans)
+
+    if(!quadRule %in% c("NULL", "AGHQ", "AGHQSPARSE"))
+        stop("Only AGHQ-based quadrature rules are available for integration-based estimation of marginals.")
     
     if(originalScale) {
         if(!is.character(nodes))
@@ -376,6 +393,11 @@ improveParamMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad, quad
     if(missing(nQuad))
         nQuad <- ifelse(Rapprox$innerMethods$nparTrans == 2, 5, 3)
 
+    if(Rapprox$nParamTrans > 1) {
+        nmarg <- length(nodes)
+        if(nmarg > 1) word <- "densities" else word <- "density"
+        cat("Approximating", nmarg, "individual parameter marginal", word, "via AGHQ:\n")
+    }
     for (i in seq_along(nodes)) {
         ## Improve marginal and insert into raw and summary objects.
         idx <- getNodeIndex(nodes[i], Rapprox)

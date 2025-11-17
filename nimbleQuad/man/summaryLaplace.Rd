@@ -43,7 +43,7 @@ space there are no constraints. (default = TRUE)}
 estimates of random effects values. (default = TRUE)}
 
 \item{jointCovariance}{If TRUE, calculate the joint covariance matrix of
-the parameters and random effects together. If FALSE, calculate the 
+the parameters and random effects together. If FALSE, calculate the
 covariance matrix of the parameters. (default = FALSE)}
 
 \item{AGHQ}{Same as \code{laplace}. Note that `buildLaplace` and
