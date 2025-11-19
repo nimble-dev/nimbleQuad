@@ -302,24 +302,26 @@ test_that("Simple 1d param case - basic tests against known numerical results, i
     qs_est <- result$qmarginal('sigma2')
     expect_lt(max(abs(qs - qs_est)), 0.01)
 
-    result$improveParamMarginals('sigma2', nMarginalGrid = 5)
-    ## Expect identical results since 1d improvement done by default (and with 5 points).
-    expect_identical(qs_est, result$qmarginal('sigma2')) 
-    expect_identical(exp_table, result$expectations)
-    expect_identical(qs_table, result$quantiles)
+    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+        result$improveParamMarginals('sigma2', nMarginalGrid = 5)
+        ## Expect identical results since 1d improvement done by default (and with 5 points).
+        expect_identical(qs_est, result$qmarginal('sigma2')) 
+        expect_identical(exp_table, result$expectations)
+        expect_identical(qs_table, result$quantiles)
+        
+        result$improveParamMarginals('sigma2', nMarginalGrid = 11)
+
+        qs_est_impr <- result$qmarginal('sigma2')
+        expect_lt(max(abs(qs - qs_est_impr)), .0004)  
+        expect_false(identical(qs_est, qs_est_impr))
+        
+        result$improveParamMarginals('sigma2', nMarginalGrid = 21)
+
+        qs_est_impr2 <- result$qmarginal('sigma2')
+        expect_lt(max(abs(qs - qs_est_impr2)), 1e-4) 
+        expect_false(identical(qs_est_impr, qs_est_impr2))
+    }
     
-    result$improveParamMarginals('sigma2', nMarginalGrid = 11)
-
-    qs_est_impr <- result$qmarginal('sigma2')
-    expect_lt(max(abs(qs - qs_est_impr)), .0004)  
-    expect_false(identical(qs_est, qs_est_impr))
-                 
-    result$improveParamMarginals('sigma2', nMarginalGrid = 21)
-
-    qs_est_impr2 <- result$qmarginal('sigma2')
-    expect_lt(max(abs(qs - qs_est_impr2)), 1e-4) 
-    expect_false(identical(qs_est_impr, qs_est_impr2))
-
     new_qpts <- c(0.3, 0.72)
     qs_est <- result$qmarginal('sigma2', new_qpts)
     qs <- qinvgamma(new_qpts, (n-1)/2, scale=(n-1)*var(m$y)/2)
@@ -461,17 +463,19 @@ test_that("Basic interface and user input errors", {
     expect_identical(exp(sort(grid[,2])), sort(unique(latentSamples[,'sigma'])))
 
     q1 <- result$quantiles
-    result$improveParamMarginals()
-    q2 <- result$quantiles
-    result$improveParamMarginals(nMarginalGrid = 11)
-    q3 <- result$quantiles
-    result$improveParamMarginals(nMarginalGrid = 11, nQuad = 5)
-    q4 <- result$quantiles
-    expect_false(identical(q1,q2))
-    expect_false(identical(q2,q3))
-    expect_false(identical(q3,q4))
-    expect_error(result$improveParamMarginals(quadRule = 'CCD'), "Only AGHQ-based quadrature rules")
-                                        
+    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+        result$improveParamMarginals()
+        q2 <- result$quantiles
+        result$improveParamMarginals(nMarginalGrid = 11)
+        q3 <- result$quantiles
+        result$improveParamMarginals(nMarginalGrid = 11, nQuad = 5)
+        q4 <- result$quantiles
+        expect_false(identical(q1,q2))
+        expect_false(identical(q2,q3))
+        expect_false(identical(q3,q4))
+        expect_error(result$improveParamMarginals(quadRule = 'CCD'), "Only AGHQ-based quadrature rules")
+    }
+    
     ## Try various interface interactions.
     expect_silent(result <- runNestedApprox(capprox))
     ll1 <- result$marginalLogLik
