@@ -2000,21 +2000,6 @@ buildAGHQ <- nimbleFunction(
         internalRandomEffectsNodes <- randomEffectsNodes
         ## lenInternalRENodeSets <- nre
         reNodesAsScalars <- model$expandNodeNames(internalRandomEffectsNodes, returnScalarComponents = TRUE)
-        # old default was "model". new default is "last.best" with values=0
-        # Essentially the following steps will now b done in buildOneAGHQuad[1D]
-        ## if(is.null(control$innerOptimStart)) innerOptimStart <- values(model, randomEffectsNodes)
-        ## else {
-        ##   providedStart <- control$innerOptimStart
-        ##   if(any(providedStart %in% c("last", "last.best"))) innerOptimStart <- providedStart
-        ##   else if(is.numeric(sum(providedStart)) && (length(providedStart) == nre)) innerOptimStart <- providedStart
-        ##   else innerOptimStart <- values(model, randomEffectsNodes)
-        ## }
-        ## ## In case random effects are not properly initialized
-        ## if(!any(innerOptimStart %in% c("last", "last.best")) & any(is.infinite(innerOptimStart) | is.na(innerOptimStart) | is.nan(innerOptimStart))){
-        ##   all_reTransform <- parameterTransform(model, randomEffectsNodes)
-        ##   all_nreTrans <- all_reTransform$getTransformedLength()
-        ##   innerOptimStart <- all_reTransform$inverseTransform(rep(0, all_nreTrans))
-        ## }
         ## Build AGHQuad
         if(nre > 1 | isTRUE(control[['force_nDim']])) {
           AGHQuad_nfl[[1]] <- buildOneAGHQuad(model, nQuad = nQuad_, paramNodes, randomEffectsNodes,
@@ -2053,45 +2038,7 @@ buildAGHQ <- nimbleFunction(
           these_calcNodes <- intersect(calcNodes, these_reDeps) ## definite calcNodes
           these_reNodesAsScalars <- model$expandNodeNames(these_reNodes, returnScalarComponents = TRUE)
           reNodesAsScalars <- c(reNodesAsScalars, these_reNodesAsScalars)
-          nre_these <- length(these_reNodesAsScalars)
-          ## lenInternalRENodeSets <- c(lenInternalRENodeSets, nre_these)
-          ## Process start values for inner optimisation
-          if(is.numeric(innerOptimStartValues) && (length(innerOptimStartValues) == nre)) {
-            # input was a vector of all REs, so we must split it accordingly
-            if(is.null(names(innerOptimStartValues))) {
-              # split by order, because there are no names. use internalRandomEffectsNodes order.
-              # the last portion will be for the present set of values
-              these_reNodes_inds <- length(reNodesAsScalars) - nre_these + (1:nre_these)
-            } else {
-              # split by names
-              these_reNodes_inds <- match(these_reNodesAsScalars, innerOptimStartValues, nomatch=0)
-              if((length(these_reNodes_inds) != nre_these) |
-                   (length(unique(these_reNodes_inds)) != length(these_reNodes_inds)) |
-                   any(these_reNodes_inds==0))
-                messageIfVerbose("  [Warning] There appears to be an incorrect name in `control$innerOptimStartValues`.")
-            }
-            these_innerOptimStartValues <- innerOptimStartValues[these_reNodes_inds]
-          } else {
-            these_innerOptimStartValues <- innerOptimStartValues
-          }
-          ## if(is.null(control$innerOptimStart)) innerOptimStart <- values(model, these_reNodes)
-          ## else {
-          ##   providedStart <- control$innerOptimStart
-          ##   if(any(providedStart %in% c("last", "last.best"))) innerOptimStart <- providedStart
-          ##   else if(is.numeric(sum(providedStart)) && (length(providedStart) == nre)){
-          ##     these_reNodes_inds <- unlist(lapply(model$expandNodeNames(these_reNodes, returnScalarComponents = TRUE), function(x) {which(scalarRENodes == x)}))
-          ##     innerOptimStart <- providedStart[these_reNodes_inds]
-          ##   }
-          ##   else innerOptimStart <- values(model, these_reNodes)
-          ## }
-          ## ## In case random effects are not properly initialized
-          ## if(!any(innerOptimStart %in% c("last", "last.best")) & any(is.infinite(innerOptimStart) | is.na(innerOptimStart) | is.nan(innerOptimStart))){
-          ##   these_reTransform <- parameterTransform(model, these_reNodes)
-          ##   these_nreTrans <- these_reTransform$getTransformedLength()
-          ##   innerOptimStart <- these_reTransform$inverseTransform(rep(0, these_nreTrans))
-          ## }
-          ## Build AGHQuad for each set
-          ## **** WZ below the innerControlList is still the full one I do not know why the code above was commented out
+          nre_these <- length(these_reNodesAsScalars)            
           if(nre_these > 1 | isTRUE(control[['force_nDim']])){
             AGHQuad_nfl[[i]] <- buildOneAGHQuad(model, nQuad = nQuad_, paramNodes, these_reNodes, these_calcNodes,
                                                 paramDeps, innerControlList)
