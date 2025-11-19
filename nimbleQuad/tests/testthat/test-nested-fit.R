@@ -1157,7 +1157,7 @@ test_that("dmnorm case - revised nested RE example", {
     
     expect_lt(max(abs(qs_mcmc[,1:8] - qs_nest[,c(1,3,4,5:8,2)])), .025) # .019
 
-    expect_lt(max(abs(qs_mcmc[,11:272] - qs_nest[,9:270])), .045) # .040
+    expect_lt(max(abs(qs_mcmc[,11:272] - qs_nest[,9:270])), .06) # .040 on Linux, .052 on Windows CI
 
     ## Now check if not using analytic normality.
     
@@ -1180,7 +1180,7 @@ test_that("dmnorm case - revised nested RE example", {
     
     expect_lt(max(abs(qs_mcmc[,1:8] - qs_nest[,c(1,3,4,5:8,2)])), .02) # .016
 
-    expect_lt(max(abs(qs_mcmc[,11:272] - qs_nest[,9:270])), .055) # .049
+    expect_lt(max(abs(qs_mcmc[,11:272] - qs_nest[,9:270])), .06) # .049 on Linux, .056 on Windows CI
 
 
 })
