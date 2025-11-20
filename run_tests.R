@@ -5,7 +5,7 @@ library(testthat)
 library(nimble)
 library(nimbleQuad)
 
-testFiles <- "test-nested-interface-partial.R"
+testFiles <- "nimbleQuad/tests/testhat/test-nested-interface-partial.R"
 
 for(test in testFiles) {
     cat('===========================================================\n')
