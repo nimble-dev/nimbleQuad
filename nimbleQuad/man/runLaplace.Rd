@@ -52,8 +52,8 @@ A list with elements \code{MLE} and \code{summary}.
 
 \code{MLE} is the result of the \code{findMLE} method, which contains the
 parameter estimates and Hessian matrix. This is considered raw output, and
-one should normally use instead the contents of \code{summary}. (For example
-not that the Hessian matrix in \code{MLE} may not correspond to the same
+one should normally use the contents of \code{summary} instead. (For example
+note that the Hessian matrix in \code{MLE} may not correspond to the same
 scale as the parameter estimates if a transformation was used to operate in
 an unconstrained parameter space.)
 

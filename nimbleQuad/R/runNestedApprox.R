@@ -155,7 +155,7 @@ approxSummary <- R6Class("approxSummary",
 #' by calling methods on the summary object, as seen in the examples (or running the equivalent 
 #' function calls with the first argument being the summary object).
 #' 
-#' @section Methods available for object of class \code{approxSummary}
+#' @section Methods available for object of class \code{approxSummary}:
 #'
 #' Once the default inference has been run, inference can then be improved by calling different available methods within the returned object.
 #' Each method is explained in detail in their documentation, but the user may choose
@@ -167,6 +167,7 @@ approxSummary <- R6Class("approxSummary",
 #'     \item \code{sampleParams}. Sample from the parameter posterior distribution.
 #'     \item \code{sampleLatents}. Sample from the posterior distribution of the latent nodes.
 #'     \item \code{qmarginal}. Compute quantiles for a parameter.
+#'     \item \code{dmarginal}. Compute marginal density values for a parameter.
 #'     \item \code{rmarginal}. Draw random samples from the marginal posterior of a parameter.
 #'     \item \code{emarginal}. Compute the expectation of a function of a parameter under the marginal posterior distribution.
 #'     \item \code{plotMarginal}. Plot the marginal posterior for a parameter.
@@ -216,7 +217,8 @@ approxSummary <- R6Class("approxSummary",
 #' latent_sample <- result$sampleLatents(n = 1000)
 #' # For joint inference on parameters, sample from the approximate posterior for the parameters.
 #' param_sample <- result$sampleParams(n = 1000)
-#'
+#' }
+#' 
 #' @export
 #' 
 runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975),

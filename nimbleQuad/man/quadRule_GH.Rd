@@ -14,12 +14,13 @@ Generate a 1 dimension GHQ grid via a nimble function list.
 }
 \details{
 This function a 1D Gauss-Hermite Quadrature Grid (nodes and weights). When choosing `type = "GHe"`, 
-the nodes are adjusted to integrate a general function, adjusting the points by
-the sqrt(2) and the weights by sqrt(2) * exp(x^2). It cannot be compiled without being
-included within a virtual nimble list "QUAD_RULE_BASE".
+the nodes and weights are to integrate a general function. If `type = "GHN"`,
+the weights are multiplied by a standard normal. It cannot be compiled without being included within 
+a virtual nimble list "QUAD_RULE_BASE".
 }
 \references{
 Jackel, P. (2005). A note on multivariate Gauss-Hermite quadrature. London: ABN-Amro. Re.
+Liu, Q. and Pierce, D. (1994) A Note on Gauss-Hermite Quadrature. Biometrika, 83, 624-629.
 }
 \author{
 Paul van Dam-Bates
