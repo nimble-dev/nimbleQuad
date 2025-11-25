@@ -9,7 +9,8 @@ requirements <- c(
     'pracma',     ## for AD
     'numDeriv',    ## for AD
     'mvQuad',
-    'RTMB'
+    'RTMB',
+    'polynom'
     ## 'lme4'     ## for test-ADlaplace.R
     )
 
