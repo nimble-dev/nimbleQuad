@@ -173,7 +173,7 @@ approxSummary <- R6Class("approxSummary",
 #' @section Methods available for object of class \code{approxSummary}:
 #'
 #' Once the default inference has been run, inference can then be improved by calling different available methods within the returned object.
-#' Each method is explained in detail in their documentation, but the user may choose
+#' Each method is explained in detail in their documentation, but the user may choose the following options:
 #' 
 #' \itemize{
 #'     \item \code{setParamGrid}. Allows the user to change the parameter grid used in the nested approximation.         
