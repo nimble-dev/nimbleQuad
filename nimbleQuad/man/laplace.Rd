@@ -34,7 +34,7 @@ The model must have automatic derivatives (AD) turned on, e.g. by using
 \code{buildDerivs=TRUE} in \code{nimbleModel}.}
 
 \item{paramNodes}{a character vector of names of parameter nodes in the
-model; defaults are provided by \code{\link{setupMargNodes}}.
+model; defaults are provided by \code{\link[nimble]{setupMargNodes}}.
 Alternatively, \code{paramNodes} can be a list in the format returned by
 \code{setupMargNodes}, in which case \code{randomEffectsNodes},
 \code{calcNodes}, and \code{calcNodesOther} are not needed (and will be
@@ -42,11 +42,11 @@ ignored).}
 
 \item{randomEffectsNodes}{a character vector of names of continuous
 unobserved (latent) nodes to marginalize (integrate) over using Laplace/AGHQ
-approximation; defaults are provided by \code{\link{setupMargNodes}}.}
+approximation; defaults are provided by \code{\link[nimble]{setupMargNodes}}.}
 
 \item{calcNodes}{a character vector of names of nodes for calculating the
 integrand for Laplace/AGHQ approximation; defaults are provided by
-\code{\link{setupMargNodes}}. There may be deterministic nodes between
+\code{\link[nimble]{setupMargNodes}}. There may be deterministic nodes between
 \code{paramNodes} and \code{calcNodes}. These will be included in
 calculations automatically and thus do not need to be included in
 \code{calcNodes} (but there is no problem if they are).}
@@ -113,7 +113,7 @@ necessary for nested, correlated, or otherwise dependent random effects.
 The recommended way to find the maximum likelihood estimate and associated
 outputs is by calling \code{\link{runLaplace}} or \code{\link{runAGHQ}}. The
 input should be the compiled Laplace or AGHQ algorithm object. This would be
-produced by running \code{\link{compileNimble}} with input that is the result
+produced by running \code{\link[nimble]{compileNimble}} with input that is the result
 of \code{buildLaplace} or \code{buildAGHQ}.
 
 For more granular control, see below for methods \code{findMLE} and
@@ -149,7 +149,7 @@ In many (but not all) cases, one only needs to provide a NIMBLE model object
   and then the function will construct reasonable defaults necessary for
   Laplace approximation to marginalize over all continuous latent states
   (aka random effects) in a model. The default values for the four groups of
-  nodes are obtained by calling \code{\link{setupMargNodes}}, whose arguments
+  nodes are obtained by calling \code{\link[nimble]{setupMargNodes}}, whose arguments
   match those here (except for a few arguments which are taken from control
   list elements here).
 
@@ -259,12 +259,12 @@ elements of the list. Most (but not all) of these can be updated later using the
   \item \code{innerOptimControl}. An `optimControlNimbleList` list
         of control parameters (an R list is sufficient for uncompiled operation) for the inner
         optimization of Laplace approximation using \code{nimOptim}. See
-        'Details' of \code{\link{nimOptim}} for further information. Default
+        'Details' of \code{\link[nimble]{nimOptim}} for further information. Default
         is `nimOptimDefaultControl()`.
 
   \item \code{innerOptimMethod}. Optimization method to be used in
         \code{nimOptim} for the inner optimization. See 'Details' of
-        \code{\link{nimOptim}}. Currently \code{nimOptim} in NIMBLE supports:
+        \code{\link[nimble]{nimOptim}}. Currently \code{nimOptim} in NIMBLE supports:
         \code{"Nelder-Mead"}", \code{"BFGS"}, \code{"CG"}, \code{"L-BFGS-B"},
         \code{"nlminb"}, \code{"bobyqa"}, and user-provided optimizers. By default, method
         \code{"nlminb"} is used for both univariate and multivariate cases. For
@@ -335,7 +335,7 @@ elements of the list. Most (but not all) of these can be updated later using the
 
   \item \code{outerOptimMethod}. Optimization method to be used in
         \code{nimOptim} for the outer optimization. See 'Details' of
-        \code{\link{nimOptim}}. Currently \code{nimOptim} in NIMBLE supports:
+        \code{\link[nimble]{nimOptim}}. Currently \code{nimOptim} in NIMBLE supports:
         \code{"Nelder-Mead"}", \code{"BFGS"}, \code{"CG"}, \code{"L-BFGS-B"},
         \code{"nlminb"}, \code{"bobyqa"}, and user-provided optimizers. By default, method
         \code{"nlminb"} is used for both univariate and multivariate cases,
@@ -349,7 +349,7 @@ elements of the list. Most (but not all) of these can be updated later using the
 \item \code{outerOptimControl}. An `optimControlNimbleList` of control parameters
         (an R list is sufficient for uncompiled operation) for maximizing
         the Laplace log-likelihood using \code{nimOptim}. See 'Details' of
-        \code{\link{nimOptim}} for further information.
+        \code{\link[nimble]{nimOptim}} for further information.
 
   \item \code{computeMethod}. There are three approaches available for
   internal details of how the approximations, and specifically derivatives
@@ -628,7 +628,7 @@ Finally, methods that are primarily for internal use by other methods include:
   \item \code{calcLogLik_pTransformed(pTransform)}. Laplace approximation at
         transformed (unconstrained) parameter value \code{pTransform}. To
         make maximizing the Laplace likelihood unconstrained, an automated
-        transformation via \code{\link{parameterTransform}} is performed on
+        transformation via \code{\link[nimble]{parameterTransform}} is performed on
         any parameters with constraints indicated by their priors (even
         though the prior probabilities are not used).
 

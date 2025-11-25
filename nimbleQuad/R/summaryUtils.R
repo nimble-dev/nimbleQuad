@@ -1,6 +1,3 @@
-marginalSplineR <- nimbleRcall(function(theta = double(1), logdens = double(1)) {},
-                               Rfun = "marginalSpline", returnType = double(2))
-
 fitMarginalSpline <- function(gridded, normalize = TRUE, xnew = NULL, refine = TRUE, extend = TRUE) {
     theta <- gridded[, 1]
     logdens <- gridded[, 2]

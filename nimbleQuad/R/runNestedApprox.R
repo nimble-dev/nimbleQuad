@@ -38,7 +38,7 @@ approxSummary <- R6Class("approxSummary",
             self$paramSamples <- paramSamples
         },
         generateParamsMatrix = function() {
-            if(is(self$approx, "nestedApprox")) 
+            if(methods::is(self$approx, "nestedApprox")) 
                 Rapprox <- self$approx else Rapprox <- self$approx$Robject
 
             first <- which(!sapply(self$quantiles, is.null))[1]
@@ -224,7 +224,7 @@ approxSummary <- R6Class("approxSummary",
 runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975),
                             originalScale = TRUE, improve1d = TRUE,
                             nSamplesLatents = 0, nSamplesParams = 0) {
-    if(is(approx, "nestedApprox")) {
+    if(methods::is(approx, "nestedApprox")) {
         Rapprox <- approx
         messageIfVerbose('  [Warning] Running an uncompiled nested approximation.  Use compileNimble() for faster execution.')
         tmp <- Rapprox$innerMethods$gr_logDens_pTransformed
@@ -486,7 +486,7 @@ sampleParams <- function(summary, n = 1000, matchMarginals = TRUE) {
         ## `improve.marginals`: F^{-1}(F(x)) where F is ecdf of samples and
         ## F^{-1} is quantile fxn from approx's marginal.
         for (i in seq_len(ncol(samplesTrans))) {
-                empirQuantiles <- ecdf(samplesTrans[, i])(samplesTrans[, i])
+                empirQuantiles <- stats::ecdf(samplesTrans[, i])(samplesTrans[, i])
                 quantiles <- estimateQuantiles(summary$marginalsApprox[[i]],
                                                NULL,
                                                empirQuantiles)
@@ -628,7 +628,7 @@ qmarginal <- function(summary, node, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975
 #' 
 #' @export
 rmarginal <- function(summary, node, n = 1000) {
-    samples <- qmarginal(summary, node, runif(n))
+    samples <- qmarginal(summary, node, stats::runif(n))
     names(samples) <- NULL
     return(samples)
 }
@@ -719,7 +719,7 @@ plotMarginal <- function(summary, node, log = FALSE, add = FALSE, ...){
     else
       ylab <- "Posterior Density"
     if(!add)
-      plot(x, y, type = 'l', xlab = node, ylab = ylab,...)
+      graphics::plot(x, y, type = 'l', xlab = node, ylab = ylab,...)
     else
-      lines(x, y, xlab = xlab, ylab = ylab,...)
+      graphics::lines(x, y, xlab = node, ylab = ylab,...)
 }

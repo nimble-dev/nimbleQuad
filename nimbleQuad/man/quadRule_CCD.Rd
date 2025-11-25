@@ -19,13 +19,13 @@ Unless an advanced user, keep at default of 1.1.
 
 Once the function is setup, it has a method `buildGrid` which can be called to build the CCD grid. Input is d, the  number of dimensions and nQuad, which
 is ignored but part of the default quadrature methods. Details of how the CCD grid works can be found in Rue et al. (2009). Full details for CCD as a 
-quadrature tool are described in the thesis by Pietil{\"a}inen (2010).
+quadrature tool are described in the thesis by \enc{Pietiläinen}{Pietilainen} (2010).
 }
 \references{
 Rue, H., Martino, S., and Chopin, N. (2009). Approximate Bayesian Inference for Latent Gaussian Models by Using 
 Integrated Nested Laplace Approximations. Journal of the Royal Statistical Society, Series B 71 (2): 319–92.
 
-Pietil{\"a}inen, V. (2010). Approximations for Integration over the Hyperparameters in Gaussian Processes. [Master's Thesis]
+\enc{Pietiläinen}{Pietilainen}, V. (2010). Approximations for Integration over the Hyperparameters in Gaussian Processes. [Master's Thesis]
 }
 \author{
 Paul van Dam-Bates

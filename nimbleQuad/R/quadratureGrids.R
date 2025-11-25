@@ -35,7 +35,7 @@ QUAD_CACHE_BASE <- nimbleFunctionVirtual(
 #' @details Adds two values from the log scale at the exponential scale, and then logs it. When values are really negative,
 #' this function is numerically stable and reduces the chance of underflow. It is a two value version of a log-sum-exponential.
 
-#' @return @code{logSumExp} returns @code{log(exp(log1) + exp(log2))}
+#' @return \code{logSumExp} returns \code{log(exp(log1) + exp(log2))}
 #'
 #' @export
 logSumExp = nimbleFunction(run = function(log1 = double(), log2 = double()) {
@@ -149,8 +149,8 @@ quadGridCache <- nimbleFunction(
 #' }
 #'
 #' Quadrature grids are generally based on adaptive Gauss-Hermite (GH) quadrature which is expanded via a product or sparse rule into multiple dimensions. Sparse grids are
-#' built following the Smolyak rule (Heiss and Winschel, 2008) and demonstrated in the package `mvQuad` Weiser, C. (2023). Pruning is also implemented as described in 
-#' J{\"a}ckel (2005), where weights are adjusted by the value of a standard multivariate normal at that node, and nodes are removed until some threshold is met.
+#' built following the Smolyak rule (Heiss and Winschel, 2008) and demonstrated in the package \pkg{mvQuad} (Weiser, 2023). Pruning is also implemented as described in 
+#' \enc{Jäckel}{Jaeckel} (2005), where weights are adjusted by the value of a standard multivariate normal at that node, and nodes are removed until some threshold is met.
 #' 
 #' The available methods that can called by this function once it is setup are:
 #'
@@ -170,11 +170,11 @@ quadGridCache <- nimbleFunction(
 #' @author Paul van Dam-Bates
 #'
 #' @references
-#' Heiss, F. and Winschel V. (2008). Likelihood approximation by numerical integration on sparse grids. journal of Econometrics 144 (1), 62–80.
+#' Heiss, F. and Winschel V. (2008). Likelihood approximation by numerical integration on sparse grids. Journal of Econometrics 144 (1), 62–80.
 #'
 #' Weiser, C. (2023). _mvQuad: Methods for Multivariate Quadrature._. (R package version 1.0-8), <https://CRAN.R-project.org/package=mvQuad>.
 #'
-#' J{\"a}ckel, P. (2005). A note on multivariate gauss-hermite quadrature. London: ABN-Amro. Re.
+#' \enc{Jäckel}{Jaeckel}, P. (2005). A note on multivariate gauss-hermite quadrature. London: ABN-Amro. Re.
 #'
 #' @export
 configureQuadGrid <- nimbleFunction(

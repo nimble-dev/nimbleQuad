@@ -15,7 +15,7 @@
 #' that are not determined to be parameter nodes.
 #' @param calcNodes optional character vector of names of nodes for calculating the
 #'   integrand for Laplace/AGHQ approximation over the latent nodes; defaults are provided by
-#'   \code{\link{setupMargNodes}}. Note that users will generally not need to provide this. 
+#'   \code{\link[nimble]{setupMargNodes}}. Note that users will generally not need to provide this. 
 #'   There may be deterministic nodes between
 #'   \code{paramNodes} and \code{calcNodes}. These will be included in
 #'   calculations automatically and thus do not need to be included in
@@ -872,10 +872,6 @@ buildNestedApprox <- nimbleFunction(
             returnType(double(2))
             return(marg_paramTrans[pIndex, , ])
         },
-        ## marginalTransformedSplineDensity = function(pIndex = integer()) {
-        ## returnType(double(2))
-        ## return(marginalSplineR(marg_paramTrans[pIndex, , 1], marg_paramTrans[pIndex, , 2]))
-        ## },
         simulateLatents = function(n = integer()) {
             if(n < 0)
               stop("number `n` of simulated values must be at least one")

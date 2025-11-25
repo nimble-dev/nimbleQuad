@@ -9,10 +9,10 @@ quadGH(levels = 1, type = "GHe")
 \arguments{
 \item{levels}{How many quadrature points to generate.}
 
-\item{type}{Choose type of Gauss-Hermite nodes and weights. Defaults to `GHe`}
+\item{type}{Choose type of Gauss-Hermite nodes and weights. Defaults to \code{"GHe"}.}
 }
 \description{
-Generates GH quadrature weights and nodes for integrating a general univariate function from -Inf to Inf.
+Generates GH quadrature weights and nodes for integrating a general univariate function from \code{-Inf} to \code{Inf}.
 }
 \details{
 This function generates Gauss-Hermite (GH) points and returns a matrix with the first column as weights and
@@ -22,12 +22,12 @@ GH nodes approximately integrate the function g(x) = f(x)*exp(-x^2). If the type
 the sqrt(2) and the weights by sqrt(2) * exp(x^2).
 }
 \references{
-Golub, G. H. and Welsch, J. H. (1969). Calculation of Gauss Quadrature Rules. 
+Golub, G. H. and Welsch, J.H. (1969). Calculation of Gauss Quadrature Rules. 
 Mathematics of Computation 23 (106): 221-230.
 
-Liu, Q. and Pierce, D. A. (1994). A Note on Gauss-Hermite Quadrature. Biometrika, 81(3) 624-629.
+Liu, Q. and Pierce, D.A. (1994). A Note on Gauss-Hermite Quadrature. Biometrika, 81(3) 624-629.
 
-Jackel, P. (2005). A note on multivariate Gauss-Hermite quadrature. London: ABN-Amro. Re.
+\enc{Jäckel}{Jaeckel}, P. (2005). A note on multivariate Gauss-Hermite quadrature. London: ABN-Amro. Re.
 }
 \author{
 Paul van Dam-Bates

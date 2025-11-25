@@ -12,7 +12,7 @@ logSumExp(log1, log2)
 \item{log2}{scalar of value 2 to exponentiate and sum with value 1.}
 }
 \value{
-@code{logSumExp} returns @code{log(exp(log1) + exp(log2))}
+\code{logSumExp} returns \code{log(exp(log1) + exp(log2))}
 }
 \description{
 Compute the sum of two log values on the real scale and return on log scale.

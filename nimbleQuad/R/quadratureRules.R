@@ -4,7 +4,7 @@
 
 #' Base class for nimble function list quadrature rules.
 #'
-#' @details This is a class definition that must be included via \code{contains = QUADE_RULE_BASE} in a `nimbleFunction`
+#' @details This is a class definition that must be included via \code{contains = QUAD_RULE_BASE} in a \code{nimbleFunction}
 #' if intending to make a quadrature rule to be used.
 #'
 #' @author Paul van Dam-Bates
@@ -22,10 +22,10 @@ QUAD_RULE_BASE <- nimbleFunctionVirtual(
 
 #' Gauss-Hermite Quadrature Points in one dimension
 #'
-#' Generates GH quadrature weights and nodes for integrating a general univariate function from -Inf to Inf.
+#' Generates GH quadrature weights and nodes for integrating a general univariate function from \code{-Inf} to \code{Inf}.
 #' 
 #' @param levels How many quadrature points to generate.
-#' @param type Choose type of Gauss-Hermite nodes and weights. Defaults to `GHe`
+#' @param type Choose type of Gauss-Hermite nodes and weights. Defaults to \code{"GHe"}.
 #'
 #' @details
 #' This function generates Gauss-Hermite (GH) points and returns a matrix with the first column as weights and
@@ -38,12 +38,12 @@ QUAD_RULE_BASE <- nimbleFunctionVirtual(
 #'
 #' @references
 #'
-#' Golub, G. H. and Welsch, J. H. (1969). Calculation of Gauss Quadrature Rules. 
+#' Golub, G. H. and Welsch, J.H. (1969). Calculation of Gauss Quadrature Rules. 
 #' Mathematics of Computation 23 (106): 221-230.
 #'
-#' Liu, Q. and Pierce, D. A. (1994). A Note on Gauss-Hermite Quadrature. Biometrika, 81(3) 624-629.
+#' Liu, Q. and Pierce, D.A. (1994). A Note on Gauss-Hermite Quadrature. Biometrika, 81(3) 624-629.
 #'
-#' Jackel, P. (2005). A note on multivariate Gauss-Hermite quadrature. London: ABN-Amro. Re.
+#' \enc{Jäckel}{Jaeckel}, P. (2005). A note on multivariate Gauss-Hermite quadrature. London: ABN-Amro. Re.
 #'
 #' @export
 quadGH <- nimbleFunction(run = function(levels = integer(0, default = 1), type = character(0, default = "GHe")) {
@@ -98,7 +98,7 @@ quadGH <- nimbleFunction(run = function(levels = integer(0, default = 1), type =
 #'
 #' Generate a 1 dimension GHQ grid via a nimble function list.
 #' 
-#' @param levels Length of GHQ
+#' @param type Choose type of Gauss-Hermite nodes and weights. Defaults to \code{"GHe"}.
 #'
 #' @details
 #' This function a 1D Gauss-Hermite Quadrature Grid (nodes and weights). When choosing `type = "GHe"`, 
@@ -110,7 +110,7 @@ quadGH <- nimbleFunction(run = function(levels = integer(0, default = 1), type =
 #'
 #' @references
 #'
-#' Jackel, P. (2005). A note on multivariate Gauss-Hermite quadrature. London: ABN-Amro. Re.
+#' \enc{Jäckel}{Jaeckel}, P. (2005). A note on multivariate Gauss-Hermite quadrature. London: ABN-Amro. Re.
 #' Liu, Q. and Pierce, D. (1994) A Note on Gauss-Hermite Quadrature. Biometrika, 83, 624-629.
 #'
 #' @export
@@ -213,7 +213,7 @@ drop_algorithm <- nimbleFunction(run = function(d = double(), order = double()) 
 #'
 #' Once the function is setup, it has a method `buildGrid` which can be called to build the CCD grid. Input is d, the  number of dimensions and nQuad, which
 #' is ignored but part of the default quadrature methods. Details of how the CCD grid works can be found in Rue et al. (2009). Full details for CCD as a 
-#' quadrature tool are described in the thesis by Pietil{\"a}inen (2010).
+#' quadrature tool are described in the thesis by \enc{Pietiläinen}{Pietilainen} (2010).
 #'
 #' @author Paul van Dam-Bates
 #'
@@ -222,7 +222,7 @@ drop_algorithm <- nimbleFunction(run = function(d = double(), order = double()) 
 #' Rue, H., Martino, S., and Chopin, N. (2009). Approximate Bayesian Inference for Latent Gaussian Models by Using 
 #' Integrated Nested Laplace Approximations. Journal of the Royal Statistical Society, Series B 71 (2): 319–92.
 #'
-#' Pietil{\"a}inen, V. (2010). Approximations for Integration over the Hyperparameters in Gaussian Processes. [Master's Thesis]
+#' \enc{Pietiläinen}{Pietilainen}, V. (2010). Approximations for Integration over the Hyperparameters in Gaussian Processes. [Master's Thesis]
 #'
 #' @export
 quadRule_CCD <- nimbleFunction(

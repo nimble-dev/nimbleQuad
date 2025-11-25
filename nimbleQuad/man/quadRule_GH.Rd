@@ -7,7 +7,7 @@
 quadRule_GH(type = "GHe")
 }
 \arguments{
-\item{levels}{Length of GHQ}
+\item{type}{Choose type of Gauss-Hermite nodes and weights. Defaults to \code{"GHe"}.}
 }
 \description{
 Generate a 1 dimension GHQ grid via a nimble function list.
@@ -19,7 +19,7 @@ the weights are multiplied by a standard normal. It cannot be compiled without b
 a virtual nimble list "QUAD_RULE_BASE".
 }
 \references{
-Jackel, P. (2005). A note on multivariate Gauss-Hermite quadrature. London: ABN-Amro. Re.
+\enc{Jäckel}{Jaeckel}, P. (2005). A note on multivariate Gauss-Hermite quadrature. London: ABN-Amro. Re.
 Liu, Q. and Pierce, D. (1994) A Note on Gauss-Hermite Quadrature. Biometrika, 83, 624-629.
 }
 \author{
