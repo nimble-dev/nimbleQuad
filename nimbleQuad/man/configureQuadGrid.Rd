@@ -49,7 +49,7 @@ The available methods that can called by this function once it is setup are:
 }
 }
 \references{
-Heiss, F. and Winschel V. (2008). Likelihood approximation by numerical integration on sparse grids. journal of Econometrics 144 (1), 62–80.
+Heiss, F. and Winschel V. (2008). Likelihood approximation by numerical integration on sparse grids. Journal of Econometrics 144 (1), 62–80.
 
 Weiser, C. (2023). _mvQuad: Methods for Multivariate Quadrature._. (R package version 1.0-8), <https://CRAN.R-project.org/package=mvQuad>.
 
