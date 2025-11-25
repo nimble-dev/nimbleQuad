@@ -182,6 +182,11 @@ configureQuadGrid <- nimbleFunction(
     setup = function(d = 1, levels = 3, quadRule = "AGHQ", control = list()) {
         ## Can list all possible quad rules here and set it.
         possibleRules <- c("AGHQ", "CCD", "AGHQSPARSE", "USER", "USERSPARSE", "USERMULTI")
+        ## USER FUNCTIONS
+        ## if(is.function(quadRule))
+
+        ## control list: control$userType = product, sparse, multi * default multi.
+        ## Basic function checks.
         
         quadRules <- extractControlElement(control, "quadRules", NULL)
         ccd_f0 <- extractControlElement(control, "CCD_f0", 1.1)

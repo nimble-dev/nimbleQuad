@@ -1185,6 +1185,146 @@ test_that("dmnorm case - revised nested RE example", {
 
 })
 
+test_that("Salamander example - custom distribution and INLA comparison", {
+  data("Salamanders",package = "glmmTMB")
+  
+  # dZIP <- nimbleFunction(
+   # run = function(x = double(), z = double(), lambda = double(),
+                  # zeroProb = double(), log = logical(0, default = 0)) {
+     # returnType(double())
+     # prob <- zeroProb*z + (1 - zeroProb) * dpois(x, lambda)
+     # if (log) return(log(prob))
+       # return(prob)
+     # },
+     # buildDerivs = 'run'
+  # )
+
+  dZIP <- nimbleFunction(
+   run = function(x = double(), lambda = double(),
+                  zeroProb = double(), log = logical(0, default = 0)) {
+     returnType(double())
+     ## For use with AD, we cannot use an `if` statement to handle the mixture.
+     prob <- zeroProb * dbinom(x, size = 1, prob = 0) + (1 - zeroProb) * dpois(x, lambda)
+     if (log) return(log(prob))
+       return(prob)
+     },
+     buildDerivs = 'run'   # Needed when used with AD-based algorithms.
+   )
+  
+  rZIP <- nimbleFunction(
+   run = function(n = integer(), lambda = double(), zeroProb = double()) {
+     returnType(double())
+     isStructuralZero <- rbinom(1, prob = zeroProb, size = 1)
+     if (isStructuralZero) return(0)
+     return(rpois(1, lambda))
+  })
+  
+  ## NIMBLE Model Code
+  code <- nimbleCode({
+    beta[1] ~ dflat()
+    for( i in 2:np ) 
+      beta[i] ~ dnorm(0, tau = 0.001) 
+    tau_re ~ dgamma(shape = 1, rate = 5e-5)
+    logitp ~ dnorm(mean = -1, tau = 0.2)
+    p <- expit(logitp)
+    
+    for(i in 1:nsites) 
+      re[i] ~ dnorm(0, tau = tau_re)
+
+    for( i in 1:nobs ){
+      log(lam[i]) <- sum(beta[1:np]*X[i,1:np]) + re[site[i]]
+      count[i] ~ dZIP(lambda = lam[i], zeroProb = p)
+    }
+  })
+
+  nimconst <- list()
+  nimconst$X <- as.matrix(model.matrix( ~ spp * mined, data = Salamanders ))
+  nimconst$np <- ncol(nimconst$X)
+  nimconst$nobs <- nrow(nimconst$X)
+  nimconst$site <- as.numeric(factor(Salamanders$site))
+  nimconst$nsites <- max(nimconst$site)
+
+  nimdata <- list()
+  nimdata$count <- Salamanders$count
+
+  inits <- list(logitp = -0.9, 
+    tau_re = 3,
+    re = rnorm(nimconst$nsites,0,0.1),
+    beta = rnorm(nimconst$np))
+
+  m <- nimbleModel(code, data = nimdata, constants = nimconst, inits = inits, buildDerivs = TRUE)
+  approx <- buildNestedApprox(model = m, 
+                              paramNodes = c('logitp', 'tau_re'), 
+                              latentNodes = c('beta', 're'))
+  cm <- compileNimble(m)
+  capprox <- compileNimble(approx, project = m)
+  result <- runNestedApprox(approx = capprox)
+
+  if(FALSE) {
+      library(nimbleHMC)
+      mcmc <- buildHMC(m, monitors = c('logitp', 'tau_re', 'beta', 're'))
+      cmcmc <- compileNimble(mcmc, project = m)
+      
+      system.time(out <- runMCMC(cmcmc, niter = 11000, nburnin = 1000))      
+      qs_mcmc <- apply(out, 2, quantile, qpts)
+      save(qs_mcmc, file = 'mcmc-results10.Rda')
+      
+  } else load(system.file(file.path('tests', 'testthat', 'mcmc-results10.Rda'), package = 'nimbleQuad'))
+
+  ## logitp matches well:
+  expect_lt(max(abs(qs_mcmc[,c('logitp')] - result$quantiles$logitp)), .007)  # 0.005856947
+
+  ## tau_re is hard:
+  expect_lt(max(abs(qs_mcmc[,'tau_re'] - result$quantiles$tau_re)), .06)  # 0.05814419
+
+  ## Test param samples:
+  smp <- result$sampleParams(n=10000)
+  qs_sample <- apply(smp, 2, quantile, qpts)
+  expect_lt(max(abs(qs_mcmc[,'tau_re'] - qs_sample[, "tau_re"])), .06)  
+  expect_lt(max(abs(qs_mcmc[,'logitp'] - qs_sample[, "logitp"])), .007)
+
+  ## Check Latents:
+  latent_sample <- result$sampleLatents(10000)
+  qs_nest <- apply(latent_sample,2, quantile, qpts)
+  
+  ## INLA intercept beta[1] -3.203, HMC is 3.28, ours is 2.91 (A bit off)
+  ## aghq intercept beta[1] is -2.990367
+  ## aghq beta[2] = 0.9126725, INLA 1.047, HMC: 1.0753658
+  # expect_lt(abs(-3.203 - mean(latent_sample[,'beta[1]'])), 0.1)
+  expect_lt(max(abs(qs_mcmc[,c("beta[1]", "beta[2]", "beta[3]")] - qs_nest[,c("beta[1]", "beta[2]", "beta[3]")])), 0.85)  ## This is not great.
+  expect_lt(max(abs(qs_mcmc[,c("re[1]", "re[2]", "re[3]")] - qs_nest[,c("re[1]", "re[2]", "re[3]")])), 0.01)
+  
+  ## @CJP 'improveParamMarginals' makes things worse which is concerning.
+  if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+      result$improveParamMarginals(c("tau_re"), nMarginalGrid = 15, nQuad = 9, quadRule = "AGHQ")
+      expect_lt(max(abs(qs_mcmc[,"tau_re"] - result$quantiles$tau_re)), .06)  # 0.04336184  ## This does worse... Not a good selling point.
+      expect_lt(max(abs(qs_mcmc[,"logitp"] - result$quantiles$logitp)), .007)  # 0.04336184  ## No real improvement with AGHQ
+      improved_quantiles <- result$quantiles
+      result$improveParamMarginals(c("tau_re"), nMarginalGrid = 15, nQuad = 9, quadRule = "AGHQ", transform = "cholesky")
+      expect_lt(max(abs(unlist(improved_quantiles) - unlist(result$quantiles))), 1e-15)  # No change with Cholesky
+  }
+
+  result$setParamGrid(quadRule = "AGHQSPARSE", nQuad = 9)
+  expect_error(latent_sample <- result$sampleLatents(10000), "Sparse grids can have negative weights and are not valid for simulating the latent effects.")
+
+  result$setParamGrid(quadRule = "AGHQ", nQuad = 9) ## This should be a massive grid and super easy...
+  latent_sample <- result$sampleLatents(10000)
+
+  qs_nest <- apply(latent_sample,2, quantile, qpts)  
+  expect_lt(max(abs(qs_mcmc[,c("beta[1]", "beta[2]", "beta[3]")] - qs_nest[,c("beta[1]", "beta[2]", "beta[3]")])), 0.85)  ## This is not great.
+  expect_lt(max(abs(qs_mcmc[,c("re[1]", "re[2]", "re[3]")] - qs_nest[,c("re[1]", "re[2]", "re[3]")])), 0.01)
+
+  ## COMPARE with INLA:  
+  # fit.inla <- inla( count ~ spp * mined + f(site, model="iid"), 
+                    # family= "zeroinflatedpoisson1", data=Salamanders )
+  # inla.logitp <- inla.smarginal(fit.inla$internal.marginals.hyperpar[[1]])
+  # inla.taure <- inla.smarginal(fit.inla$marginals.hyper[[2]])
+
+  # inla.priors.used(fit.inla)
+  ## https://inla.r-inla-download.org/r-inla.org/doc/likelihood/zeroinflated.pdf
+  # summary(fit.inla)  
+}
+
 ## CP tried to set up a test with a spatial GLMM but was stymied by a
 ## combination of long run times and parameter identifiability issues
 ## (the latter may mostly reflect using small problem sizes).
