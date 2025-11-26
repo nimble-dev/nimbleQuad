@@ -632,12 +632,8 @@ buildNestedApprox <- nimbleFunction(
         ## INLA like function for approx marginal likelihood (based on skewed normal).
         calcMarginalLogLikApprox = function() {
             if (!skewedSDCached) calcSkewedSD()
-            ## Line 2748 in r-inla/blob/devel/gmrflib/approx-inference.c Commit #
-            ## ef4eb20 marg <- logPostProbMode + 0.5*nParamTrans*log(2*pi) -
-            ## 0.5*(logDetNegHessParamTrans) - sum(log(skewedStdDev[,1] * skewedStdDev[,2]))
-            ## *** What Paul thinks it should be. ***
             marg <- logPostProbMode + 0.5 * nParamTrans * log(2 * pi) - 0.5 * (logDetNegHessParamTrans) +
-                logSkewedWgt  # sum(log((skewedStdDev[,1] + skewedStdDev[,2])/2))
+                logSkewedWgt 
             returnType(double())
             return(marg)
         },
