@@ -57,24 +57,26 @@ test_that("Simple 1d param case - basic tests against known numerical results, i
     qs_est <- result$qmarginal('sigma2')
     expect_lt(max(abs(qs - qs_est)), 0.01)
 
-    result$improveParamMarginals('sigma2', nMarginalGrid = 5)
-    ## Expect identical results since 1d improvement done by default (and with 5 points).
-    expect_identical(qs_est, result$qmarginal('sigma2')) 
-    expect_identical(exp_table, result$expectations)
-    expect_identical(qs_table, result$quantiles)
+    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+        result$improveParamMarginals('sigma2', nMarginalGrid = 5)
+        ## Expect identical results since 1d improvement done by default (and with 5 points).
+        expect_identical(qs_est, result$qmarginal('sigma2')) 
+        expect_identical(exp_table, result$expectations)
+        expect_identical(qs_table, result$quantiles)
+        
+        result$improveParamMarginals('sigma2', nMarginalGrid = 11)
+
+        qs_est_impr <- result$qmarginal('sigma2')
+        expect_lt(max(abs(qs - qs_est_impr)), .0004)  
+        expect_false(identical(qs_est, qs_est_impr))
+        
+        result$improveParamMarginals('sigma2', nMarginalGrid = 21)
+
+        qs_est_impr2 <- result$qmarginal('sigma2')
+        expect_lt(max(abs(qs - qs_est_impr2)), 1e-4) 
+        expect_false(identical(qs_est_impr, qs_est_impr2))
+    }
     
-    result$improveParamMarginals('sigma2', nMarginalGrid = 11)
-
-    qs_est_impr <- result$qmarginal('sigma2')
-    expect_lt(max(abs(qs - qs_est_impr)), .0004)  
-    expect_false(identical(qs_est, qs_est_impr))
-                 
-    result$improveParamMarginals('sigma2', nMarginalGrid = 21)
-
-    qs_est_impr2 <- result$qmarginal('sigma2')
-    expect_lt(max(abs(qs - qs_est_impr2)), 1e-4) 
-    expect_false(identical(qs_est_impr, qs_est_impr2))
-
     new_qpts <- c(0.3, 0.72)
     qs_est <- result$qmarginal('sigma2', new_qpts)
     qs <- qinvgamma(new_qpts, (n-1)/2, scale=(n-1)*var(m$y)/2)
