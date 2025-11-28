@@ -222,11 +222,15 @@ configureQuadGrid <- nimbleFunction(
         
         ## Default quad rule will be 1.
         if(is.function(quadRule)){
-          defaultRule <- "USER"
-          if(is.null(environment(quadRule)[["methods"]]$buildGrid))
-            stop("Error:  USER provided quadrature rule must be a nimbleFunction with method = buildGrid.")
-          ## @CJP can you add a couple of other basic checks? Or just delete.
-        }else{
+            defaultRule <- "USER"
+            if(!is.nfGenerator(quadRule))
+                stop("User-provided quadrature rule must be a nimbleFunction")
+            if(!identical(QUAD_RULE_BASE,environment(quadRule)$contains))
+                stop("User-provided quadrature rule must set `contains = QUAD_RULE_BASE`")
+            if(!"buildGrid" %in% names(environment(quadRule)$methods) ||
+               !all(c('levels','d') %in% names(formals(environment(quadRule)$methods$buildGrid)))
+               stop("User-provided quadrature rule must provide `buildGrid` method with arguments `levels` and `d`")
+        } else{
           defaultRule <- quadRule
         }
         if (!all(quadRules %in% possibleRules))
