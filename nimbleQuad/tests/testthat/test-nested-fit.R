@@ -140,8 +140,8 @@ test_that("Simple 1d param case - basic tests against known numerical results, i
         mll <- log(mean(exp(logpy)))
     } else mll <- -45.351158
 
-    expect_lt(abs(mll - result$marginalLogLik), .01)
-    expect_lt(abs(mll - result$marginalLogLikImproved), .004)
+    expect_lt(abs(mll - result$marginalLogLik), .01)  # .00890; value is -45.3601 (-45.3573 w/ INLA-style math)
+    expect_lt(abs(mll - result$marginalLogLikImproved), .004) # .00228
 
     ## This is probably getting near the resolution of the accuracy of the harmonic mean estimator...
     result$setParamGrid(nQuad = 15)
@@ -199,7 +199,7 @@ test_that("Marginal log-likelihood, 2-d case", {
     capprox <- compileNimble(approx, project = m)
     result <- runNestedApprox(capprox)
     
-    expect_lt(abs(mll - result$marginalLogLik), 0.1)
+    expect_lt(abs(mll - result$marginalLogLik), 0.1) # .097; value is -139.905 (-139.893 with INLA-style math)
 
     tmp <- result$sampleLatents(n = 10)  # Side effect of calculating logLik.
     expect_lt(abs(mll - result$marginalLogLikImproved), 0.07)

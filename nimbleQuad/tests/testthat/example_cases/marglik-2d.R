@@ -28,7 +28,9 @@ result <- runNestedApprox(capprox) # -123.0872
 latent_sample <- result$sampleLatents(100)
 result  # -123.0761; could also compare to CCD-based estimate
 
-# INLA MLL: -123.112
+## INLA MLL: -123.112
+
+result$calcMarginalLogLikImproved()   # -123.0738
 
 
 approx <- buildNestedApprox(m, latentNodes = c('mu'), paramNodes = c('sigma','tau'), control = list(nQuadOuter = 9))
@@ -84,10 +86,10 @@ m <- nimbleModel(code, data = list(y = y), constants = list(n=n, J=J),
 approx <- buildNestedApprox(m, latentNodes = c('mu'), paramNodes = c('sigma','tau'))
 cm <- compileNimble(m)
 capprox <- compileNimble(approx, project = m)
-result <- runNestedApprox(capprox) # -136.7465
+result <- runNestedApprox(capprox) # -136.7465 (-136.788 w/ INLA-style calculation - see issue 84)
 
 latent_sample <- result$sampleLatents(100)
-result  # -136.7309
+result  # -136.7309,   -136.7267 with nQuad=11
 
 M <- 100000
 py <- rep(0, M)
