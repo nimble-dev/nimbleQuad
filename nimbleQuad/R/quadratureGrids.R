@@ -234,7 +234,7 @@ configureQuadGrid <- nimbleFunction(
           defaultRule <- quadRule
         }
         if (!all(quadRules %in% possibleRules))
-            stop("Error:  Only AGHQ, CCD, AGHQSPARSE, or USER suplied rules are currently implemented. User rules must be supplied as a function to `quadRule`.")
+            stop("Error:  Only AGHQ, CCD, and AGHQSPARSE rules are currently implemented. User rules must be supplied as a function to `quadRule`.")
             
         if (!any(defaultRule == quadRules))
             quadRules <- c(defaultRule, quadRules)
