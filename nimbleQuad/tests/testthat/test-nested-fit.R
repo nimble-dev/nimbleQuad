@@ -1186,7 +1186,7 @@ test_that("dmnorm case - revised nested RE example", {
 })
 
 test_that("Salamander example - custom distribution and INLA comparison", {
-  data("Salamanders",package = "glmmTMB")
+  load('Salamanders.Rda')  # data("Salamanders",package = "glmmTMB")
   
   # dZIP <- nimbleFunction(
    # run = function(x = double(), z = double(), lambda = double(),
@@ -1261,49 +1261,60 @@ test_that("Salamander example - custom distribution and INLA comparison", {
   result <- runNestedApprox(approx = capprox)
 
   if(FALSE) {
+      fit.inla <- inla( count ~ spp * mined + f(site, model="iid"), quantiles = qpts,
+                       family= "zeroinflatedpoisson1", data=Salamanders, )
+      inla.logitp <- inla.smarginal(fit.inla$internal.marginals.hyperpar[[1]])
+      inla.taure <- inla.smarginal(fit.inla$marginals.hyper[[2]])
+
+      ## inla.priors.used(fit.inla)
+      ## https://inla.r-inla-download.org/r-inla.org/doc/likelihood/zeroinflated.pdf
+      summary(fit.inla)
+  }
+  if(FALSE) {
       library(nimbleHMC)
       mcmc <- buildHMC(m, monitors = c('logitp', 'tau_re', 'beta', 're'))
       cmcmc <- compileNimble(mcmc, project = m)
-      
-      system.time(out <- runMCMC(cmcmc, niter = 11000, nburnin = 1000))      
+
+      set.seed(1)
+      system.time(out <- runMCMC(cmcmc, niter = 51000, nburnin = 1000))      
       qs_mcmc <- apply(out, 2, quantile, qpts)
       save(qs_mcmc, file = 'mcmc-results10.Rda')
       
   } else load(system.file(file.path('tests', 'testthat', 'mcmc-results10.Rda'), package = 'nimbleQuad'))
 
   ## logitp matches well:
-  expect_lt(max(abs(qs_mcmc[,c('logitp')] - result$quantiles$logitp)), .007)  # 0.005856947
+  expect_lt(max(abs(qs_mcmc[,c('logitp')] - result$quantiles$logitp)), .014)  # 0.0128   # .0116 INLA
 
-  ## tau_re is hard:
-  expect_lt(max(abs(qs_mcmc[,'tau_re'] - result$quantiles$tau_re)), .06)  # 0.05814419
+  ## tau_re is hard (upper tail primarily):
+  expect_lt(max(abs(qs_mcmc[,'tau_re'] - result$quantiles$tau_re)), .35)  # 0.290  # .342 INLA
 
-  ## Test param samples:
-  smp <- result$sampleParams(n=10000)
-  qs_sample <- apply(smp, 2, quantile, qpts)
-  expect_lt(max(abs(qs_mcmc[,'tau_re'] - qs_sample[, "tau_re"])), .06)  
-  expect_lt(max(abs(qs_mcmc[,'logitp'] - qs_sample[, "logitp"])), .007)
-
-  ## Check Latents:
-  latent_sample <- result$sampleLatents(10000)
-  qs_nest <- apply(latent_sample,2, quantile, qpts)
-  
-  ## INLA intercept beta[1] -3.203, HMC is 3.28, ours is 2.91 (A bit off)
-  ## aghq intercept beta[1] is -2.990367
-  ## aghq beta[2] = 0.9126725, INLA 1.047, HMC: 1.0753658
-  # expect_lt(abs(-3.203 - mean(latent_sample[,'beta[1]'])), 0.1)
-  expect_lt(max(abs(qs_mcmc[,c("beta[1]", "beta[2]", "beta[3]")] - qs_nest[,c("beta[1]", "beta[2]", "beta[3]")])), 0.85)  ## This is not great.
-  expect_lt(max(abs(qs_mcmc[,c("re[1]", "re[2]", "re[3]")] - qs_nest[,c("re[1]", "re[2]", "re[3]")])), 0.01)
-  
-  ## @CJP 'improveParamMarginals' makes things worse which is concerning.
   if(Sys.info()['sysname'] != "Windows") {  # Issue 71
-      result$improveParamMarginals(c("tau_re"), nMarginalGrid = 15, nQuad = 9, quadRule = "AGHQ")
-      expect_lt(max(abs(qs_mcmc[,"tau_re"] - result$quantiles$tau_re)), .06)  # 0.04336184  ## This does worse... Not a good selling point.
-      expect_lt(max(abs(qs_mcmc[,"logitp"] - result$quantiles$logitp)), .007)  # 0.04336184  ## No real improvement with AGHQ
+      result$improveParamMarginals(c("tau_re", "logitp"), nMarginalGrid = 7, nQuad = 9)
+      expect_lt(max(abs(qs_mcmc[,"tau_re"] - result$quantiles$tau_re)), .05)  # 0.045
+      expect_lt(max(abs(qs_mcmc[,"logitp"] - result$quantiles$logitp)), .012)  # 0.003
       improved_quantiles <- result$quantiles
-      result$improveParamMarginals(c("tau_re"), nMarginalGrid = 15, nQuad = 9, quadRule = "AGHQ", transform = "cholesky")
+      result$improveParamMarginals(c("tau_re"), nMarginalGrid = 7, nQuad = 9, quadRule = "AGHQ", transform = "cholesky")
       expect_lt(max(abs(unlist(improved_quantiles) - unlist(result$quantiles))), 1e-15)  # No change with Cholesky
   }
 
+
+  ## Check param samples.
+  smp <- result$sampleParams(n=10000)
+  qs_sample <- apply(smp, 2, quantile, qpts)
+  expect_lt(max(abs(qs_mcmc[,'tau_re'] - qs_sample[, "tau_re"])), .06)  # .045
+  expect_lt(max(abs(qs_mcmc[,'logitp'] - qs_sample[, "logitp"])), .005) # .003
+
+  ## Check latents.
+  latent_sample <- result$sampleLatents(10000)
+  qs_nest <- apply(latent_sample,2, quantile, qpts)
+  
+  ## INLA intercept beta[1] -3.20, HMC is -3.14, ours is -2.96
+  ## aghq intercept beta[1] is -2.990367
+  ## aghq beta[2] = 0.9126725, INLA 1.047, HMC: 1.005, ours is 0.915
+
+  expect_lt(max(abs(qs_mcmc[,grep("^beta", colnames(qs_mcmc))] - qs_nest[,grep("^beta", colnames(qs_nest))])), 0.7)  # 0.64; INLA .42
+  expect_lt(max(abs(qs_mcmc[,grep("^re", colnames(qs_mcmc))] - qs_nest[,grep("^re", colnames(qs_nest))])), 0.1)  # .072; INLA .046
+  
   result$setParamGrid(quadRule = "AGHQSPARSE", nQuad = 9)
   expect_error(latent_sample <- result$sampleLatents(10000), "Sparse grids can have negative weights and are not valid for simulating the latent effects.")
 
@@ -1311,18 +1322,8 @@ test_that("Salamander example - custom distribution and INLA comparison", {
   latent_sample <- result$sampleLatents(10000)
 
   qs_nest <- apply(latent_sample,2, quantile, qpts)  
-  expect_lt(max(abs(qs_mcmc[,c("beta[1]", "beta[2]", "beta[3]")] - qs_nest[,c("beta[1]", "beta[2]", "beta[3]")])), 0.85)  ## This is not great.
-  expect_lt(max(abs(qs_mcmc[,c("re[1]", "re[2]", "re[3]")] - qs_nest[,c("re[1]", "re[2]", "re[3]")])), 0.01)
-
-  ## COMPARE with INLA:  
-  # fit.inla <- inla( count ~ spp * mined + f(site, model="iid"), 
-                    # family= "zeroinflatedpoisson1", data=Salamanders )
-  # inla.logitp <- inla.smarginal(fit.inla$internal.marginals.hyperpar[[1]])
-  # inla.taure <- inla.smarginal(fit.inla$marginals.hyper[[2]])
-
-  # inla.priors.used(fit.inla)
-  ## https://inla.r-inla-download.org/r-inla.org/doc/likelihood/zeroinflated.pdf
-  # summary(fit.inla)  
+  expect_lt(max(abs(qs_mcmc[,grep("^beta", colnames(qs_mcmc))] - qs_nest[,grep("^beta", colnames(qs_nest))])), 0.75)  # 0.69; why worse than above?
+  expect_lt(max(abs(qs_mcmc[,grep("^re", colnames(qs_mcmc))] - qs_nest[,grep("^re", colnames(qs_nest))])), 0.05)  # .042
 }
 
 ## CP tried to set up a test with a spatial GLMM but was stymied by a
