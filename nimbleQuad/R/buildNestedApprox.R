@@ -377,8 +377,6 @@ buildNestedApprox <- nimbleFunction(
         ## Indicator for removing the redundant index -1 in paramTrans_indices
         one_time_fixes_done <- FALSE
 
-        ## Default calculation method for AGHQuad
-        computeMethod_ <- extractControlElement(control, "computeMethod", 2)
         useInnerCache_ <- extractControlElement(control, "useInnerCache", TRUE)
 
         ## For compilation have to set the dimension after setup.

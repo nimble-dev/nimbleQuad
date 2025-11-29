@@ -2103,8 +2103,6 @@ buildAGHQ <- nimbleFunction(
 
     ## Indicator for removing the redundant index -1 in pTransform_indices
     one_time_fixes_done <- FALSE
-    ## Default calculation method for AGHQuad
-    computeMethod_ <- extractControlElement(control, "computeMethod", 2)
 
     useInnerCache_ <- extractControlElement(control, "useInnerCache", TRUE)
 
@@ -2152,8 +2150,8 @@ buildAGHQ <- nimbleFunction(
                               outerOptimMethod = character(0, default="NULL"),
                               replace_innerOptimControl = logical(0, default=FALSE),
                               outerOptimControl = optimControlNimbleList(default=nimOptimDefaultControl()),
-                              replace_outerOptimControl = logical(0, default=FALSE),
-                              computeMethod = integer(0, default=-1)
+                              replace_outerOptimControl = logical(0, default=FALSE)
+                              # computeMethod = integer(0, default=-1)
                               ) {
       # checks
       if(innerOptimStart != "NULL") {
@@ -2181,10 +2179,10 @@ buildAGHQ <- nimbleFunction(
           }
         }
       }
-      if(computeMethod != -1) {
-        if(!any(c(1, 2, 3) == computeMethod))  ## Cannot use `%in%` in nf code.
-          stop("updateSettings: `computeMethod` must be 1, 2, or 3")
-      }
+      ## if(computeMethod != -1) {
+      ##   if(!any(c(1, 2, 3) == computeMethod))  ## Cannot use `%in%` in nf code.
+      ##     stop("updateSettings: `computeMethod` must be 1, 2, or 3")
+      ## }
       if(quadTransform != "NULL") {
         if(quadTransform != "spectral" & quadTransform != "cholesky")
           stop("`quadTransform` must be either cholesky or spectral.")
@@ -2212,7 +2210,7 @@ buildAGHQ <- nimbleFunction(
       }
       # TO-DO: create useInnerCache_ and allow control arg.
       if(useInnerCache != -1) useInnerCache_ <<- useInnerCache != 0
-      if(computeMethod != -1) computeMethod_ <<- computeMethod
+      ## if(computeMethod != -1) computeMethod_ <<- computeMethod
       if(replace_outerOptimControl) {
         if(outerOptimControl$fnscale == 1) outerOptimControl$fnscale <- -1
         outerOptimControl_ <<- outerOptimControl
@@ -3588,16 +3586,6 @@ runAGHQ <- function(AGHQ, pStart,
 #'         the Laplace log-likelihood using \code{nimOptim}. See 'Details' of
 #'         \code{\link[nimble]{nimOptim}} for further information.
 #'
-#'   \item \code{computeMethod}. There are three approaches available for
-#'   internal details of how the approximations, and specifically derivatives
-#'   involved in their calculation, are handled. These are labeled simply 1, 2,
-#'   and 3, and the default is 2. The relative performance of the methods will
-#'   depend on the specific model. Users wanting to explore efficiency can try
-#'   switching from method 2 (default) to methods 1 or 3 and comparing
-#'   performance. The first Laplace approximation with each method will be
-#'   (much) slower than subsequent Laplace approximations. Further details are
-#'   not provided at this time.
-#'
 #'  \item \code{quadTransform} (relevant only \code{nQuad>1}). For multivariate AGHQ,
 #'  a grid must be constructed based on the Hessian at the inner mode. Options
 #'  include "cholesky" (default) and "spectral" (i.e., eigenvectors and
@@ -3747,8 +3735,8 @@ runAGHQ <- function(AGHQ, pStart,
 #'   can be later changed. Options that can be changed include:
 #'   \code{innerOptimMethod}, \code{innerOptimStart},
 #'   \code{innerOptimStartValues}, \code{useInnerCache}, \code{nQuad},
-#'   \code{quadTransform}, \code{innerOptimControl}, \code{outerOptimControl}, and
-#'   \code{computeMethod}. For \code{innerOptimStart}, method "zero" cannot be
+#'   \code{quadTransform}, \code{innerOptimControl}, and \code{outerOptimControl}.
+#'   For \code{innerOptimStart}, method "zero" cannot be
 #'   specified but can be achieved by choosing method "constant" with
 #'   \code{innerOptimStartValues=0}. Only provided options will be modified. The
 #'   exceptions are \code{innerOptimControl}, \code{outerOptimControl}, which
