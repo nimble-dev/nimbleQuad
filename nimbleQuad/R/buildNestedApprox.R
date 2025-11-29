@@ -257,7 +257,7 @@ buildNestedApprox <- nimbleFunction(
 
         nQuadLatent <- extractControlElement(control, "nQuadLatent", 1)
         quadRuleMarginal <- extractControlElement(control, "marginalGridRule", "AGHQ")
-        quadRuleMarginal_userType <- extractControlElement(control, "quadRuleMarginal_userType", "MULTI")
+        quadRuleMarginal_userType <- extractControlElement(control, "marginalGridRule_userType", "MULTI")
         pruneMargGrid <- extractControlElement(control, "marginalGridPrune", 0)
 
         transformMethod <- extractControlElement(control, "quadTransform", "spectral")
@@ -306,13 +306,16 @@ buildNestedApprox <- nimbleFunction(
         ## Default param (outer) grid to CCD unless low dimensional.
         paramGridRule <- extractControlElement(control, "paramGridRule", "none")
         pruneParamGrid <- extractControlElement(control, "paramGridPrune", 0)
-        if(paramGridRule == "none")
-            paramGridRule <- ifelse(nParamTrans >= 3, "CCD", "AGHQ")
         paramGridRule_userType <- extractControlElement(control, "paramGridRule_userType", "MULTI")
 
+        if(is.character(paramGridRule) && paramGridRule == "none")
+            paramGridRule <- ifelse(nParamTrans >= 3, "CCD", "AGHQ")
+    
+
         paramGridRuleName <- paramGridRule
-        if(is.function(paramGridRule))
+        if(is.function(paramGridRule)) {
             paramGridRuleName <- environment(paramGridRule)$name
+        } 
 
         messageIfVerbose("Building nested posterior approximation for the following node sets:\n",
                          "  - parameter nodes: ", makeNodeString(paramNodes, model), "\n",
@@ -325,13 +328,18 @@ buildNestedApprox <- nimbleFunction(
             messageIfVerbose("  [Warning] There is a large number of parameter node elements. Computation may be slow.")
 
         
-        if(paramGridRule == "AGHQ" && nQuadParam %% 2 == 0)
+        if(is.character(paramGridRule) && paramGridRule == "AGHQ" && nQuadParam %% 2 == 0)
             messageIfVerbose("  [Note] For computational efficiency, it is recommended to use an odd number of quadrature points\n         for the parameter (outer) grid (`nQuadParam`).")
         
         ## Default to CCD (in which case `nQuadParam` is ignored).
         paramGrid <- configureQuadGrid(d = 1, levels = nQuadParam, quadRule = paramGridRule,
                                        control = list(quadRules = allGridRules, userConstruction = paramGridRule_userType))
 
+        if(is.function(paramGridRule)) {
+            paramGridRule <- "USER"
+            allGridRules <- c(allGridRules, paramGridRule)
+        }
+        
         innerMethods <- buildAGHQ(model, nQuadLatent, paramNodes, latentNodes, calcNodes,
                                   calcNodesOther, control)
 

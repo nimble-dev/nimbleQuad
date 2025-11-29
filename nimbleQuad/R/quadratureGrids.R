@@ -228,7 +228,7 @@ configureQuadGrid <- nimbleFunction(
             if(!identical(QUAD_RULE_BASE,environment(quadRule)$contains))
                 stop("User-provided quadrature rule must set `contains = QUAD_RULE_BASE`")
             if(!"buildGrid" %in% names(environment(quadRule)$methods) ||
-               !all(c('levels','d') %in% names(formals(environment(quadRule)$methods$buildGrid)))
+               !all(c('levels','d') %in% names(formals(environment(quadRule)$methods$buildGrid))))
                stop("User-provided quadrature rule must provide `buildGrid` method with arguments `levels` and `d`")
         } else{
           defaultRule <- quadRule
