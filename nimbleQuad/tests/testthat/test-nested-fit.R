@@ -1327,7 +1327,7 @@ test_that("Salamander example - custom distribution and INLA comparison", {
   qs_nest <- apply(latent_sample,2, quantile, qpts)  
   expect_lt(max(abs(qs_mcmc[,grep("^beta", colnames(qs_mcmc))] - qs_nest[,grep("^beta", colnames(qs_nest))])), 0.7)  # 0.67
   expect_lt(max(abs(qs_mcmc[,grep("^re", colnames(qs_mcmc))] - qs_nest[,grep("^re", colnames(qs_nest))])), 0.055)  # .048 
-}
+})
 
 ## CP tried to set up a test with a spatial GLMM but was stymied by a
 ## combination of long run times and parameter identifiability issues
