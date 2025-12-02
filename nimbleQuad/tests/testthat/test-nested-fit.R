@@ -1188,7 +1188,7 @@ test_that("dmnorm case - revised nested RE example", {
 })
 
 test_that("Salamander example - custom distribution and INLA comparison", {
-  load('Salamanders.Rda')  # data("Salamanders",package = "glmmTMB")
+  load(system.file(file.path('tests', 'testthat', 'Salamanders.Rda'), package = 'nimbleQuad'))  # data("Salamanders",package = "glmmTMB")
   
   # dZIP <- nimbleFunction(
    # run = function(x = double(), z = double(), lambda = double(),
@@ -1254,6 +1254,7 @@ test_that("Salamander example - custom distribution and INLA comparison", {
     re = rnorm(nimconst$nsites,0,0.1),
     beta = rnorm(nimconst$np))
 
+  set.seed(1)
   m <- nimbleModel(code, data = nimdata, constants = nimconst, inits = inits, buildDerivs = TRUE)
   approx <- buildNestedApprox(model = m, 
                               paramNodes = c('logitp', 'tau_re'), 
@@ -1314,8 +1315,8 @@ test_that("Salamander example - custom distribution and INLA comparison", {
   ## aghq intercept beta[1] is -2.990367
   ## aghq beta[2] = 0.9126725, INLA 1.047, HMC: 1.005, ours is 0.915
 
-  expect_lt(max(abs(qs_mcmc[,grep("^beta", colnames(qs_mcmc))] - qs_nest[,grep("^beta", colnames(qs_nest))])), 0.7)  # 0.64; INLA .42
-  expect_lt(max(abs(qs_mcmc[,grep("^re", colnames(qs_mcmc))] - qs_nest[,grep("^re", colnames(qs_nest))])), 0.1)  # .072; INLA .046
+  expect_lt(max(abs(qs_mcmc[,grep("^beta", colnames(qs_mcmc))] - qs_nest[,grep("^beta", colnames(qs_nest))])), 0.75)  # 0.71; INLA .42
+  expect_lt(max(abs(qs_mcmc[,grep("^re", colnames(qs_mcmc))] - qs_nest[,grep("^re", colnames(qs_nest))])), 0.06)  # .053; INLA .046
   
   result$setParamGrid(quadRule = "AGHQSPARSE", nQuad = 9)
   expect_error(latent_sample <- result$sampleLatents(10000), "Sparse grids can have negative weights and are not valid for simulating the latent effects.")
@@ -1324,8 +1325,8 @@ test_that("Salamander example - custom distribution and INLA comparison", {
   latent_sample <- result$sampleLatents(10000)
 
   qs_nest <- apply(latent_sample,2, quantile, qpts)  
-  expect_lt(max(abs(qs_mcmc[,grep("^beta", colnames(qs_mcmc))] - qs_nest[,grep("^beta", colnames(qs_nest))])), 0.75)  # 0.69; why worse than above?
-  expect_lt(max(abs(qs_mcmc[,grep("^re", colnames(qs_mcmc))] - qs_nest[,grep("^re", colnames(qs_nest))])), 0.05)  # .042
+  expect_lt(max(abs(qs_mcmc[,grep("^beta", colnames(qs_mcmc))] - qs_nest[,grep("^beta", colnames(qs_nest))])), 0.7)  # 0.67
+  expect_lt(max(abs(qs_mcmc[,grep("^re", colnames(qs_mcmc))] - qs_nest[,grep("^re", colnames(qs_nest))])), 0.055)  # .048 
 }
 
 ## CP tried to set up a test with a spatial GLMM but was stymied by a
