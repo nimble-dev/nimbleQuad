@@ -12,6 +12,8 @@ testFiles <-
 
 ## Put test-AGHQ last to see if that resolves failure on Windows.
 testFiles <- testFiles[c(2:length(testFiles),1)]
+## Put test-nested-fit last to see if that resolves issue 78 on Windows.
+testFiles <- testFiles[c(2,1,3:length(testFiles))]
 
 ## See issues 65 and 66 for strange error preventing running some
 ## Laplace tests after earlier tests.
