@@ -258,6 +258,28 @@ test_that("Controlling quadrature grids", {
                                                control = list(nQuadLatent = 3)),
                    "AGHQ approximation for the latent")
     expect_identical(approx$innerMethods$nQuad, 3)
+
+    RmvQuad <- function(levels, d) {
+        out <- mvQuad::createNIGrid(dim=d, type = "GHe", level=levels)
+        cbind(out$weights, out$nodes)
+    }
+    nimMVQuad <- nimbleRcall(function(levels = integer(), d = integer()){}, Rfun = "RmvQuad", returnType = double(2))
+    myQuadRule <- nimbleFunction(
+        contains = QUAD_RULE_BASE,
+        name = "quadRule_USER",
+        setup = function() {},
+        run = function() {},
+        methods = list(
+            buildGrid = function(levels = integer(0, default = 0), d = integer(0, default = 1)) {
+                output <- nimMVQuad(levels, d)
+                returnType(double(2))
+                return(output)
+            }
+        )
+    )
+    expect_message(approx <- buildNestedApprox(m, latentNodes = c('eta'), paramNodes = c('mu','sigma','phi'),
+                                               control = list(paramGridRule = myQuadRule)), "with quadRule_USER grid")
+    
 })
 
 test_that("Basic interface and user input errors", {

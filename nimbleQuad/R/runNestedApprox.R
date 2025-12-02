@@ -324,14 +324,15 @@ runNestedApprox <- function(approx, quantiles = c(0.025, 0.25, 0.5, 0.75, 0.975)
 #'
 #' @param summary an approxSummary object, returned by \code{runNestedApprox}.
 #' @param quadRule quadrature rule to use for the parameter grid. Can be any of
-#'        \code{"CCD"}, \code{"AGHQ"}, \code{"AGHQSPARSE"} or \code{"USER"},
-#'          the latter for user-defined grids.
+#'        \code{"CCD"}, \code{"AGHQ"}, \code{"AGHQSPARSE"}, or \code{"USER"},
+#'        the latter to use the user-defined rule provided to \code{buildNestedApprox}. 
 #' @param nQuad number of quadrature points (not used for \code{"CCD"}.
 #' @param prune pruning parameter for removing AGHQ points at low-density points.
 #' 
 #' @details If the chosen quadrature rule is \code{"AGHQSPARSE"}, then \code{sampleLatents} will no longer work
-#' as it requires that all the quadrature weights are non-negative, which is no longer true for sparse AGHQ. To use a 
-#' \code{"USER"} supplied quadrature rule, then this will need to be defined prior to calling \code{buildNestedApprox}.
+#' as it requires that all the quadrature weights are non-negative, which is no longer true for sparse AGHQ.
+#'
+#' To use a user-defined quadrature rule, this needs to be passed to \code{buildNestedApprox}.
 #'
 #' @return None. Modifies the summary object in place.
 #' @export

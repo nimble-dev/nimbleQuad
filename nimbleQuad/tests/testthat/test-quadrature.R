@@ -239,13 +239,13 @@ test_that("AGHQ Pruning works.", {
 
 ## Test a user provided quadrature rule. ***Note that `QUAD_RULE_BASE` needs to be exported which requires a new install of nimbleQuad.
 test_that("User provided quadrature rule.", {
-  # Try to include a user defined quadrature rule:
+  # Try to include a user defined quadrature rule: In this case GLe.
   .GlobalEnv$RmvQuad <- function(levels, d) {
     out <- mvQuad::createNIGrid(dim=d, type = "GLe", level=levels)
-    out <- cbind(out$weights, out$nodes)
+    cbind(out$weights, out$nodes)
   }
   .GlobalEnv$nimMVQuad <- nimbleRcall(function(levels = double(), d = double()){}, Rfun = "RmvQuad", returnType = double(2))
-  .GlobalEnv$quadRule_USER <- nimbleFunction(
+  .GlobalEnv$myQuadRule <- nimbleFunction(
       contains = QUAD_RULE_BASE,
       name = "quadRule_USER",
       setup = function() {},
@@ -258,8 +258,9 @@ test_that("User provided quadrature rule.", {
           }
       )
   )
-
-  quadGrid_user <- configureQuadGrid(d=2, levels=3, quadRule = "USER", control = list(quadRules = c("USER", "USERMULTI", "USERSPARSE")))
+  
+  ## Case 1: User passes MULTI type grid.
+  quadGrid_user <- configureQuadGrid(d=2, levels=3, quadRule = myQuadRule, control = list(quadRules = c("AGHQ", "CCD", "AGHQSPARSE"), userConstruction = "MULTI"))
   cquadGrid_user <- compileNimble(quadGrid_user)
   cquadGrid_user$buildGrid(method = "USER")
   nodes <- cquadGrid_user$nodes()
@@ -270,24 +271,60 @@ test_that("User provided quadrature rule.", {
   expect_equal(wgts[ord1], nw$weights[ord2,1], tol = 1e-12)
   expect_equal(matrix(nodes[ord1,]), matrix(nw$nodes[ord2,]), tol = 1e-12)
 
-  cquadGrid_user$buildGrid(method = "USERMULTI")
+  ## Case 2: User passes a univariate rule.
+  quadGrid_user <- configureQuadGrid(d=2, levels=3, quadRule = myQuadRule, control = list(quadRules = c("AGHQ", "CCD", "AGHQSPARSE"), userConstruction = "PRODUCT"))
+  cquadGrid_user <- compileNimble(quadGrid_user)
+  cquadGrid_user$buildGrid(method = "USER")
+  nodes <- cquadGrid_user$nodes()
+  wgts <- cquadGrid_user$weights()
+  nw <- mvQuad::createNIGrid(dim=2, type="GLe", level=3, ndConstruction = "product")
+  ord1 <- do.call(order, data.frame(nodes))
+  ord2 <- do.call(order, data.frame(nw$nodes))
+  expect_equal(wgts[ord1], nw$weights[ord2,1], tol = 1e-12)
+  expect_equal(matrix(nodes[ord1,]), matrix(nw$nodes[ord2,]), tol = 1e-12)
+
+  ## Case 3: User passes a univariate rule for SPARSE construction.
+  quadGrid_user <- configureQuadGrid(d=2, levels=3, quadRule = myQuadRule, control = list(quadRules = c("AGHQ", "CCD", "AGHQSPARSE"), userConstruction = "SPARSE"))
+  cquadGrid_user <- compileNimble(quadGrid_user)
+  cquadGrid_user$buildGrid(method = "USER")
+  nodes <- cquadGrid_user$nodes()
+  wgts <- cquadGrid_user$weights()
+  nw <- mvQuad::createNIGrid(dim=2, type="GLe", level=3, ndConstruction = "sparse")
+  ord1 <- do.call(order, data.frame(nodes))
+  ord2 <- do.call(order, data.frame(nw$nodes))
+  expect_equal(wgts[ord1], nw$weights[ord2,1], tol = 1e-12)
+  expect_equal(matrix(nodes[ord1,]), matrix(nw$nodes[ord2,]), tol = 1e-12)
+
+  ## Make sure we can still swap back accurately.
+  cquadGrid_user$buildGrid(method = "AGHQ")
   nodes2 <- cquadGrid_user$nodes()
   wgts2 <- cquadGrid_user$weights()
-  expect_equal(wgts, wgts2, tol = 1e-15)
-  expect_equal(nodes, nodes2, tol = 1e-15)
+  nw <- mvQuad::createNIGrid(dim=2, type="GHe", level=3, ndConstruction = "product")  
+  expect_equal(nw$weights[,1], wgts2, tol = 1e-14)
+  expect_equal(nw$nodes, nodes2, tol = 1e-15)
   
-  cquadGrid_user$buildGrid(method = "USERSPARSE") 
+  ## Check in on sparse.
+  cquadGrid_user$buildGrid(method = "AGHQSPARSE") 
   nodes3 <- cquadGrid_user$nodes()
   wgts3 <- cquadGrid_user$weights()
-  dup <- duplicated(nodes3)
-  nodes3 <- nodes3[!dup,]
-  wgts3 <- wgts3[!dup]
-  nw <- mvQuad::createNIGrid(dim=2, type="GLe", level=3, ndConstruction = "sparse")
-  ord1 <- do.call(order, data.frame(nodes3))
-  ord2 <- do.call(order, data.frame(nw$nodes))
-  # expect_equal(wgts[ord1], nw$weights[ord2,1], tol = 1e-12) ## Inefficient combination of repeated values possible. May need to check duplicates... Is that faster? I don't know.
-  expect_equal(matrix(nodes3[ord1,]), matrix(nw$nodes[ord2,]), tol = 1e-12)
+  ## Ensure this still integrates gaussian perfectly:
+  expect_equal( sum(wgts3*dnorm(nodes3[,1])*dnorm(nodes3[,2])), 1, 1e-16)
+
+  ## Compare with mvQuad: Need to shift their modes manually.
+  nw <- mvQuad::createNIGrid(dim=2, type="GHe", level=3, ndConstruction = "sparse")
+  zeros <- which(rowSums(abs(nw$nodes)) < 1e-15)
+  wgts4 <- nw$weights[,1]
+  nodes4 <- nw$nodes
+  wgts4[zeros[1]] <- sum(nw$weights[zeros])
+  wgts4 <- wgts4[-zeros[-1]]
+  nodes4 <- nodes4[-zeros[-1],]
+  nodes4[zeros[1],] <- numeric(ncol(nodes4))
+  ord <- do.call(order, data.frame(nodes3))
+  ord2 <- do.call(order, data.frame(nodes4))
+  expect_equal(wgts3[ord], wgts4[ord2], tol = 1e-14)
+  expect_equal(as.numeric(nodes3[ord,]), as.numeric(nodes4[ord2,]), tol = 1e-14)
 })
+
 
 ## Write a buildGridTest
 
