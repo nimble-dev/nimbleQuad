@@ -155,15 +155,8 @@
 #'          from the univariate rule as either a product rule (by specifying "PRODUCT") or a sparse rule
 #'          (by specifying "SPARSE").
 #'     \item \code{innerOptimWarning}. Whether to show inner optimization warnings. Default is \code{FALSE}.
-#'     \item \code{marginalGridRule}. Rule for marginal grid. Default is \code{"AGHQ"}.
-#'          Can also be \code{"AGHQSPARSE"} or (for user-defined grids)
-#'          a user-defined nimbleFunction generator (created by calling `nimbleFunction`) with an appropriate
-#'          `buildGrid` method that has arguments \code{levels} and \code{d} and that returns a matrix.
-#'     \item \code{marginalGridRule_userType}. If \code{marginalGridRule} is a user-defined rule, this optional
-#'          element can be used to indicate that the provided rule constructs a univariate rule rather
-#'          than directly constructing a multivariate rule and that a multivariate rule should be constructed
-#'          from the univariate rule as either a product rule (by specifying "PRODUCT") or a sparse rule
-#'          (by specifying "SPARSE").
+#'     \item \code{marginalGridRule}. Rule for the grid for parameter marginalization. Default is \code{"AGHQ"}.
+#'          Can also be \code{"AGHQSPARSE"}. At present, user-defined grids are not allowed.
 #'     \item \code{marginalGridPrune}. Pruning parameter for marginal grid. Default is 0, corresponding to no pruning.
 #'     \item \code{quadTransform}. Quadrature transformation method. Default is \code{"spectral"}, with
 #'           \code{"cholesky"} as the other option.
@@ -257,7 +250,6 @@ buildNestedApprox <- nimbleFunction(
 
         nQuadLatent <- extractControlElement(control, "nQuadLatent", 1)
         quadRuleMarginal <- extractControlElement(control, "marginalGridRule", "AGHQ")
-        quadRuleMarginal_userType <- extractControlElement(control, "marginalGridRule_userType", "MULTI")
         pruneMargGrid <- extractControlElement(control, "marginalGridPrune", 0)
 
         transformMethod <- extractControlElement(control, "quadTransform", "spectral")
@@ -438,9 +430,7 @@ buildNestedApprox <- nimbleFunction(
         marginalPostDensity <- rep(-Inf, length(allGridRules))
 
         paramMargGrid <- configureQuadGrid(d = nParamTrans - 1, levels = 1,
-                                           quadRule = quadRuleMarginal,
-                                           control = list(quadRules = c("AGHQ", "AGHQSPARSE"),
-                                                          userConstruction = quadRuleMarginal_userType))
+                                           quadRule = quadRuleMarginal)
         paramTrans1_nodes <- matrix(0, nrow = 1, ncol = 2)
 
         ## Cached values for convenience: For marginal distributions in AGHQ over

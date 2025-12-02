@@ -279,9 +279,6 @@ test_that("Controlling quadrature grids", {
     )
     expect_message(approx <- buildNestedApprox(m, latentNodes = c('eta'), paramNodes = c('mu','sigma','phi'),
                                                control = list(paramGridRule = myQuadRule)), "with quadRule_USER grid")
-
-    expect_message(approx <- buildNestedApprox(m, latentNodes = c('eta'), paramNodes = c('mu','sigma','phi'),
-                                               control = list(marginalGridRule = myQuadRule)), "with CCD grid")
     
 })
 
