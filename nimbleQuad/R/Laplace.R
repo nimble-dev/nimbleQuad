@@ -3665,6 +3665,18 @@ runAGHQ <- function(AGHQ, pStart,
 #'         parameters have constraints, and the safest next step is to use the
 #'         \code{summary} method or \code{summaryLaplace} function.
 #'
+#' \item \code{findMAP(pStart, hessian)}. Find the maximum a posteriori 
+#'         estimates (posterior mode) of parameters using the approximated
+#'         marginal likelihood (and parameter priors).
+#'         See information above regarding \code{findMLE} for details.
+#'
+#' \item \code{optimize(pStart, includePrior, includeJacobian, hessian, parscale,
+#'         keepOneFixed)}. Optimize the approximated marginal likelihood with
+#'         flexibility to specify whether to include the parameter prior.
+#'         \code{findMLE} and \code{findMAP} are simple wrappers around this
+#'         method. Note that one can fit a regularized model that uses the prior
+#'         as a penalty but excludes the Jacobian of the transformation.
+#' 
 #' \item \code{summary(MLEoutput, originalScale, randomEffectsStdError,
 #'        jointCovariance)}. Summarize the maximum likelihood estimation
 #'        results, given object \code{MLEoutput} that was returned by
