@@ -1221,6 +1221,9 @@ test_that("Salamander example - custom distribution and INLA comparison", {
      if (isStructuralZero) return(0)
      return(rpois(1, lambda))
   })
+
+  temporarilyAssignInGlobalEnv(dZIP)
+  temporarilyAssignInGlobalEnv(rZIP)
   
   ## NIMBLE Model Code
   code <- nimbleCode({
