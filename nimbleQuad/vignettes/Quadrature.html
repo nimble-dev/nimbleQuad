@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>Choosing Quadrature in nimbleQuad</title>
+<style type="text/css">
+/**
+ * Prism.s theme ported from highlight.js's xcode style
+ */
+pre code {
+  padding: 1em;
+}
+.token.comment {
+  color: #007400;
+}
+.token.punctuation {
+  color: #999;
+}
+.token.tag,
+.token.selector {
+  color: #aa0d91;
+}
+.token.boolean,
+.token.number,
+.token.constant,
+.token.symbol {
+  color: #1c00cf;
+}
+.token.property,
+.token.attr-name,
+.token.string,
+.token.char,
+.token.builtin {
+  color: #c41a16;
+}
+.token.inserted {
+  background-color: #ccffd8;
+}
+.token.deleted {
+  background-color: #ffebe9;
+}
+.token.operator,
+.token.entity,
+.token.url,
+.language-css .token.string,
+.style .token.string {
+  color: #9a6e3a;
+}
+.token.atrule,
+.token.attr-value,
+.token.keyword {
+  color: #836c28;
+}
+.token.function,
+.token.class-name {
+  color: #DD4A68;
+}
+.token.regex,
+.token.important,
+.token.variable {
+  color: #5c2699;
+}
+.token.important,
+.token.bold {
+  font-weight: bold;
+}
+.token.italic {
+  font-style: italic;
+}
+</style>
+<style type="text/css">
+body {
+  font-family: sans-serif;
+  max-width: 800px;
+  margin: auto;
+  padding: 1em;
+  line-height: 1.5;
+  box-sizing: border-box;
+}
+body, .footnotes, code { font-size: .9em; }
+li li { font-size: .95em; }
+*, *:before, *:after {
+  box-sizing: inherit;
+}
+pre, img { max-width: 100%; }
+pre, pre:hover {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+pre code {
+  display: block;
+  overflow-x: auto;
+}
+code { font-family: 'DejaVu Sans Mono', 'Droid Sans Mono', 'Lucida Console', Consolas, Monaco, monospace; }
+:not(pre) > code, code[class] { background-color: #F8F8F8; }
+code.language-undefined, pre > code:not([class]) {
+  background-color: inherit;
+  border: 1px solid #eee;
+}
+table {
+  margin: auto;
+  border-top: 1px solid #666;
+}
+table thead th { border-bottom: 1px solid #ddd; }
+th, td { padding: 5px; }
+thead, tfoot, tr:nth-child(even) { background: #eee; }
+blockquote {
+  color: #666;
+  margin: 0;
+  padding-left: 1em;
+  border-left: 0.5em solid #eee;
+}
+hr, .footnotes::before { border: 1px dashed #ddd; }
+.frontmatter { text-align: center; }
+#TOC .numbered li { list-style: none; }
+#TOC .numbered { padding-left: 0; }
+#TOC .numbered ul { padding-left: 1em; }
+table, .body h2 { border-bottom: 1px solid #666; }
+.body .appendix, .appendix ~ h2 { border-bottom-style: dashed; }
+.footnote-ref a::before { content: "["; }
+.footnote-ref a::after { content: "]"; }
+section.footnotes::before {
+  content: "";
+  display: block;
+  max-width: 20em;
+}
+
+@media print {
+  body {
+    font-size: 12pt;
+    max-width: 100%;
+  }
+  tr, img { page-break-inside: avoid; }
+}
+@media only screen and (min-width: 992px) {
+  pre { white-space: pre; }
+}
+</style>
+</head>
+<body>
+<div class="frontmatter">
+<div class="title"><h1>Choosing Quadrature in nimbleQuad</h1></div>
+<div class="author"><h2>Paul van Dam-Bates</h2></div>
+<div class="date"><h3></h3></div>
+</div>
+<div class="body">
+<h1 id="introduction">Introduction</h1>
+<p>The <code>nimbleQuad</code> package has two main components:</p>
+<ol>
+<li>Adaptive Gauss-Hermite Quadrature (AGHQ) for marginalizing over latent nodes (e.g. random effects) to preform maximum likelihood estimation (<code>buildLaplace</code> if <code>nQuad = 1</code>) and <code>buldAGHQ</code> otherwise.</li>
+<li>Quadrature methods for posterior approximation using Laplace for inner marginalization of latent nodes, and more general quadrature tools for outer marginalization <code>buildNestedApprox</code>.</li>
+</ol>
+<p>Here we will review some of the custom control available when using <code>buildNestedApprox</code> for posterior approximations.</p>
+<pre><code class="language-r">library(nimbleQuad)
+</code></pre>
+<h1 id="salamander-example">Salamander Example</h1>
+<p>We will start with the salamander data from the <code>glmmTMB</code> R package, which is presented as a zero-inflated generalized linear mixed model (GLMM) in <code>?glmmTMB</code>.</p>
+<pre><code class="language-r">library(glmmTMB)
+data(Salamanders)
+m1 &lt;- glmmTMB(count ~ mined + (1|site), zi=~mined, family=poisson, data=Salamanders)
+summary(m1)
+</code></pre>
+<pre><code>##  Family: poisson  ( log )
+## Formula:          count ~ mined + (1 | site)
+## Zero inflation:         ~mined
+## Data: Salamanders
+## 
+##       AIC       BIC    logLik -2*log(L)  df.resid 
+##    1908.5    1930.8    -949.2    1898.5       639 
+## 
+## Random effects:
+## 
+## Conditional model:
+##  Groups Name        Variance Std.Dev.
+##  site   (Intercept) 0.07843  0.28    
+## Number of obs: 644, groups:  site, 23
+## 
+## Conditional model:
+##             Estimate Std. Error z value Pr(&gt;|z|)    
+## (Intercept)   0.0879     0.2329   0.377    0.706    
+## minedno       1.1419     0.2462   4.639  3.5e-06 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Zero-inflation model:
+##             Estimate Std. Error z value Pr(&gt;|z|)    
+## (Intercept)   1.1393     0.2351   4.846 1.26e-06 ***
+## minedno      -1.7361     0.2620  -6.626 3.44e-11 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+</code></pre>
+<p>We can match this model in <code>INLA</code> to get the approximate posterior.</p>
+<pre><code class="language-r">library(INLA)
+</code></pre>
+<pre><code>## Warning: package 'Matrix' was built under R version 4.4.3
+</code></pre>
+<pre><code class="language-r">fit.inla &lt;- inla( count ~ spp * mined + f(site, model=&quot;iid&quot;), 
+  quantiles = c(.025,.25,.5,.75,.975), family= &quot;zeroinflatedpoisson1&quot;, data=Salamanders)
+summary(fit.inla)
+</code></pre>
+<pre><code>## Time used:
+##     Pre = 0.56, Running = 0.663, Post = 0.102, Total = 1.33 
+## Fixed effects:
+##                    mean    sd 0.025quant 0.25quant 0.5quant 0.75quant
+## (Intercept)      -3.203 0.735     -4.646    -3.698   -3.202    -2.707
+## sppPR             1.047 0.845     -0.610     0.477    1.047     1.618
+## sppDM             2.536 0.754      1.057     2.027    2.536     3.045
+## sppEC-A           0.799 0.874     -0.915     0.209    0.799     1.389
+## sppEC-L           1.891 0.778      0.366     1.366    1.891     2.416
+## sppDES-L          2.719 0.741      1.265     2.219    2.719     3.219
+## sppDF             2.748 0.742      1.292     2.247    2.748     3.249
+## minedno           4.159 0.757      2.679     3.648    4.157     4.668
+## sppPR:minedno    -2.437 0.885     -4.171    -3.034   -2.437    -1.840
+## sppDM:minedno    -2.347 0.767     -3.851    -2.865   -2.347    -1.830
+## sppEC-A:minedno  -1.323 0.899     -3.085    -1.929   -1.323    -0.716
+## sppEC-L:minedno  -1.224 0.788     -2.769    -1.756   -1.224    -0.693
+## sppDES-L:minedno -2.145 0.751     -3.619    -2.652   -2.145    -1.638
+## sppDF:minedno    -2.783 0.757     -4.267    -3.294   -2.783    -2.272
+##                  0.975quant   mode kld
+## (Intercept)          -1.765 -3.202   0
+## sppPR                 2.705  1.047   0
+## sppDM                 4.015  2.536   0
+## sppEC-A               2.514  0.799   0
+## sppEC-L               3.416  1.891   0
+## sppDES-L              4.172  2.719   0
+## sppDF                 4.204  2.748   0
+## minedno               5.647  4.157   0
+## sppPR:minedno        -0.702 -2.437   0
+## sppDM:minedno        -0.844 -2.347   0
+## sppEC-A:minedno       0.440 -1.323   0
+## sppEC-L:minedno       0.320 -1.224   0
+## sppDES-L:minedno     -0.672 -2.145   0
+## sppDF:minedno        -1.298 -2.783   0
+## 
+## Random effects:
+##   Name	  Model
+##     site IID model
+## 
+## Model hyperparameters:
+##                                                         mean    sd 0.025quant
+## zero-probability parameter for zero-inflated poisson_1 0.283 0.032      0.223
+## Precision for site                                     4.316 2.224      1.482
+##                                                        0.25quant 0.5quant
+## zero-probability parameter for zero-inflated poisson_1     0.261    0.283
+## Precision for site                                         2.763    3.835
+##                                                        0.75quant 0.975quant
+## zero-probability parameter for zero-inflated poisson_1     0.305      0.349
+## Precision for site                                         5.327      9.979
+##                                                         mode
+## zero-probability parameter for zero-inflated poisson_1 0.282
+## Precision for site                                     3.030
+## 
+## Marginal log-Likelihood:  -957.82 
+##  is computed 
+## Posterior summaries for the linear predictor and the fitted values are computed
+## (Posterior marginals needs also 'control.compute=list(return.marginals.predictor=TRUE)')
+</code></pre>
+<h1 id="using-nimblequad">Using nimbleQuad</h1>
+<p>To write this model in NIMBLE we need to first write a zero-inflated Poisson distribution that marginalizes over the the zeros and counts. We need to marginalize as the parameters in the model must be continuous in order to use automatic differentiation to perform the nested posterior approximation. To allow for AD in a <code>nimbleFunction</code> we must set <code>buildDerivs = 'run'</code> in this case. A random number generator is also provided for convenience, although this is not strictly needed for this model to function.</p>
+<pre><code class="language-r">dZIP &lt;- nimbleFunction(
+ run = function(x = double(), lambda = double(),
+                zeroProb = double(), log = logical(0, default = 0)) {
+   returnType(double())
+   ## For use with AD, we cannot use an `if` statement to handle the mixture.
+   prob &lt;- zeroProb * dbinom(x, size = 1, prob = 0) + (1 - zeroProb) * dpois(x, lambda)
+   if (log) return(log(prob))
+     return(prob)
+   },
+   buildDerivs = 'run'   # Needed when used with AD-based algorithms.
+)
+
+rZIP &lt;- nimbleFunction(
+ run = function(n = integer(), lambda = double(), zeroProb = double()) {
+   returnType(double())
+   isStructuralZero &lt;- rbinom(1, prob = zeroProb, size = 1)
+   if (isStructuralZero) return(0)
+   return(rpois(1, lambda))
+})
+</code></pre>
+<p>Now we will use prior distributions to math the <code>INLA</code> function that was fit above. See <code>inla.priors.used(fit.inla)</code> for a description of all the default priors used.</p>
+<pre><code class="language-r">## NIMBLE Model Code
+code &lt;- nimbleCode({
+  beta[1] ~ dflat()
+  for( i in 2:np ) 
+    beta[i] ~ dnorm(0, tau = 0.001) 
+  tau_re ~ dgamma(shape = 1, rate = 5e-5)
+  logitp ~ dnorm(mean = -1, tau = 0.2)
+  p &lt;- expit(logitp)
+  
+  for(i in 1:nsites) 
+    re[i] ~ dnorm(0, tau = tau_re)
+
+  for( i in 1:nobs ){
+    log(lam[i]) &lt;- sum(beta[1:np]*X[i,1:np]) + re[site[i]]
+    count[i] ~ dZIP(lambda = lam[i], zeroProb = p)
+  }
+})
+
+nimconst &lt;- list()
+nimconst$X &lt;- as.matrix(model.matrix( ~ spp * mined, data = Salamanders ))
+nimconst$np &lt;- ncol(nimconst$X)
+nimconst$nobs &lt;- nrow(nimconst$X)
+nimconst$site &lt;- as.numeric(factor(Salamanders$site))
+nimconst$nsites &lt;- max(nimconst$site)
+
+nimdata &lt;- list()
+nimdata$count &lt;- Salamanders$count
+
+inits &lt;- list(logitp = -0.9, 
+  tau_re = 3,
+  re = rnorm(nimconst$nsites,0,0.1),
+  beta = rnorm(nimconst$np))
+
+m &lt;- nimbleModel(code, data = nimdata, constants = nimconst, inits = inits, buildDerivs = TRUE)
+cm &lt;- compileNimble(m)
+</code></pre>
+<p>Now we will</p>
+<p>approx &lt;- buildNestedApprox(model = m,
+paramNodes = c(‘logitp’, ‘tau_re’),
+latentNodes = c(‘beta’, ‘re’))
+capprox &lt;- compileNimble(approx, project = m)
+result &lt;- runNestedApprox(approx = capprox)</p>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js" defer></script>
+</body>
+</html>

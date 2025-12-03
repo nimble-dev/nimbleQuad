@@ -1,0 +1,164 @@
+---
+title: Choosing Quadrature in nimbleQuad
+author: Paul van Dam-Bates
+output:
+  markdown::html_format
+vignette: >
+  %\VignetteIndexEntry{Choosing Quadrature in nimbleQuad}
+  %\VignetteEngine{knitr::knitr}
+  \usepackage[utf8]{inputenc}
+---
+
+# Introduction
+
+The `nimbleQuad` package has two main components:
+
+1. Adaptive Gauss-Hermite Quadrature (AGHQ) for marginalizing over latent nodes (e.g. random effects) to preform maximum likelihood estimation (`buildLaplace` if `nQuad = 1`) and `buldAGHQ` otherwise.
+2. Quadrature methods for posterior approximation using Laplace for inner marginalization of latent nodes, and more general quadrature tools for outer marginalization `buildNestedApprox`.
+
+Here we will review some of the custom control available when using `buildNestedApprox` for posterior approximations.
+
+```{r, message = FALSE}
+library(nimbleQuad)
+```
+
+## Salamander Example
+
+We will start with the salamander data from the `glmmTMB` R package, which is presented as a zero-inflated generalized linear mixed model (GLMM) in `?glmmTMB`.
+
+```{r, message = FALSE}
+library(glmmTMB)
+data(Salamanders)
+m1 <- glmmTMB(count ~ mined + (1|site), zi=~mined, family=poisson, data=Salamanders)
+#summary(m1)
+```
+
+We can match this model in `INLA` to get the approximate posterior.
+
+```{r, message = FALSE}
+library(INLA)
+fit.inla <- inla( count ~ spp * mined + f(site, model="iid"), 
+  quantiles = c(.025,.25,.5,.75,.975), family= "zeroinflatedpoisson1", data=Salamanders)
+#summary(fit.inla)
+```
+
+## Building a nimble model
+
+To write this model in NIMBLE we need to first write a zero-inflated Poisson distribution that marginalizes over the the zeros and counts. We need to marginalize as the parameters in the model must be continuous in order to use automatic differentiation to perform the nested posterior approximation. To allow for AD in a `nimbleFunction` we must set `buildDerivs = 'run'` in this case. A random number generator is also provided for convenience, although this is not strictly needed for this model to function.
+
+```{r, eval = FALSE}
+dZIP <- nimbleFunction(
+ run = function(x = double(), lambda = double(),
+                zeroProb = double(), log = logical(0, default = 0)) {
+   returnType(double())
+   ## For use with AD, we cannot use an `if` statement to handle the mixture.
+   prob <- zeroProb * dbinom(x, size = 1, prob = 0) + (1 - zeroProb) * dpois(x, lambda)
+   if (log) return(log(prob))
+     return(prob)
+   },
+   buildDerivs = 'run'   # Needed when used with AD-based algorithms.
+)
+
+rZIP <- nimbleFunction(
+ run = function(n = integer(), lambda = double(), zeroProb = double()) {
+   returnType(double())
+   isStructuralZero <- rbinom(1, prob = zeroProb, size = 1)
+   if (isStructuralZero) return(0)
+   return(rpois(1, lambda))
+})
+```
+
+Now we will use prior distributions to math the `INLA` function that was fit above. See `inla.priors.used(fit.inla)` for a description of all the default priors used.
+
+```{r, eval = FALSE}
+## NIMBLE Model Code
+code <- nimbleCode({
+  beta[1] ~ dflat()
+  for( i in 2:np ) 
+    beta[i] ~ dnorm(0, tau = 0.001) 
+  tau_re ~ dgamma(shape = 1, rate = 5e-5)
+  logitp ~ dnorm(mean = -1, tau = 0.2)
+  p <- expit(logitp)
+  
+  for(i in 1:nsites) 
+    re[i] ~ dnorm(0, tau = tau_re)
+
+  for( i in 1:nobs ){
+    log(lam[i]) <- sum(beta[1:np]*X[i,1:np]) + re[site[i]]
+    count[i] ~ dZIP(lambda = lam[i], zeroProb = p)
+  }
+})
+
+nimconst <- list()
+nimconst$X <- as.matrix(model.matrix( ~ spp * mined, data = Salamanders ))
+nimconst$np <- ncol(nimconst$X)
+nimconst$nobs <- nrow(nimconst$X)
+nimconst$site <- as.numeric(factor(Salamanders$site))
+nimconst$nsites <- max(nimconst$site)
+
+nimdata <- list()
+nimdata$count <- Salamanders$count
+
+inits <- list(logitp = -0.9, 
+  tau_re = 3,
+  re = rnorm(nimconst$nsites,0,0.1),
+  beta = rnorm(nimconst$np))
+
+m <- nimbleModel(code, data = nimdata, constants = nimconst, inits = inits, buildDerivs = TRUE)
+cm <- compileNimble(m)
+```
+
+## Using nimbleQuad
+
+We can find the maximum likelihood estimate or posterior mode by using `buildLaplace`. If we wanted to follow the workflow of `glmmTMB` we would choose `beta` as part of `paramNodes`. However, following the approach of `INLA`, we will set `beta` as a random effect to marginalize. Then similar to what they refer to as empirical Bayes (EB), the posterior is approximated as the posterior mode with standard errors and credible intervals approximated from the curvature of the Hessian, similar to a frequentist analysis.
+
+```{r}
+laplace <- buildLaplace(model = m, paramNodes = c('logitp', 'tau_re'), randomEffectsNodes = c('beta', 're'))
+claplace <- compileNimble(laplace)
+
+## Can find MLE:
+mle <- claplace$findMLE()
+summ.mle <- claplace$summary(mle, randomEffectsStdError = TRUE)
+
+## or Posterior Mode:
+map <- claplace$optimize(includePrior = TRUE, includeJacobian = TRUE)
+summ.map <- claplace$summary(map, randomEffectsStdError = TRUE)
+```
+
+We can use a wrapper to run all the steps required for finding the MLE with a wrapper called `runLaplace`. Note that in this case we would want to treat `beta` as part of`paramNodes`.
+```{r}
+fit <- runLaplace(claplace)
+```
+
+## Posterior Approximation
+
+We now set up the posterior approximation which we term as `buildNestedApprox` and compile it to C++.
+
+```{r}
+approx <- buildNestedApprox(model = m, 
+                            paramNodes = c('logitp', 'tau_re'), 
+                            latentNodes = c('beta', 're'))
+capprox <- compileNimble(approx, project = m)
+```
+
+We can control every step of the analysis, or run the wrapper to fit using the standard setup. Note that if we set the prior directly on `p` such as `p ~ dbeta(1,1)`, then inference would naturally be set to `p`, not on the logit scale.
+
+```{r}
+result <- runNestedApprox(approx = capprox)
+result
+result$plotMarginal("tau_re")
+result$plotMarginal("logitp")
+
+## Summarize on real scale for p.
+result$emarginal("logitp", expit) ## Expected value
+expit(result$qmarginal("logitp", c(0.025, 0.5, 0.975))) ## Quantiles
+```
+
+
+## Customizing the Quadrature Grid:
+
+We default to a CCD grid similar to INLA when the number of parameter nodes is greater than 1. The grid points are skewed based on how skewed a normal approximation is on each side of the posterior mode.
+
+```{r}
+nodes <- capprox$z_to_paramTrans(capprox$paramGrid$nodes, Atransform, transformMethod)```
+
