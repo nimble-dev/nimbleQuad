@@ -18,9 +18,6 @@ testFiles <- testFiles[c(2:length(testFiles),1)]
 if(Sys.info()['sysname'] == "Windows")
     testFiles <- testFiles[!grepl("laplace[2-9]", testFiles)]
 
-## Put test-nested-fit last to see if that resolves issue 78 on Windows.
-testFiles <- testFiles[c(2,1,3:length(testFiles))]
-
 for(test in testFiles) {
     cat('===========================================================\n')
     cat(paste0('Running test-', gsub('.*test-', '', test), '\n'))
