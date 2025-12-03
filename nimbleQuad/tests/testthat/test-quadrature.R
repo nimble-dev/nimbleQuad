@@ -154,11 +154,18 @@ test_that("Quadrature Grid Configures Correctly", {
   nodes <- cquadGrid1$nodes()
   wgts <- cquadGrid1$weights()
   nw <- mvQuad::createNIGrid(dim=2, type="GHe", level=3, ndConstruction = "sparse")
-  nw$nodes[abs(nw$nodes) < 1e-15] <- 0  ## Make some hard zeros to align, otherwise not in same order.
+  zeros <- which(rowSums(abs(nw$nodes)) < 1e-15)
+  wgts_s <- nw$weights[,1]
+  nodes_s <- nw$nodes
+  wgts_s[zeros[1]] <- sum(nw$weights[zeros])
+  wgts_s <- wgts_s[-zeros[-1]]
+  nodes_s <- nodes_s[-zeros[-1],]
+  nodes_s[zeros[1],] <- numeric(ncol(nodes_s))
+  
   ord1 <- do.call(order, data.frame(nodes))
-  ord2 <- do.call(order, data.frame(nw$nodes))
-  expect_equal(wgts[ord1], nw$weights[ord2,1], tol = 1e-12)
-  expect_equal(matrix(nodes[ord1,]), matrix(nw$nodes[ord2,]), tol = 1e-12)
+  ord2 <- do.call(order, data.frame(nodes_s))
+  expect_equal(wgts[ord1], wgts_s[ord2], tol = 1e-12)
+  expect_equal(matrix(nodes[ord1,]), matrix(nodes_s[ord2,]), tol = 1e-12)
 
   ## Check CCD:
   ccddesign1 <- t(matrix(c(0, 0, 1.414210000000, 0, -1.414210000000, 0,
