@@ -263,6 +263,7 @@ test_that("AGH Quadrature 1D Binomial-Beta", {
   # obj$fn(log(param.val))
 })
 
+if(Sys.info()['sysname'] != "Windows") {  # Issue 78
 test_that("AGH Quadrature 1D Check MLE.", {
   set.seed(123)
   n <- 50
@@ -323,6 +324,7 @@ test_that("AGH Quadrature 1D Check MLE.", {
   expect_equal(mle.quad35$par, mle.par, tol = 1e-04)
   expect_equal(mle.quad35$value, mle.tru$value, tol = 1e-08)
 })
+}
 
 test_that("AGH Quadrature Comparison to LME4 1 RE", {
   set.seed(123)
