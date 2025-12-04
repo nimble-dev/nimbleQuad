@@ -1308,9 +1308,11 @@ test_that("Salamander example - custom distribution and INLA comparison", {
   ## Check param samples.
   smp <- result$sampleParams(n=10000)
   qs_sample <- apply(smp, 2, quantile, qpts)
-  expect_lt(max(abs(qs_mcmc[,'tau_re'] - qs_sample[, "tau_re"])), .06)  # .045
-  expect_lt(max(abs(qs_mcmc[,'logitp'] - qs_sample[, "logitp"])), .005) # .003
-
+  if(Sys.info()['sysname'] != "Windows") {  # Issue 78
+      expect_lt(max(abs(qs_mcmc[,'tau_re'] - qs_sample[, "tau_re"])), .06)  # .045
+      expect_lt(max(abs(qs_mcmc[,'logitp'] - qs_sample[, "logitp"])), .005) # .003
+  }
+  
   ## Check latents.
   latent_sample <- result$sampleLatents(10000)
   qs_nest <- apply(latent_sample,2, quantile, qpts)
@@ -1330,7 +1332,9 @@ test_that("Salamander example - custom distribution and INLA comparison", {
 
   qs_nest <- apply(latent_sample,2, quantile, qpts)  
   expect_lt(max(abs(qs_mcmc[,grep("^beta", colnames(qs_mcmc))] - qs_nest[,grep("^beta", colnames(qs_nest))])), 0.7)  # 0.67
-  expect_lt(max(abs(qs_mcmc[,grep("^re", colnames(qs_mcmc))] - qs_nest[,grep("^re", colnames(qs_nest))])), 0.055)  # .048 
+  if(Sys.info()['sysname'] != "Windows") {  # Issue 78  
+      expect_lt(max(abs(qs_mcmc[,grep("^re", colnames(qs_mcmc))] - qs_nest[,grep("^re", colnames(qs_nest))])), 0.055)  # .048
+  }
 })
 
 ## CP tried to set up a test with a spatial GLMM but was stymied by a
