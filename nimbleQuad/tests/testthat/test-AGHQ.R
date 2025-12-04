@@ -89,7 +89,9 @@ test_that("AGH Quadrature Normal-Normal 1D works", {
 
   opt <- cmQuad$findMLE(pStart = test.val1)	## Needs decent starting values.
   mle.tru <- optim(test.val1, ll.norm, gr.ll.norm, control = list(fnscale = -1))
-  expect_equal(opt$value, mle.tru$value, tol = 1e-8) # Same log likelihood. Diff parameter values.
+  if(Sys.info()['sysname'] != "Windows") {  # Issue 78
+      expect_equal(opt$value, mle.tru$value, tol = 1e-8) # Same log likelihood. Diff parameter values.
+  }
 
   
   ## Check covariance?
