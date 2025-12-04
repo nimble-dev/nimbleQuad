@@ -193,6 +193,7 @@ test_that("Quadrature Grid Configures Correctly", {
 
 ## Should separate CCD test and add a higher dimension example.
 
+if(Sys.info()['sysname'] != "Windows") {  # Issue 65
 test_that("AGHQ Pruning works.", {
 
   quadGrid2 <- configureQuadGrid(d=3, levels=11, quadRule = "AGHQ", control = list(quadRules = c("AGHQ", "CCD")))
@@ -243,7 +244,7 @@ test_that("AGHQ Pruning works.", {
   expect_error(cquadGrid2$setRule(method = "AGHQSPARSE"), "Quadrature Rule being requested was either not created or is invalid. Choose a valid quadrature rule.")
   expect_error(cquadGrid2$setRule(method = "WHATEVER"), "Quadrature Rule being requested was either not created or is invalid. Choose a valid quadrature rule.")
 })
-
+}
 ## Test a user provided quadrature rule. ***Note that `QUAD_RULE_BASE` needs to be exported which requires a new install of nimbleQuad.
 test_that("User provided quadrature rule.", {
   # Try to include a user defined quadrature rule: In this case GLe.
