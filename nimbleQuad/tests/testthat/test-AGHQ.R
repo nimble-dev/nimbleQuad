@@ -473,6 +473,7 @@ test_that("AGH Quadrature Comparison to LME4 1 RE for Poisson-Normal", {
 })
 }
 
+if(Sys.info()['sysname'] != "Windows") {  # Issue 65
 test_that("AGHQ nQuad > 1 for simple LME with correlated intercept and slope works", {
   set.seed(1)
   g <- rep(1:10, each = 10)
@@ -552,7 +553,7 @@ test_that("AGHQ nQuad > 1 for simple LME with correlated intercept and slope wor
   expect_error(cmLaplace$findMLE(), NULL)
 
 })
-
+}
 
 nimbleOptions(enableDerivs = EDopt)
 nimbleOptions(buildModelDerivs = BMDopt)
