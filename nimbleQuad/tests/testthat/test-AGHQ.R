@@ -326,6 +326,7 @@ test_that("AGH Quadrature 1D Check MLE.", {
 })
 }
 
+if(Sys.info()['sysname'] != "Windows") {  # Issue 78
 test_that("AGH Quadrature Comparison to LME4 1 RE", {
   set.seed(123)
   n <- 50
@@ -399,6 +400,7 @@ test_that("AGH Quadrature Comparison to LME4 1 RE", {
   expect_equal(mleQuad, mleQuad2, tol = 1e-8) 
 
 })
+}
 
 ## This might be better to compare for MLE as lme4 does some different
 ## optimization steps for LMMs.
