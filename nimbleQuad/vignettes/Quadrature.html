@@ -1,390 +1,743 @@
 <!DOCTYPE html>
+
 <html>
+
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-<title>Using nimbleQuad</title>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="Paul van Dam-Bates and Chris Paciorek" />
+
+<meta name="date" content="2025-12-04" />
+
+<title>Using nimbleQuad for Posterior Approximations</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
 <style type="text/css">
-/**
- * Prism.s theme ported from highlight.js's xcode style
- */
-pre code {
-  padding: 1em;
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
 }
-.token.comment {
-  color: #007400;
-}
-.token.punctuation {
-  color: #999;
-}
-.token.tag,
-.token.selector {
-  color: #aa0d91;
-}
-.token.boolean,
-.token.number,
-.token.constant,
-.token.symbol {
-  color: #1c00cf;
-}
-.token.property,
-.token.attr-name,
-.token.string,
-.token.char,
-.token.builtin {
-  color: #c41a16;
-}
-.token.inserted {
-  background-color: #ccffd8;
-}
-.token.deleted {
-  background-color: #ffebe9;
-}
-.token.operator,
-.token.entity,
-.token.url,
-.language-css .token.string,
-.style .token.string {
-  color: #9a6e3a;
-}
-.token.atrule,
-.token.attr-value,
-.token.keyword {
-  color: #836c28;
-}
-.token.function,
-.token.class-name {
-  color: #DD4A68;
-}
-.token.regex,
-.token.important,
-.token.variable {
-  color: #5c2699;
-}
-.token.important,
-.token.bold {
-  font-weight: bold;
-}
-.token.italic {
-  font-style: italic;
+.sourceCode {
+overflow: visible;
 }
 </style>
-<style type="text/css">
-body {
-  font-family: sans-serif;
-  max-width: 800px;
-  margin: auto;
-  padding: 1em;
-  line-height: 1.5;
-  box-sizing: border-box;
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
 }
-body, .footnotes, code { font-size: .9em; }
-li li { font-size: .95em; }
-*, *:before, *:after {
-  box-sizing: inherit;
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
 }
-pre, img { max-width: 100%; }
-pre, pre:hover {
-  white-space: pre-wrap;
-  word-break: break-all;
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
 }
-pre code {
-  display: block;
-  overflow-x: auto;
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
 }
-code { font-family: 'DejaVu Sans Mono', 'Droid Sans Mono', 'Lucida Console', Consolas, Monaco, monospace; }
-:not(pre) > code, code[class] { background-color: #F8F8F8; }
-code.language-undefined, pre > code:not([class]) {
-  background-color: inherit;
-  border: 1px solid #eee;
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
 }
 table {
-  margin: auto;
-  border-top: 1px solid #666;
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
 }
-table thead th { border-bottom: 1px solid #ddd; }
-th, td { padding: 5px; }
-thead, tfoot, tr:nth-child(even) { background: #eee; }
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
 blockquote {
-  color: #666;
-  margin: 0;
-  padding-left: 1em;
-  border-left: 0.5em solid #eee;
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
 }
-hr, .footnotes::before { border: 1px dashed #ddd; }
-.frontmatter { text-align: center; }
-#TOC .numbered li { list-style: none; }
-#TOC .numbered { padding-left: 0; }
-#TOC .numbered ul { padding-left: 1em; }
-table, .body h2 { border-bottom: 1px solid #666; }
-.body .appendix, .appendix ~ h2 { border-bottom-style: dashed; }
-.footnote-ref a::before { content: "["; }
-.footnote-ref a::after { content: "]"; }
-section.footnotes::before {
-  content: "";
-  display: block;
-  max-width: 20em;
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
 }
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
 
-@media print {
-  body {
-    font-size: 12pt;
-    max-width: 100%;
-  }
-  tr, img { page-break-inside: avoid; }
-}
-@media only screen and (min-width: 992px) {
-  pre { white-space: pre; }
-}
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
 </style>
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex/dist/katex.min.css">
+
+
+
+
 </head>
+
 <body>
-<div class="frontmatter">
-<div class="title"><h1>Using nimbleQuad</h1></div>
-<div class="author"><h2></h2></div>
-<div class="date"><h3></h3></div>
+
+
+
+
+<h1 class="title toc-ignore">Using nimbleQuad for Posterior
+Approximations</h1>
+<h4 class="author">Paul van Dam-Bates and Chris Paciorek</h4>
+<h4 class="date">2025-12-04</h4>
+
+
+
+<div id="introduction" class="section level2">
+<h2>Introduction</h2>
+<p>The <code>nimbleQuad</code> package is an alternative to Markvo chain
+Monte Carlo algorithms in NIMBLE. It has two main components:</p>
+<ol style="list-style-type: decimal">
+<li>Adaptive Gauss-Hermite Quadrature (AGHQ) for marginalizing over
+latent nodes (e.g. random effects) to preform maximum likelihood
+estimation (<code>buildLaplace</code> if <code>nQuad = 1</code>) and
+<code>buldAGHQ</code> otherwise.</li>
+<li>Quadrature methods for posterior approximation using Laplace for the
+inner marginalization of the latent nodes, and general quadrature
+methods for outer marginalization (<code>buildNestedApprox</code>).</li>
+</ol>
+<p>In this document we will introduce some of the workflow and show the
+custom control available when using <code>buildNestedApprox</code> for
+posterior approximations.</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a><span class="fu">library</span>(nimbleQuad)</span></code></pre></div>
+<div id="what-is-nimble" class="section level3">
+<h3>What is nimble?</h3>
+<p>NIMBLE is a system for writing hierarchical statistical models and
+algorithms. It is distributed as an R package <a href="https://CRAN.R-project.org/package=nimble">nimble</a>. NIMBLE
+stands for “Numerical Inference for statistical Models using Bayesian
+and Likelihood Estimation”. NIMBLE includes:</p>
+<ol style="list-style-type: decimal">
+<li><p>A dialect of the BUGS model language that is extensible. NIMBLE
+uses almost the same model code as WinBUGS, OpenBUGS, and JAGS. Being
+“extensible” means that it is possible to write new functions and
+distributions and use them in your models.</p></li>
+<li><p>An algorithm library including Markov chain Monte Carlo (MCMC)
+and other methods.</p></li>
+<li><p>A compiler that generates C++ for each model and algorithm,
+compiles the C++, and lets you use it from R. You don’t need to know
+anything about C++ to use nimble.</p></li>
+</ol>
+<p>More information about NIMBLE can be found at <a href="https://r-nimble.org">https://r-nimble.org</a>.</p>
+<p>The paper that describes NIMBLE is <a href="https://www.tandfonline.com/doi/full/10.1080/10618600.2016.1172487">here</a>.</p>
 </div>
-<div class="body">
-<h2 id="introduction">Introduction</h2>
-<p>The <code>nimbleQuad</code> package has two main components:</p>
-<ol>
-<li>Adaptive Gauss-Hermite Quadrature (AGHQ) for marginalizing over latent nodes (e.g. random effects) to preform maximum likelihood estimation (<code>buildLaplace</code> if <code>nQuad = 1</code>) and <code>buldAGHQ</code> otherwise.</li>
-<li>Quadrature methods for posterior approximation using Laplace for the inner marginalization of the latent nodes, and general quadrature tools for outer marginalization  (<code>buildNestedApprox</code>).</li>
-</ol>
-<p>In this document we will introduce some of the workflow and show the custom control available when using <code>buildNestedApprox</code> for posterior approximations.</p>
-<pre><code class="language-r">library(nimbleQuad)
-</code></pre>
-<p>We will use the salamander example from the R package <code>glmmTMB</code>. Some examples of this model can be seen in the general help file by running <code>?glmmTMB</code>. These data are repeated counts \(y\) of salamanders at multiple sites, which are zero-inflated. Some of the sites are mined, and some are not(\(x\)). Based on <code>glmmTMB</code>, we may analyse these data as</p>
-<p>$$
-y_i|z_i \sim \text{Poisson}(z_i\lambda_i)
-$$</p>
-<p>$$
-z_i \sim \text{Bernoulli}(1-p_i)
-$$</p>
-<p>$$
-\text{log}(\lambda_i) = \beta x_i + u_{site_i}
-$$</p>
-<p>$$
+<div id="getting-help" class="section level3">
+<h3>Getting help</h3>
+<p>The best way to seek user support is the nimble-users list.
+Information on how to join can be found at <a href="https://r-nimble.org">https://r-nimble.org</a>.</p>
+</div>
+<div id="illustrative-example" class="section level3">
+<h3>Illustrative Example:</h3>
+<p>For this vignette we will use the salamander example from the R
+package <code>glmmTMB</code>. Examples of this model can be seen in the
+general help file by running <code>?glmmTMB</code>. These data are
+repeated counts <span class="math inline">\(y\)</span> of salamanders at
+multiple sites, which are zero-inflated. Some of the sites are mined,
+and some are not(<span class="math inline">\(x\)</span>). Based on
+<code>glmmTMB</code>, we may analyse these data as</p>
+<p><span class="math display">\[
+  y_i|z_i \sim \text{Poisson}(z_i\lambda_i)
+\]</span></p>
+<p><span class="math display">\[
+  z_i \sim \text{Bernoulli}(1-p_i)
+\]</span></p>
+<p><span class="math display">\[
+  \text{log}(\lambda_i) = \beta x_i + u_{site_i}
+\]</span></p>
+<p><span class="math display">\[
 \text{logit}(p_i) = \alpha_0 x_i
-$$</p>
-<p>$$
+\]</span></p>
+<p><span class="math display">\[
 u_{j} \sim \text{Normal}(0, \sigma^2)
-$$</p>
-<p>The maximum likelihood estimator can be found in <code>glmmTMB</code>.</p>
-<pre><code class="language-r">library(glmmTMB)
-data(Salamanders)
-m1 &lt;- glmmTMB(count ~ mined + (1|site), zi=~mined, family=poisson, data=Salamanders)
-#summary(m1)
-</code></pre>
-<p>We can also match this model in <code>INLA</code> to get the approximate posterior as a “zeroinflatedpoisson1”.</p>
-<pre><code class="language-r">library(INLA)
-fit.inla &lt;- inla( count ~ spp * mined + f(site, model=&quot;iid&quot;), 
-  quantiles = c(.025,.25,.5,.75,.975), family= &quot;zeroinflatedpoisson1&quot;, data=Salamanders)
-#summary(fit.inla)
-</code></pre>
-<h2 id="building-the-glmm-in-nimble">Building the GLMM in NIMBLE</h2>
-<p>To write this model in NIMBLE we need to first write a zero-inflated Poisson distribution that marginalizes over the indirectly observed discrete value \(z\). When \(y=0\), \(z\) is a discrete latent variable. In order to perform our methods, all the latent variables in this model must be continuous. An additional complexity is that we rely on automatic differentiation (AD) to take the derivatives in this model. To allow for AD in a <code>nimbleFunction</code> we must set <code>buildDerivs = 'run'</code> for the following example. A random number generator is also provided for convenience, although this is not strictly needed for this model to fit.</p>
-<pre><code class="language-r">dZIP &lt;- nimbleFunction(
- run = function(x = double(), lambda = double(),
-                zeroProb = double(), log = logical(0, default = 0)) {
-   returnType(double())
-   ## For use with AD, we cannot use an `if` statement to handle the mixture.
-   prob &lt;- zeroProb * dbinom(x, size = 1, prob = 0) + (1 - zeroProb) * dpois(x, lambda)
-   if (log) return(log(prob))
-     return(prob)
-   },
-   buildDerivs = 'run'   # Needed when used with AD-based algorithms.
-)
-
-rZIP &lt;- nimbleFunction(
- run = function(n = integer(), lambda = double(), zeroProb = double()) {
-   returnType(double())
-   isStructuralZero &lt;- rbinom(1, prob = zeroProb, size = 1)
-   if (isStructuralZero) return(0)
-   return(rpois(1, lambda))
-})
-</code></pre>
-<p>We will use prior distributions to match the <code>INLA</code> model that was fit above. See <code>inla.priors.used(fit.inla)</code> for a description of all the default priors used. For convenience, we want inference on \(p\), which means we will make our own logit-normal prior for it. We will also register this distribution to explicitly put the range values on it so that <code>nimble</code> knows what parameter transformation to use. Note that this is just to match the prior from INLA and it would be more convenient to use <code>dbeta</code> for a probability.</p>
-<pre><code class="language-r">  dlogitnormal = nimbleFunction(
-    run = function(x = double(), mean = double(), sd = double(), log = logical(0, default = 0)){
-      ans &lt;- dnorm(logit(x), mean = mean, sd = sd, log = TRUE) - log(x) - log(1-x)
-      returnType(double())
-      if(log) return(ans)
-      else return(exp(ans))
-    },
-    buildDerivs = 'run'
-  )
-
-registerDistributions(list(
-  dlogitnormal = list(BUGSdist = &quot;dlogitnormal(mean, sd)&quot;, range = c(0,1))
-))
-</code></pre>
-<p>Following INLA, we use a completely flat prior on the intercept <code>dflat</code>, a gamma prior on precision <code>tau_re</code> and a logit-normal on <code>p</code>. Following a standard NIMBLE workflow we now write the model code, and then provide constants and data to the model. Note that because we are using AD, we also set <code>buildDerivs = TRUE</code> when building the nimble model.</p>
-<pre><code class="language-r">## NIMBLE Model Code
-code &lt;- nimbleCode({
-  beta[1] ~ dflat()
-  for( i in 2:np ) 
-    beta[i] ~ dnorm(0, tau = 0.001) 
-  tau_re ~ dgamma(shape = 1, rate = 5e-5)
-  p ~ dlogitnormal(mean = -1, sd = 1/sqrt(0.2))
-  
-  for(i in 1:nsites) 
-    re[i] ~ dnorm(0, tau = tau_re)
-
-  for( i in 1:nobs ){
-    log(lam[i]) &lt;- sum(beta[1:np]*X[i,1:np]) + re[site[i]]
-    count[i] ~ dZIP(lambda = lam[i], zeroProb = p)
-  }
-})
-
-nimconst &lt;- list()
-nimconst$X &lt;- as.matrix(model.matrix( ~ spp * mined, data = Salamanders ))
-nimconst$np &lt;- ncol(nimconst$X)
-nimconst$nobs &lt;- nrow(nimconst$X)
-nimconst$site &lt;- as.numeric(factor(Salamanders$site))
-nimconst$nsites &lt;- max(nimconst$site)
-
-nimdata &lt;- list()
-nimdata$count &lt;- Salamanders$count
-
-inits &lt;- list(logitp = -0.9, 
-  tau_re = 3,
-  re = rnorm(nimconst$nsites,0,0.1),
-  beta = rnorm(nimconst$np))
-
-m &lt;- nimbleModel(code, data = nimdata, constants = nimconst, inits = inits, buildDerivs = TRUE)
-cm &lt;- compileNimble(m)
-</code></pre>
-<h2 id="finding-the-mle">Finding the MLE</h2>
-<p>We can find the maximum likelihood estimate or posterior mode by using <code>buildLaplace</code> or <code>bulidAGHQ</code> if we want more quadrature nodes for marginalizing over the random effects. If we wanted to follow the workflow of <code>glmmTMB</code> we would choose <code>beta</code> as part of <code>paramNodes</code>. However, following the approach of <code>INLA</code>, we will set <code>beta</code> as a random effect to marginalize. This will allow us in this example to follow INLA and perform what they call empirical Bayes (EB), where the posterior is approximated at the posterior mode with standard errors and credible intervals based on the Hessian, similar to a frequentist analysis.</p>
-<pre><code class="language-r">laplace &lt;- buildLaplace(model = m, paramNodes = c('p', 'tau_re'), randomEffectsNodes = c('beta', 're'))
-claplace &lt;- compileNimble(laplace)
-
-## Can find MLE:
-mle &lt;- claplace$findMLE()
-summ.mle &lt;- claplace$summary(mle, randomEffectsStdError = TRUE)
-
-## or Posterior Mode:
-map &lt;- claplace$optimize(includePrior = TRUE, includeJacobian = TRUE, parscale = &quot;real&quot;)
-summ.map &lt;- summaryLaplace(claplace, map, randomEffectsStdError = TRUE, originalScale = TRUE)
-summ.map
-</code></pre>
-<p>We can use a wrapper to run all the steps required for finding the MLE with the function <code>runLaplace</code> or <code>runAGHQ</code> more generally. Note that for finding the MLE we generally want to treat <code>beta</code> as part of<code>paramNodes</code>, but in this case it is marginalized which means it includes the prior distributions on <code>beta</code>.</p>
-<pre><code class="language-r">fit &lt;- runLaplace(claplace)
-</code></pre>
-<h2 id="posterior-approximation">Posterior Approximation</h2>
-<p>We now set up the posterior approximation which we term as <code>buildNestedApprox</code>. Note that the setup is similar except that we refer to the combination of random effects and fixed effects as <code>latentNodes</code> with the hyperparameters at <code>paramNodes</code>. It is fine to include <code>beta</code> as part of <code>paramNodes</code> but may increase the computational challenge of this model if <code>beta</code> is large.</p>
-<pre><code class="language-r">approx &lt;- buildNestedApprox(model = m, 
-                            paramNodes = c('p', 'tau_re'), 
-                            latentNodes = c('beta', 're'))
-capprox &lt;- compileNimble(approx, project = m)
-</code></pre>
-<p>The default nested approximation <code>runNestedApprox</code> works in the following way.</p>
-<ol>
-<li>Find posterior mode of the <code>paramNodes</code> using Laplace to marginalize over the <code>latentNodes</code>.</li>
-<li>Use an <em>integration free</em> method analogous to INLA to approximate the marginal posterior distribution of each parameter.</li>
-<li>Approximate the marginal log likelihood based on a multivariate skew normal approximation to the joint posterior of the <code>paramNodes</code>.</li>
-<li>Calculate the posterior density of the hyperparameters across a quadrature grid (default = “CCD” when the number of hyperparameters is &gt; 2). A quadrature based marginal likelihood is produced based on this computation.</li>
-<li>Approximate joint posterior of the <code>latentNodes</code> by drawing samples from a mixture of multivariate normal distributions with mean, covariance, and weights obtained from the parameter quadrature grid computation.</li>
+\]</span></p>
+<p>The maximum likelihood estimator can be found in
+<code>glmmTMB</code>.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">library</span>(glmmTMB)</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a><span class="fu">data</span>(Salamanders)</span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a>m1 <span class="ot">&lt;-</span> <span class="fu">glmmTMB</span>(count <span class="sc">~</span> mined <span class="sc">+</span> (<span class="dv">1</span><span class="sc">|</span>site), <span class="at">zi=</span><span class="sc">~</span>mined, <span class="at">family=</span>poisson, <span class="at">data=</span>Salamanders)</span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a><span class="co">#summary(m1)</span></span></code></pre></div>
+<p>We can also match this model in <code>INLA</code> to get the
+approximate posterior as a “zeroinflatedpoisson1”.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a><span class="fu">library</span>(INLA)</span>
+<span id="cb3-2"><a href="#cb3-2" tabindex="-1"></a>fit.inla <span class="ot">&lt;-</span> <span class="fu">inla</span>( count <span class="sc">~</span> spp <span class="sc">*</span> mined <span class="sc">+</span> <span class="fu">f</span>(site, <span class="at">model=</span><span class="st">&quot;iid&quot;</span>), </span>
+<span id="cb3-3"><a href="#cb3-3" tabindex="-1"></a>  <span class="at">quantiles =</span> <span class="fu">c</span>(.<span class="dv">025</span>,.<span class="dv">25</span>,.<span class="dv">5</span>,.<span class="dv">75</span>,.<span class="dv">975</span>), <span class="at">family=</span> <span class="st">&quot;zeroinflatedpoisson1&quot;</span>, <span class="at">data=</span>Salamanders, <span class="at">control.inla =</span> <span class="fu">list</span>(<span class="at">int.strategy =</span> <span class="st">&quot;ccd&quot;</span>))</span>
+<span id="cb3-4"><a href="#cb3-4" tabindex="-1"></a><span class="co">#summary(fit.inla)</span></span></code></pre></div>
+</div>
+</div>
+<div id="building-a-glmm-in-nimble" class="section level2">
+<h2>Building a GLMM in NIMBLE</h2>
+<p>To write this model in NIMBLE we will first write a zero-inflated
+Poisson distribution that marginalizes over the indirectly observed
+discrete value <span class="math inline">\(z\)</span>. When <span class="math inline">\(y=0\)</span>, <span class="math inline">\(z\)</span> is a discrete latent variable. In order
+to perform our methods, all the latent variables in this model must be
+continuous. <code>nimbleQuad</code> relies on automatic differentiation
+(AD) to take the derivatives. To include AD in a
+<code>nimbleFunction</code> we must set
+<code>buildDerivs = &#39;run&#39;</code>. A random number generator is also
+provided for convenience, although this is not strictly needed for this
+model to fit.</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>dZIP <span class="ot">&lt;-</span> <span class="fu">nimbleFunction</span>(</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a> <span class="at">run =</span> <span class="cf">function</span>(<span class="at">x =</span> <span class="fu">double</span>(), <span class="at">lambda =</span> <span class="fu">double</span>(),</span>
+<span id="cb4-3"><a href="#cb4-3" tabindex="-1"></a>                <span class="at">zeroProb =</span> <span class="fu">double</span>(), <span class="at">log =</span> <span class="fu">logical</span>(<span class="dv">0</span>, <span class="at">default =</span> <span class="dv">0</span>)) {</span>
+<span id="cb4-4"><a href="#cb4-4" tabindex="-1"></a>   <span class="fu">returnType</span>(<span class="fu">double</span>())</span>
+<span id="cb4-5"><a href="#cb4-5" tabindex="-1"></a>   <span class="do">## For use with AD, we cannot use an `if` statement to handle the mixture.</span></span>
+<span id="cb4-6"><a href="#cb4-6" tabindex="-1"></a>   prob <span class="ot">&lt;-</span> zeroProb <span class="sc">*</span> <span class="fu">dbinom</span>(x, <span class="at">size =</span> <span class="dv">1</span>, <span class="at">prob =</span> <span class="dv">0</span>) <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">-</span> zeroProb) <span class="sc">*</span> <span class="fu">dpois</span>(x, lambda)</span>
+<span id="cb4-7"><a href="#cb4-7" tabindex="-1"></a>   <span class="cf">if</span> (log) <span class="fu">return</span>(<span class="fu">log</span>(prob))</span>
+<span id="cb4-8"><a href="#cb4-8" tabindex="-1"></a>     <span class="fu">return</span>(prob)</span>
+<span id="cb4-9"><a href="#cb4-9" tabindex="-1"></a>   },</span>
+<span id="cb4-10"><a href="#cb4-10" tabindex="-1"></a>   <span class="at">buildDerivs =</span> <span class="st">&#39;run&#39;</span>   <span class="co"># Needed when used with AD-based algorithms.</span></span>
+<span id="cb4-11"><a href="#cb4-11" tabindex="-1"></a>)</span>
+<span id="cb4-12"><a href="#cb4-12" tabindex="-1"></a></span>
+<span id="cb4-13"><a href="#cb4-13" tabindex="-1"></a>rZIP <span class="ot">&lt;-</span> <span class="fu">nimbleFunction</span>(</span>
+<span id="cb4-14"><a href="#cb4-14" tabindex="-1"></a> <span class="at">run =</span> <span class="cf">function</span>(<span class="at">n =</span> <span class="fu">integer</span>(), <span class="at">lambda =</span> <span class="fu">double</span>(), <span class="at">zeroProb =</span> <span class="fu">double</span>()) {</span>
+<span id="cb4-15"><a href="#cb4-15" tabindex="-1"></a>   <span class="fu">returnType</span>(<span class="fu">double</span>())</span>
+<span id="cb4-16"><a href="#cb4-16" tabindex="-1"></a>   isStructuralZero <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(<span class="dv">1</span>, <span class="at">prob =</span> zeroProb, <span class="at">size =</span> <span class="dv">1</span>)</span>
+<span id="cb4-17"><a href="#cb4-17" tabindex="-1"></a>   <span class="cf">if</span> (isStructuralZero) <span class="fu">return</span>(<span class="dv">0</span>)</span>
+<span id="cb4-18"><a href="#cb4-18" tabindex="-1"></a>   <span class="fu">return</span>(<span class="fu">rpois</span>(<span class="dv">1</span>, lambda))</span>
+<span id="cb4-19"><a href="#cb4-19" tabindex="-1"></a>})</span></code></pre></div>
+<p>We will use prior distributions to match the <code>INLA</code> model
+that was fit above. See <code>inla.priors.used(fit.inla)</code> for a
+description of the default priors. INLA places a logit-normal prior on
+<span class="math inline">\(p\)</span>. For convenience, we will write
+our own logit-normal prior. In this case, we explicitly register the
+distribution to tell NIMBLE the range values for parameter
+transformation to use. This is not a necessary step if not trying to
+match INLA.</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>  dlogitnormal <span class="ot">=</span> <span class="fu">nimbleFunction</span>(</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>    <span class="at">run =</span> <span class="cf">function</span>(<span class="at">x =</span> <span class="fu">double</span>(), <span class="at">mean =</span> <span class="fu">double</span>(), <span class="at">sd =</span> <span class="fu">double</span>(), <span class="at">log =</span> <span class="fu">logical</span>(<span class="dv">0</span>, <span class="at">default =</span> <span class="dv">0</span>)){</span>
+<span id="cb5-3"><a href="#cb5-3" tabindex="-1"></a>      ans <span class="ot">&lt;-</span> <span class="fu">dnorm</span>(<span class="fu">logit</span>(x), <span class="at">mean =</span> mean, <span class="at">sd =</span> sd, <span class="at">log =</span> <span class="cn">TRUE</span>) <span class="sc">-</span> <span class="fu">log</span>(x) <span class="sc">-</span> <span class="fu">log</span>(<span class="dv">1</span><span class="sc">-</span>x)</span>
+<span id="cb5-4"><a href="#cb5-4" tabindex="-1"></a>      <span class="fu">returnType</span>(<span class="fu">double</span>())</span>
+<span id="cb5-5"><a href="#cb5-5" tabindex="-1"></a>      <span class="cf">if</span>(log) <span class="fu">return</span>(ans)</span>
+<span id="cb5-6"><a href="#cb5-6" tabindex="-1"></a>      <span class="cf">else</span> <span class="fu">return</span>(<span class="fu">exp</span>(ans))</span>
+<span id="cb5-7"><a href="#cb5-7" tabindex="-1"></a>    },</span>
+<span id="cb5-8"><a href="#cb5-8" tabindex="-1"></a>    <span class="at">buildDerivs =</span> <span class="st">&#39;run&#39;</span></span>
+<span id="cb5-9"><a href="#cb5-9" tabindex="-1"></a>  )</span>
+<span id="cb5-10"><a href="#cb5-10" tabindex="-1"></a></span>
+<span id="cb5-11"><a href="#cb5-11" tabindex="-1"></a><span class="fu">registerDistributions</span>(<span class="fu">list</span>(</span>
+<span id="cb5-12"><a href="#cb5-12" tabindex="-1"></a>  <span class="at">dlogitnormal =</span> <span class="fu">list</span>(<span class="at">BUGSdist =</span> <span class="st">&quot;dlogitnormal(mean, sd)&quot;</span>, <span class="at">range =</span> <span class="fu">c</span>(<span class="dv">0</span>,<span class="dv">1</span>))</span>
+<span id="cb5-13"><a href="#cb5-13" tabindex="-1"></a>))</span></code></pre></div>
+<p>Following INLA, we use a completely flat prior on the intercept
+<code>dflat</code>, a gamma prior on precision <code>tau_re</code> and a
+logit-normal on <code>p</code>. We can now write the model code, and
+then provide constants and data to build the model. We are using AD and
+must set <code>buildDerivs = TRUE</code> when building the nimble
+model.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="do">## NIMBLE Model Code</span></span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a>code <span class="ot">&lt;-</span> <span class="fu">nimbleCode</span>({</span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>  beta[<span class="dv">1</span>] <span class="sc">~</span> <span class="fu">dflat</span>()</span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>  <span class="cf">for</span>( i <span class="cf">in</span> <span class="dv">2</span><span class="sc">:</span>np ) </span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>    beta[i] <span class="sc">~</span> <span class="fu">dnorm</span>(<span class="dv">0</span>, <span class="at">tau =</span> <span class="fl">0.001</span>) </span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>  tau_re <span class="sc">~</span> <span class="fu">dgamma</span>(<span class="at">shape =</span> <span class="dv">1</span>, <span class="at">rate =</span> <span class="fl">5e-5</span>)</span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a>  p <span class="sc">~</span> <span class="fu">dlogitnormal</span>(<span class="at">mean =</span> <span class="sc">-</span><span class="dv">1</span>, <span class="at">sd =</span> <span class="dv">1</span><span class="sc">/</span><span class="fu">sqrt</span>(<span class="fl">0.2</span>))</span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a>  </span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a>  <span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>nsites) </span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a>    re[i] <span class="sc">~</span> <span class="fu">dnorm</span>(<span class="dv">0</span>, <span class="at">tau =</span> tau_re)</span>
+<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a>  <span class="cf">for</span>( i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>nobs ){</span>
+<span id="cb6-13"><a href="#cb6-13" tabindex="-1"></a>    <span class="fu">log</span>(lam[i]) <span class="ot">&lt;-</span> <span class="fu">sum</span>(beta[<span class="dv">1</span><span class="sc">:</span>np]<span class="sc">*</span>X[i,<span class="dv">1</span><span class="sc">:</span>np]) <span class="sc">+</span> re[site[i]]</span>
+<span id="cb6-14"><a href="#cb6-14" tabindex="-1"></a>    count[i] <span class="sc">~</span> <span class="fu">dZIP</span>(<span class="at">lambda =</span> lam[i], <span class="at">zeroProb =</span> p)</span>
+<span id="cb6-15"><a href="#cb6-15" tabindex="-1"></a>  }</span>
+<span id="cb6-16"><a href="#cb6-16" tabindex="-1"></a>})</span>
+<span id="cb6-17"><a href="#cb6-17" tabindex="-1"></a></span>
+<span id="cb6-18"><a href="#cb6-18" tabindex="-1"></a>nimconst <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb6-19"><a href="#cb6-19" tabindex="-1"></a>nimconst<span class="sc">$</span>X <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(<span class="fu">model.matrix</span>( <span class="sc">~</span> spp <span class="sc">*</span> mined, <span class="at">data =</span> Salamanders ))</span>
+<span id="cb6-20"><a href="#cb6-20" tabindex="-1"></a>nimconst<span class="sc">$</span>np <span class="ot">&lt;-</span> <span class="fu">ncol</span>(nimconst<span class="sc">$</span>X)</span>
+<span id="cb6-21"><a href="#cb6-21" tabindex="-1"></a>nimconst<span class="sc">$</span>nobs <span class="ot">&lt;-</span> <span class="fu">nrow</span>(nimconst<span class="sc">$</span>X)</span>
+<span id="cb6-22"><a href="#cb6-22" tabindex="-1"></a>nimconst<span class="sc">$</span>site <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">factor</span>(Salamanders<span class="sc">$</span>site))</span>
+<span id="cb6-23"><a href="#cb6-23" tabindex="-1"></a>nimconst<span class="sc">$</span>nsites <span class="ot">&lt;-</span> <span class="fu">max</span>(nimconst<span class="sc">$</span>site)</span>
+<span id="cb6-24"><a href="#cb6-24" tabindex="-1"></a></span>
+<span id="cb6-25"><a href="#cb6-25" tabindex="-1"></a>nimdata <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb6-26"><a href="#cb6-26" tabindex="-1"></a>nimdata<span class="sc">$</span>count <span class="ot">&lt;-</span> Salamanders<span class="sc">$</span>count</span>
+<span id="cb6-27"><a href="#cb6-27" tabindex="-1"></a></span>
+<span id="cb6-28"><a href="#cb6-28" tabindex="-1"></a>inits <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">logitp =</span> <span class="sc">-</span><span class="fl">0.9</span>, </span>
+<span id="cb6-29"><a href="#cb6-29" tabindex="-1"></a>  <span class="at">tau_re =</span> <span class="dv">3</span>,</span>
+<span id="cb6-30"><a href="#cb6-30" tabindex="-1"></a>  <span class="at">re =</span> <span class="fu">rnorm</span>(nimconst<span class="sc">$</span>nsites,<span class="dv">0</span>,<span class="fl">0.1</span>),</span>
+<span id="cb6-31"><a href="#cb6-31" tabindex="-1"></a>  <span class="at">beta =</span> <span class="fu">rnorm</span>(nimconst<span class="sc">$</span>np))</span>
+<span id="cb6-32"><a href="#cb6-32" tabindex="-1"></a></span>
+<span id="cb6-33"><a href="#cb6-33" tabindex="-1"></a>m <span class="ot">&lt;-</span> <span class="fu">nimbleModel</span>(code, <span class="at">data =</span> nimdata, <span class="at">constants =</span> nimconst, <span class="at">inits =</span> inits, <span class="at">buildDerivs =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb6-34"><a href="#cb6-34" tabindex="-1"></a>cm <span class="ot">&lt;-</span> <span class="fu">compileNimble</span>(m)</span></code></pre></div>
+</div>
+<div id="finding-the-mle" class="section level2">
+<h2>Finding the MLE</h2>
+<p>We can find the maximum likelihood estimate or posterior mode by
+using <code>buildLaplace</code> or <code>bulidAGHQ</code> if we want
+more quadrature nodes for marginalizing over the random effects. If we
+wanted to follow the workflow of <code>glmmTMB</code> we would choose
+<code>beta</code> as part of <code>paramNodes</code>. However, following
+the approach of <code>INLA</code>, we will set <code>beta</code> as a
+random effect to marginalize. This will allow us in this example to
+follow INLA and perform what they call empirical Bayes (EB), where the
+posterior is approximated at the posterior mode with standard errors and
+credible intervals based on the Hessian, similar to a frequentist
+analysis.</p>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>laplace <span class="ot">&lt;-</span> <span class="fu">buildLaplace</span>(<span class="at">model =</span> m, <span class="at">paramNodes =</span> <span class="fu">c</span>(<span class="st">&#39;p&#39;</span>, <span class="st">&#39;tau_re&#39;</span>), <span class="at">randomEffectsNodes =</span> <span class="fu">c</span>(<span class="st">&#39;beta&#39;</span>, <span class="st">&#39;re&#39;</span>))</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>claplace <span class="ot">&lt;-</span> <span class="fu">compileNimble</span>(laplace)</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a></span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a><span class="do">## Can find MLE:</span></span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>mle <span class="ot">&lt;-</span> claplace<span class="sc">$</span><span class="fu">findMLE</span>()</span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>summ.mle <span class="ot">&lt;-</span> claplace<span class="sc">$</span><span class="fu">summary</span>(mle, <span class="at">randomEffectsStdError =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a></span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a><span class="do">## or Posterior Mode:</span></span>
+<span id="cb7-9"><a href="#cb7-9" tabindex="-1"></a>map <span class="ot">&lt;-</span> claplace<span class="sc">$</span><span class="fu">optimize</span>(<span class="at">includePrior =</span> <span class="cn">TRUE</span>, <span class="at">includeJacobian =</span> <span class="cn">TRUE</span>, <span class="at">parscale =</span> <span class="st">&quot;real&quot;</span>)</span>
+<span id="cb7-10"><a href="#cb7-10" tabindex="-1"></a>summ.map <span class="ot">&lt;-</span> <span class="fu">summaryLaplace</span>(claplace, map, <span class="at">randomEffectsStdError =</span> <span class="cn">TRUE</span>, <span class="at">originalScale =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb7-11"><a href="#cb7-11" tabindex="-1"></a>summ.map</span></code></pre></div>
+<p>We can use a wrapper to run all the steps required for finding the
+MLE with the function <code>runLaplace</code> or <code>runAGHQ</code>
+more generally. Note that for finding the MLE we generally want to treat
+<code>beta</code> as part of<code>paramNodes</code>, but in this case it
+is marginalized which means it includes the prior distributions on
+<code>beta</code>.</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">runLaplace</span>(claplace)</span></code></pre></div>
+</div>
+<div id="posterior-approximation" class="section level2">
+<h2>Posterior Approximation</h2>
+<p>We now set up the posterior approximation which we term as
+<code>buildNestedApprox</code>. Note that the setup is similar except
+that we refer to the combination of random effects and fixed effects as
+<code>latentNodes</code> with the hyperparameters at
+<code>paramNodes</code>. It is fine to include <code>beta</code> as part
+of <code>paramNodes</code> but may increase the computational challenge
+of this model if <code>beta</code> is large.</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a>approx <span class="ot">&lt;-</span> <span class="fu">buildNestedApprox</span>(<span class="at">model =</span> m, </span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a>                            <span class="at">paramNodes =</span> <span class="fu">c</span>(<span class="st">&#39;p&#39;</span>, <span class="st">&#39;tau_re&#39;</span>), </span>
+<span id="cb9-3"><a href="#cb9-3" tabindex="-1"></a>                            <span class="at">latentNodes =</span> <span class="fu">c</span>(<span class="st">&#39;beta&#39;</span>, <span class="st">&#39;re&#39;</span>))</span>
+<span id="cb9-4"><a href="#cb9-4" tabindex="-1"></a>capprox <span class="ot">&lt;-</span> <span class="fu">compileNimble</span>(approx, <span class="at">project =</span> m)</span></code></pre></div>
+<p>The default nested approximation <code>runNestedApprox</code> works
+in the following way.</p>
+<ol style="list-style-type: decimal">
+<li>Find posterior mode of the <code>paramNodes</code> using Laplace to
+marginalize over the <code>latentNodes</code>.</li>
+<li>Use an <em>integration free</em> method analogous to INLA to
+approximate the marginal posterior distribution of each parameter.</li>
+<li>Approximate the marginal log likelihood based on a multivariate skew
+normal approximation to the joint posterior of the
+<code>paramNodes</code>.</li>
+<li>Calculate the posterior density of the hyperparameters across a
+quadrature grid (default = “CCD” when the number of hyperparameters is
+&gt; 2). A quadrature based marginal likelihood is produced based on
+this computation.</li>
+<li>Approximate joint posterior of the <code>latentNodes</code> by
+drawing samples from a mixture of multivariate normal distributions with
+mean, covariance, and weights obtained from the parameter quadrature
+grid computation.</li>
 </ol>
-<p>The largest computational task here is computing the posterior density on the parameter quadrature grid. The default of CCD, central composite design, is based on what INLA uses. Alternatively, an adaptive Gauss Hermite quadrature (AGHQ) grid can be used which will be computationally more expensive but potentially more accurate. The user can choose between different quadrature grids or provide their own. We will provide examples of this below. By default, we do not do this computation via <code>runNestedApprox</code> unless requested.</p>
-<p>Using the <em>integration free</em> method of INLA is a very fast way to produce marginal posterior density estimates of the hyperparameters. This is done by using a multivariate skewed normal distribution to approximate the posterior density of the hyperparameters and then using that distribution to quickly compute the marginals. If more accuracy is required, then quadrature can be used such as AGHQ to marginalize over the other hyperparameters. Here the user can choose between AGHQ, CCD, sparse AGHQ, or a user provided quadrature rule.</p>
-<p>We provide the simulated values of the latent nodes, and an option to also simulate values of the parameter nodes. The user is then responsible for summarizing these values.</p>
-<pre><code class="language-r">result &lt;- runNestedApprox(approx = capprox)
-result
-result$plotMarginal(&quot;tau_re&quot;)
-result$plotMarginal(&quot;p&quot;)
-
-result$sampleLatents(10000)
-plot(density(result$samples[, &quot;beta[1]&quot;]), main = &quot;&quot;, xlab = &quot;beta[0]&quot;)
-</code></pre>
+<p>The largest computational task here is computing the posterior
+density on the parameter quadrature grid. The default of CCD, central
+composite design, is based on what INLA uses. Alternatively, an adaptive
+Gauss Hermite quadrature (AGHQ) grid can be used which will be
+computationally more expensive but potentially more accurate. The user
+can choose between different quadrature grids or provide their own. We
+will provide examples of this below. By default, we do not do this
+computation via <code>runNestedApprox</code> unless requested.</p>
+<p>Using the <em>integration free</em> method of INLA is a very fast way
+to produce marginal posterior density estimates of the hyperparameters.
+This is done by using a multivariate skewed normal distribution to
+approximate the posterior density of the hyperparameters and then using
+that distribution to quickly compute the marginals. If more accuracy is
+required, then quadrature can be used such as AGHQ to marginalize over
+the other hyperparameters. Here the user can choose between AGHQ, CCD,
+sparse AGHQ, or a user provided quadrature rule.</p>
+<p>We provide the simulated values of the latent nodes, and an option to
+also simulate values of the parameter nodes. The user is then
+responsible for summarizing these values.</p>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">runNestedApprox</span>(<span class="at">approx =</span> capprox)</span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a>result</span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a>result<span class="sc">$</span><span class="fu">plotMarginal</span>(<span class="st">&quot;tau_re&quot;</span>)</span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a>result<span class="sc">$</span><span class="fu">plotMarginal</span>(<span class="st">&quot;p&quot;</span>)</span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a></span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a>result<span class="sc">$</span><span class="fu">sampleLatents</span>(<span class="dv">10000</span>)</span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">density</span>(result<span class="sc">$</span>samples[, <span class="st">&quot;beta[1]&quot;</span>]), <span class="at">main =</span> <span class="st">&quot;&quot;</span>, <span class="at">xlab =</span> <span class="st">&quot;beta[0]&quot;</span>)</span></code></pre></div>
 <p><em>Paul to add comparison to INLA figure here</em></p>
-<h3 id="customizing-the-quadrature-grid">Customizing the Quadrature Grid:</h3>
-<p>For the salamanders example, we have two hyperparameters so will default to using AGHQ as the parameter grid. The grid points are skewed based on the skewed normal approximation and then scaled either using spectral decomposition or the Cholesky. The user may choose to not skew the points when computing the parameter grid. Here we will give an example of a user supplied grid along with the standard quadrature grids. We will generate what is referred to as a PCA-AGHQ rule. This rule uses an AGHQ rule on the primary principal components and Laplace on the others when using spectral transformations.</p>
-<pre><code class="language-r">RmvQuad &lt;- function(levels, d) {
-  out &lt;- mvQuad::createNIGrid(dim=d, type = &quot;GHe&quot;, level=levels)
-  cbind(out$weights, out$nodes)
-}
-nimMVQuad &lt;- nimbleRcall(function(levels = double(1), d = double()){}, Rfun = &quot;RmvQuad&quot;, returnType = double(2))
-PCA_AGHQ &lt;- nimbleFunction(
-    contains = QUAD_RULE_BASE,
-    name = &quot;quadRule_USER&quot;,
-    setup = function() {},
-    run = function() {},
-    methods = list(
-        buildGrid = function(levels = integer(0, default = 0), d = integer(0, default = 1)) {
-            levs &lt;- c(3,1)
-            output &lt;- nimMVQuad(levels = levs, d = d)
-            returnType(double(2))
-            return(output)
-        }
-    )
-)
-</code></pre>
-<p>We pass the new quadrature rule as a function in the control list <code>paramGridRule</code>. The default for a user supplied quadrature rule is that it can construct the multivariate grid (<code>paramGridRule_userType = &quot;MULTI&quot;</code>). If not, then the user function only returns a single dimension grid and the user can choose <code>&quot;PRODUCT&quot;</code> or <code>&quot;SPARSE&quot;</code> for standard methods to generate a multivariate quadrature grid. Below we explicitly define the transformation method <code>quadTransform = &quot;spectral&quot;</code>, although this is the default, as opposed to <code>&quot;cholesky&quot;</code>.</p>
-<pre><code class="language-r">approx &lt;- buildNestedApprox(model = m, 
-                            paramNodes = c('p', 'tau_re'), 
-                            latentNodes = c('beta', 're'), 
-                            control = list(paramGridRule = PCA_AGHQ, 
-                              paramGridRule_userType = &quot;MULTI&quot;,
-                              quadTransform = &quot;spectral&quot;))
-capprox &lt;- compileNimble(approx, project = m, resetFunctions = TRUE)
-
-result &lt;- runNestedApprox(approx = capprox)
-</code></pre>
-<pre><code class="language-r">capprox$buildParamGrid(quadRule = &quot;USER&quot;)
-nodes_user &lt;- capprox$getParamGrid()
-capprox$calcParamGrid()
-marg_user &lt;- capprox$calcMarginalLogLikQuad()
-
-capprox$buildParamGrid(quadRule = &quot;CCD&quot;)
-nodes_ccd &lt;- capprox$getParamGrid()
-capprox$calcParamGrid()
-marg_ccd &lt;- capprox$calcMarginalLogLikQuad()
-
-capprox$buildParamGrid(quadRule = &quot;AGHQ&quot;)
-nodes_aghq &lt;- capprox$getParamGrid()
-capprox$calcParamGrid()
-marg_aghq &lt;- capprox$calcMarginalLogLikQuad()
-
-capprox$buildParamGrid(quadRule = &quot;AGHQSPARSE&quot;)
-nodes_aghqsparse &lt;- capprox$getParamGrid()
-capprox$calcParamGrid()
-marg_aghqsparse &lt;- capprox$calcMarginalLogLikQuad()
-
-## Compare with multivariate asymmetric normal approximation
-marg_sn &lt;- capprox$calcMarginalLogLikApprox()
-marg_aghq - marg_sn
-marg_aghq - marg_ccd
-marg_aghq - marg_user
-
-## Visualize the grids
-plot(nodes_user, xlim = c(-1.3, -0.6), ylim = c(0, 3), xlab = &quot;theta[1]&quot;, ylab = &quot;theta[2]&quot;)
-points(nodes_aghq, pch = 4)
-points(nodes_aghqsparse, pch = 3)
-points(nodes_ccd, pch = 16)
-legend(&quot;topright&quot;, legend = c(&quot;PCA-AGHQ&quot;, &quot;AGHQ&quot;, &quot;AGHQ-Sparse&quot;,  &quot;CCD&quot;), pch = c(1, 4, 3, 16))
-</code></pre>
-<p>When we have large dimension problems, or need to improve our sampling of the latent nodes, we can increase the number of quadrature points and choose to prune. Note that we cannot use “AGHQSPARSE” for simulating the latent nodes as those grids have negative weights and it is unclear how to resolve that. When running <code>buildNestedApprox</code>, we can control the number of quadrature points or the amount to prune the grid via <code>control = list(paramGridPrune = 0,  nQuadParam = 3)</code>. Pruning removes a proportion of quadrature points at their most extreme and least likely positions based on a multivariate normal.</p>
-<p>The user should generally balance the amount of compute time it takes to run <code>calcParamGrid</code> with the amount of accuracy they want in estimation of the latent nodes. For a standard product construction of \(n\) levels, with dimension \(d\), we get \(n^d\) points on the quadrature grid. CCD does not scale as severely which is why it becomes recommended for higher dimensions. Alternatively, PCA-AGHQ could be applied, or heavy pruning of an AGHQ grid.</p>
-<pre><code class="language-r">## Increase the  number of AGHQ grid points:
-capprox$buildParamGrid(quadRule = &quot;AGHQ&quot;, nQuadUpdate = 11)
-nodes_aghq11 &lt;- capprox$getParamGrid()
-capprox$calcParamGrid()
-marg_aghq11 &lt;- capprox$calcMarginalLogLikQuad()
-
-## Prune Grid:
-capprox$buildParamGrid(quadRule = &quot;AGHQ&quot;, nQuadUpdate = 11, prune = 0.25)
-nodes_aghq11_25 &lt;- capprox$getParamGrid()
-plot(nodes_aghq11, pch = 4)
-points(nodes_aghq11_25, col = 'red', pch = 1)
-</code></pre>
-<h3 id="improving-the-parameter-marginals">Improving the parameter marginals</h3>
+<div id="customizing-the-quadrature-grid" class="section level3">
+<h3>Customizing the Quadrature Grid:</h3>
+<p>For the salamanders example, we have two hyperparameters so will
+default to using AGHQ as the parameter grid. The grid points are skewed
+based on the skewed normal approximation and then scaled either using
+spectral decomposition or the Cholesky. The user may choose to not skew
+the points when computing the parameter grid. Here we will give an
+example of a user supplied grid along with the standard quadrature
+grids. We will generate what is referred to as a PCA-AGHQ rule. This
+rule uses an AGHQ rule on the primary principal components and Laplace
+on the others when using spectral transformations.</p>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>RmvQuad <span class="ot">&lt;-</span> <span class="cf">function</span>(levels, d) {</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a>  out <span class="ot">&lt;-</span> mvQuad<span class="sc">::</span><span class="fu">createNIGrid</span>(<span class="at">dim=</span>d, <span class="at">type =</span> <span class="st">&quot;GHe&quot;</span>, <span class="at">level=</span>levels)</span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a>  <span class="fu">cbind</span>(out<span class="sc">$</span>weights, out<span class="sc">$</span>nodes)</span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a>}</span>
+<span id="cb11-5"><a href="#cb11-5" tabindex="-1"></a>nimMVQuad <span class="ot">&lt;-</span> <span class="fu">nimbleRcall</span>(<span class="cf">function</span>(<span class="at">levels =</span> <span class="fu">double</span>(<span class="dv">1</span>), <span class="at">d =</span> <span class="fu">double</span>()){}, <span class="at">Rfun =</span> <span class="st">&quot;RmvQuad&quot;</span>, <span class="at">returnType =</span> <span class="fu">double</span>(<span class="dv">2</span>))</span>
+<span id="cb11-6"><a href="#cb11-6" tabindex="-1"></a>PCA_AGHQ <span class="ot">&lt;-</span> <span class="fu">nimbleFunction</span>(</span>
+<span id="cb11-7"><a href="#cb11-7" tabindex="-1"></a>    <span class="at">contains =</span> QUAD_RULE_BASE,</span>
+<span id="cb11-8"><a href="#cb11-8" tabindex="-1"></a>    <span class="at">name =</span> <span class="st">&quot;quadRule_USER&quot;</span>,</span>
+<span id="cb11-9"><a href="#cb11-9" tabindex="-1"></a>    <span class="at">setup =</span> <span class="cf">function</span>() {},</span>
+<span id="cb11-10"><a href="#cb11-10" tabindex="-1"></a>    <span class="at">run =</span> <span class="cf">function</span>() {},</span>
+<span id="cb11-11"><a href="#cb11-11" tabindex="-1"></a>    <span class="at">methods =</span> <span class="fu">list</span>(</span>
+<span id="cb11-12"><a href="#cb11-12" tabindex="-1"></a>        <span class="at">buildGrid =</span> <span class="cf">function</span>(<span class="at">levels =</span> <span class="fu">integer</span>(<span class="dv">0</span>, <span class="at">default =</span> <span class="dv">0</span>), <span class="at">d =</span> <span class="fu">integer</span>(<span class="dv">0</span>, <span class="at">default =</span> <span class="dv">1</span>)) {</span>
+<span id="cb11-13"><a href="#cb11-13" tabindex="-1"></a>            levs <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">3</span>,<span class="dv">1</span>)</span>
+<span id="cb11-14"><a href="#cb11-14" tabindex="-1"></a>            output <span class="ot">&lt;-</span> <span class="fu">nimMVQuad</span>(<span class="at">levels =</span> levs, <span class="at">d =</span> d)</span>
+<span id="cb11-15"><a href="#cb11-15" tabindex="-1"></a>            <span class="fu">returnType</span>(<span class="fu">double</span>(<span class="dv">2</span>))</span>
+<span id="cb11-16"><a href="#cb11-16" tabindex="-1"></a>            <span class="fu">return</span>(output)</span>
+<span id="cb11-17"><a href="#cb11-17" tabindex="-1"></a>        }</span>
+<span id="cb11-18"><a href="#cb11-18" tabindex="-1"></a>    )</span>
+<span id="cb11-19"><a href="#cb11-19" tabindex="-1"></a>)</span></code></pre></div>
+<p>We pass the new quadrature rule as a function in the control list
+<code>paramGridRule</code>. The default for a user supplied quadrature
+rule is that it can construct the multivariate grid
+(<code>paramGridRule_userType = &quot;MULTI&quot;</code>). If not, then the user
+function only returns a single dimension grid and the user can choose
+<code>&quot;PRODUCT&quot;</code> or <code>&quot;SPARSE&quot;</code> for standard methods to
+generate a multivariate quadrature grid. Below we explicitly define the
+transformation method <code>quadTransform = &quot;spectral&quot;</code>, although
+this is the default, as opposed to <code>&quot;cholesky&quot;</code>.</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a>approx <span class="ot">&lt;-</span> <span class="fu">buildNestedApprox</span>(<span class="at">model =</span> m, </span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a>                            <span class="at">paramNodes =</span> <span class="fu">c</span>(<span class="st">&#39;p&#39;</span>, <span class="st">&#39;tau_re&#39;</span>), </span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a>                            <span class="at">latentNodes =</span> <span class="fu">c</span>(<span class="st">&#39;beta&#39;</span>, <span class="st">&#39;re&#39;</span>), </span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a>                            <span class="at">control =</span> <span class="fu">list</span>(<span class="at">paramGridRule =</span> PCA_AGHQ, </span>
+<span id="cb12-5"><a href="#cb12-5" tabindex="-1"></a>                              <span class="at">paramGridRule_userType =</span> <span class="st">&quot;MULTI&quot;</span>,</span>
+<span id="cb12-6"><a href="#cb12-6" tabindex="-1"></a>                              <span class="at">quadTransform =</span> <span class="st">&quot;spectral&quot;</span>))</span>
+<span id="cb12-7"><a href="#cb12-7" tabindex="-1"></a>capprox <span class="ot">&lt;-</span> <span class="fu">compileNimble</span>(approx, <span class="at">project =</span> m, <span class="at">resetFunctions =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb12-8"><a href="#cb12-8" tabindex="-1"></a></span>
+<span id="cb12-9"><a href="#cb12-9" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">runNestedApprox</span>(<span class="at">approx =</span> capprox)</span></code></pre></div>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a>capprox<span class="sc">$</span><span class="fu">buildParamGrid</span>(<span class="at">quadRule =</span> <span class="st">&quot;USER&quot;</span>)</span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a>nodes_user <span class="ot">&lt;-</span> capprox<span class="sc">$</span><span class="fu">getParamGrid</span>()</span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a>capprox<span class="sc">$</span><span class="fu">calcParamGrid</span>()</span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a>marg_user <span class="ot">&lt;-</span> capprox<span class="sc">$</span><span class="fu">calcMarginalLogLikQuad</span>()</span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a></span>
+<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a>capprox<span class="sc">$</span><span class="fu">buildParamGrid</span>(<span class="at">quadRule =</span> <span class="st">&quot;CCD&quot;</span>)</span>
+<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a>nodes_ccd <span class="ot">&lt;-</span> capprox<span class="sc">$</span><span class="fu">getParamGrid</span>()</span>
+<span id="cb13-8"><a href="#cb13-8" tabindex="-1"></a>capprox<span class="sc">$</span><span class="fu">calcParamGrid</span>()</span>
+<span id="cb13-9"><a href="#cb13-9" tabindex="-1"></a>marg_ccd <span class="ot">&lt;-</span> capprox<span class="sc">$</span><span class="fu">calcMarginalLogLikQuad</span>()</span>
+<span id="cb13-10"><a href="#cb13-10" tabindex="-1"></a></span>
+<span id="cb13-11"><a href="#cb13-11" tabindex="-1"></a>capprox<span class="sc">$</span><span class="fu">buildParamGrid</span>(<span class="at">quadRule =</span> <span class="st">&quot;AGHQ&quot;</span>)</span>
+<span id="cb13-12"><a href="#cb13-12" tabindex="-1"></a>nodes_aghq <span class="ot">&lt;-</span> capprox<span class="sc">$</span><span class="fu">getParamGrid</span>()</span>
+<span id="cb13-13"><a href="#cb13-13" tabindex="-1"></a>capprox<span class="sc">$</span><span class="fu">calcParamGrid</span>()</span>
+<span id="cb13-14"><a href="#cb13-14" tabindex="-1"></a>marg_aghq <span class="ot">&lt;-</span> capprox<span class="sc">$</span><span class="fu">calcMarginalLogLikQuad</span>()</span>
+<span id="cb13-15"><a href="#cb13-15" tabindex="-1"></a></span>
+<span id="cb13-16"><a href="#cb13-16" tabindex="-1"></a>capprox<span class="sc">$</span><span class="fu">buildParamGrid</span>(<span class="at">quadRule =</span> <span class="st">&quot;AGHQSPARSE&quot;</span>)</span>
+<span id="cb13-17"><a href="#cb13-17" tabindex="-1"></a>nodes_aghqsparse <span class="ot">&lt;-</span> capprox<span class="sc">$</span><span class="fu">getParamGrid</span>()</span>
+<span id="cb13-18"><a href="#cb13-18" tabindex="-1"></a>capprox<span class="sc">$</span><span class="fu">calcParamGrid</span>()</span>
+<span id="cb13-19"><a href="#cb13-19" tabindex="-1"></a>marg_aghqsparse <span class="ot">&lt;-</span> capprox<span class="sc">$</span><span class="fu">calcMarginalLogLikQuad</span>()</span>
+<span id="cb13-20"><a href="#cb13-20" tabindex="-1"></a></span>
+<span id="cb13-21"><a href="#cb13-21" tabindex="-1"></a><span class="do">## Compare with multivariate asymmetric normal approximation</span></span>
+<span id="cb13-22"><a href="#cb13-22" tabindex="-1"></a>marg_sn <span class="ot">&lt;-</span> capprox<span class="sc">$</span><span class="fu">calcMarginalLogLikApprox</span>()</span>
+<span id="cb13-23"><a href="#cb13-23" tabindex="-1"></a>marg_aghq <span class="sc">-</span> marg_sn</span>
+<span id="cb13-24"><a href="#cb13-24" tabindex="-1"></a>marg_aghq <span class="sc">-</span> marg_ccd</span>
+<span id="cb13-25"><a href="#cb13-25" tabindex="-1"></a>marg_aghq <span class="sc">-</span> marg_user</span>
+<span id="cb13-26"><a href="#cb13-26" tabindex="-1"></a></span>
+<span id="cb13-27"><a href="#cb13-27" tabindex="-1"></a><span class="do">## Visualize the grids</span></span>
+<span id="cb13-28"><a href="#cb13-28" tabindex="-1"></a><span class="fu">plot</span>(nodes_user, <span class="at">xlim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="fl">1.3</span>, <span class="sc">-</span><span class="fl">0.6</span>), <span class="at">ylim =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">3</span>), <span class="at">xlab =</span> <span class="st">&quot;theta[1]&quot;</span>, <span class="at">ylab =</span> <span class="st">&quot;theta[2]&quot;</span>)</span>
+<span id="cb13-29"><a href="#cb13-29" tabindex="-1"></a><span class="fu">points</span>(nodes_aghq, <span class="at">pch =</span> <span class="dv">4</span>)</span>
+<span id="cb13-30"><a href="#cb13-30" tabindex="-1"></a><span class="fu">points</span>(nodes_aghqsparse, <span class="at">pch =</span> <span class="dv">3</span>)</span>
+<span id="cb13-31"><a href="#cb13-31" tabindex="-1"></a><span class="fu">points</span>(nodes_ccd, <span class="at">pch =</span> <span class="dv">16</span>)</span>
+<span id="cb13-32"><a href="#cb13-32" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">&quot;topright&quot;</span>, <span class="at">legend =</span> <span class="fu">c</span>(<span class="st">&quot;PCA-AGHQ&quot;</span>, <span class="st">&quot;AGHQ&quot;</span>, <span class="st">&quot;AGHQ-Sparse&quot;</span>,  <span class="st">&quot;CCD&quot;</span>), <span class="at">pch =</span> <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">4</span>, <span class="dv">3</span>, <span class="dv">16</span>))</span></code></pre></div>
+<p>When we have large dimension problems, or need to improve our
+sampling of the latent nodes, we can increase the number of quadrature
+points and choose to prune. Note that we cannot use “AGHQSPARSE” for
+simulating the latent nodes as those grids have negative weights and it
+is unclear how to resolve that. When running
+<code>buildNestedApprox</code>, we can control the number of quadrature
+points or the amount to prune the grid via
+<code>control = list(paramGridPrune = 0,  nQuadParam = 3)</code>.
+Pruning removes a proportion of quadrature points at their most extreme
+and least likely positions based on a multivariate normal.</p>
+<p>The user should generally balance the amount of compute time it takes
+to run <code>calcParamGrid</code> with the amount of accuracy they want
+in estimation of the latent nodes. For a standard product construction
+of <span class="math inline">\(n\)</span> levels, with dimension <span class="math inline">\(d\)</span>, we get <span class="math inline">\(n^d\)</span> points on the quadrature grid. CCD
+does not scale as severely which is why it becomes recommended for
+higher dimensions. Alternatively, PCA-AGHQ could be applied, or heavy
+pruning of an AGHQ grid.</p>
+<div class="sourceCode" id="cb14"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" tabindex="-1"></a><span class="do">## Increase the  number of AGHQ grid points:</span></span>
+<span id="cb14-2"><a href="#cb14-2" tabindex="-1"></a>capprox<span class="sc">$</span><span class="fu">buildParamGrid</span>(<span class="at">quadRule =</span> <span class="st">&quot;AGHQ&quot;</span>, <span class="at">nQuadUpdate =</span> <span class="dv">11</span>)</span>
+<span id="cb14-3"><a href="#cb14-3" tabindex="-1"></a>nodes_aghq11 <span class="ot">&lt;-</span> capprox<span class="sc">$</span><span class="fu">getParamGrid</span>()</span>
+<span id="cb14-4"><a href="#cb14-4" tabindex="-1"></a>capprox<span class="sc">$</span><span class="fu">calcParamGrid</span>()</span>
+<span id="cb14-5"><a href="#cb14-5" tabindex="-1"></a>marg_aghq11 <span class="ot">&lt;-</span> capprox<span class="sc">$</span><span class="fu">calcMarginalLogLikQuad</span>()</span>
+<span id="cb14-6"><a href="#cb14-6" tabindex="-1"></a></span>
+<span id="cb14-7"><a href="#cb14-7" tabindex="-1"></a><span class="do">## Prune Grid:</span></span>
+<span id="cb14-8"><a href="#cb14-8" tabindex="-1"></a>capprox<span class="sc">$</span><span class="fu">buildParamGrid</span>(<span class="at">quadRule =</span> <span class="st">&quot;AGHQ&quot;</span>, <span class="at">nQuadUpdate =</span> <span class="dv">11</span>, <span class="at">prune =</span> <span class="fl">0.25</span>)</span>
+<span id="cb14-9"><a href="#cb14-9" tabindex="-1"></a>nodes_aghq11_25 <span class="ot">&lt;-</span> capprox<span class="sc">$</span><span class="fu">getParamGrid</span>()</span>
+<span id="cb14-10"><a href="#cb14-10" tabindex="-1"></a><span class="fu">plot</span>(nodes_aghq11, <span class="at">pch =</span> <span class="dv">4</span>)</span>
+<span id="cb14-11"><a href="#cb14-11" tabindex="-1"></a><span class="fu">points</span>(nodes_aghq11_25, <span class="at">col =</span> <span class="st">&#39;red&#39;</span>, <span class="at">pch =</span> <span class="dv">1</span>)</span></code></pre></div>
+</div>
+<div id="improving-the-parameter-marginals" class="section level3">
+<h3>Improving the parameter marginals</h3>
 <p>Add some stuff here.</p>
 </div>
-<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/components/prism-core.min.js" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js" defer></script>
-<script src="https://cdn.jsdelivr.net/combine/npm/katex/dist/katex.min.js,npm/katex/dist/contrib/auto-render.min.js,npm/@xiee/utils/js/render-katex.js" defer></script>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
 </body>
 </html>
