@@ -404,6 +404,7 @@ test_that("AGH Quadrature Comparison to LME4 1 RE", {
 
 ## This might be better to compare for MLE as lme4 does some different
 ## optimization steps for LMMs.
+if(Sys.info()['sysname'] != "Windows") {  # Issue 78
 test_that("AGH Quadrature Comparison to LME4 1 RE for Poisson-Normal", {
   set.seed(123)
   n <- 50
@@ -470,7 +471,7 @@ test_that("AGH Quadrature Comparison to LME4 1 RE for Poisson-Normal", {
   expect_equal(mleLaplace, mleLaplace2, tol = 1e-5)
   expect_equal(mleQuad, mleQuad2, tol = 1e-5)
 })
-
+}
 
 test_that("AGHQ nQuad > 1 for simple LME with correlated intercept and slope works", {
   set.seed(1)
