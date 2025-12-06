@@ -15,9 +15,11 @@ vignette: >
 knitr::opts_chunk$set(
   collapse = TRUE,
   comment = "#>",
-  out.width = "80%",
-  fig.align = 'center',
-  eval = FALSE ## uncomment this to build quickly without running code.
+  fig.width = 6,
+  fig.asp = 0.618,
+  out.width = "70%",
+  fig.align = "center",
+  # eval = TRUE ## uncomment this to build quickly without running code.
 )
 ```
 
