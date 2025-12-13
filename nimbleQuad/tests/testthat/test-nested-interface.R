@@ -3,6 +3,8 @@ BMDopt <- nimbleOptions("buildModelDerivs")
 nimbleOptions(enableDerivs = TRUE)
 nimbleOptions(buildModelDerivs = TRUE)
 
+if(!exists(runFailingWindowsTests)) unFailingWindowsTests <- FALSE
+
 
 temporarilyAssignInGlobalEnv <- function(value, replace = FALSE) {
     name <- deparse(substitute(value))
@@ -346,7 +348,7 @@ test_that("Basic interface and user input errors", {
     expect_identical(exp(sort(grid[,2])), sort(unique(latentSamples[,'sigma'])))
 
     q1 <- result$quantiles
-    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+    if(Sys.info()['sysname'] != "Windows" || runFailingWindowsTests) {  # Issue 71
         result$improveParamMarginals()
         q2 <- result$quantiles
         result$improveParamMarginals(nMarginalGrid = 11)

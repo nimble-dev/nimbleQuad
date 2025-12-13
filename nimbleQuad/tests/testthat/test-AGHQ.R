@@ -1,10 +1,11 @@
-library(nimbleQuad)
 # Tests of AGH Quadrature approximation
 EDopt <- nimbleOptions("enableDerivs")
 BMDopt <- nimbleOptions("buildModelDerivs")
 nimbleOptions(enableDerivs = TRUE)
 nimbleOptions(buildModelDerivs = TRUE)
 nimbleOptions(allowDynamicIndexing = FALSE)
+
+if(!exists(runFailingWindowsTests)) unFailingWindowsTests <- FALSE
 
 test_that("AGH Quadrature Normal-Normal 1D works", {
   set.seed(123)
@@ -87,7 +88,7 @@ test_that("AGH Quadrature Normal-Normal 1D works", {
 
   opt <- cmQuad$findMLE(pStart = test.val1)	## Needs decent starting values.
   mle.tru <- optim(test.val1, ll.norm, gr.ll.norm, control = list(fnscale = -1))
-  if(Sys.info()['sysname'] != "Windows") {  # Issue 78
+  if(Sys.info()['sysname'] != "Windows" || runFailingWindowsTests) {  # Issue 78
       expect_equal(opt$value, mle.tru$value, tol = 1e-8) # Same log likelihood. Diff parameter values.
   }
 
@@ -261,7 +262,7 @@ test_that("AGH Quadrature 1D Binomial-Beta", {
   # obj$fn(log(param.val))
 })
 
-if(Sys.info()['sysname'] != "Windows") {  # Issue 78
+if(Sys.info()['sysname'] != "Windows" || runFailingWindowsTests) {  # Issue 78
 test_that("AGH Quadrature 1D Check MLE.", {
   set.seed(123)
   n <- 50
@@ -324,7 +325,7 @@ test_that("AGH Quadrature 1D Check MLE.", {
 })
 }
 
-if(Sys.info()['sysname'] != "Windows") {  # Issue 78
+if(Sys.info()['sysname'] != "Windows" || runFailingWindowsTests) {  # Issue 78
 test_that("AGH Quadrature Comparison to LME4 1 RE", {
   set.seed(123)
   n <- 50
@@ -402,7 +403,7 @@ test_that("AGH Quadrature Comparison to LME4 1 RE", {
 
 ## This might be better to compare for MLE as lme4 does some different
 ## optimization steps for LMMs.
-if(Sys.info()['sysname'] != "Windows") {  # Issue 78
+if(Sys.info()['sysname'] != "Windows" || runFailingWindowsTests) {  # Issue 78
 test_that("AGH Quadrature Comparison to LME4 1 RE for Poisson-Normal", {
   set.seed(123)
   n <- 50
@@ -471,7 +472,7 @@ test_that("AGH Quadrature Comparison to LME4 1 RE for Poisson-Normal", {
 })
 }
 
-if(Sys.info()['sysname'] != "Windows") {  # Issue 65
+if(Sys.info()['sysname'] != "Windows" || runFailingWindowsTests) {  # Issue 65
 test_that("AGHQ nQuad > 1 for simple LME with correlated intercept and slope works", {
   set.seed(1)
   g <- rep(1:10, each = 10)

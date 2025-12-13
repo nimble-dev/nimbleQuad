@@ -1,5 +1,7 @@
 # Tests of Quadrature Rules and Grids for numerical integration:
 
+if(!exists(runFailingWindowsTests)) unFailingWindowsTests <- FALSE
+
 test_that("Check Basic Quad Rules work.", {
   ## Basic Virtual List Wrapper:
   rule_wrapper <- nimbleFunction(
@@ -191,7 +193,7 @@ test_that("Quadrature Grid Configures Correctly", {
 
 ## Should separate CCD test and add a higher dimension example.
 
-if(Sys.info()['sysname'] != "Windows") {  # Issue 65
+if(Sys.info()['sysname'] != "Windows"|| runFailingWindowsTests) {  # Issue 65
 test_that("AGHQ Pruning works.", {
 
   quadGrid2 <- configureQuadGrid(d=3, levels=11, quadRule = "AGHQ", control = list(quadRules = c("AGHQ", "CCD")))

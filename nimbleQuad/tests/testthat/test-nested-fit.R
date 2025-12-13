@@ -3,6 +3,8 @@ BMDopt <- nimbleOptions("buildModelDerivs")
 nimbleOptions(enableDerivs = TRUE)
 nimbleOptions(buildModelDerivs = TRUE)
 
+if(!exists(runFailingWindowsTests)) unFailingWindowsTests <- FALSE
+
 
 temporarilyAssignInGlobalEnv <- function(value, replace = FALSE) {
     name <- deparse(substitute(value))
@@ -55,7 +57,7 @@ test_that("Simple 1d param case - basic tests against known numerical results, i
     qs_est <- result$qmarginal('sigma2')
     expect_lt(max(abs(qs - qs_est)), 0.01)
 
-    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+    if(Sys.info()['sysname'] != "Windows" || runFailingWindowsTests) {  # Issue 71
         result$improveParamMarginals('sigma2', nMarginalGrid = 5)
         ## Expect identical results since 1d improvement done by default (and with 5 points).
         expect_identical(qs_est, result$qmarginal('sigma2')) 
@@ -75,7 +77,7 @@ test_that("Simple 1d param case - basic tests against known numerical results, i
         expect_false(identical(qs_est_impr, qs_est_impr2))
     }
     
-    if(Sys.info()['sysname'] != "Windows") {  # Issue 78
+    if(Sys.info()['sysname'] != "Windows" || runFailingWindowsTests) {  # Issue 78
         new_qpts <- c(0.3, 0.72)
         qs_est <- result$qmarginal('sigma2', new_qpts)
         qs <- qinvgamma(new_qpts, (n-1)/2, scale=(n-1)*var(m$y)/2)
@@ -257,7 +259,7 @@ test_that("3-d case", {
     capprox <- compileNimble(approx, project = m)
     result <- runNestedApprox(capprox)  # Fairly different from MCMC for mu and sigma.
 
-    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+    if(Sys.info()['sysname'] != "Windows" || runFailingWindowsTests) {  # Issue 71
         result$improveParamMarginals(c('mu','sigma','phi'), nMarginalGrid = 7)
         expect_lt(max(abs(qs_mcmc[,c('mu','sigma','phi')] - unlist(result$quantiles))), .06)
     }
@@ -308,7 +310,7 @@ test_that("3-d case, no RE variation", {
     capprox <- compileNimble(approx, project = m)
     result <- runNestedApprox(capprox)  # Fairly different from MCMC for mu and sigma.
 
-    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+    if(Sys.info()['sysname'] != "Windows" || runFailingWindowsTests) {  # Issue 71
         result$improveParamMarginals(c('mu','sigma','phi'), nMarginalGrid = 7)
         expect_lt(max(abs(qs_mcmc[,c('mu','sigma','phi')] - unlist(result$quantiles))), .01)
     }
@@ -530,7 +532,7 @@ test_that("nested REs in Bernoulli GLMM", {
     result <- runNestedApprox(capprox)
     expect_lt(max(abs(qs_mcmc[,c('sigma_state','sigma_town')] - unlist(result$quantiles))), .015)  # 0.01; Better than INLA
 
-    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+    if(Sys.info()['sysname'] != "Windows" || runFailingWindowsTests) {  # Issue 71
         result$improveParamMarginals(c("sigma_state","sigma_town"), nMarginalGrid = 5)
         expect_lt(max(abs(qs_mcmc[,c('sigma_state','sigma_town')] - unlist(result$quantiles))), .009)  # 0.007; Better than INLA
     }
@@ -693,7 +695,7 @@ test_that("crossed REs in Bernoulli GLMM", {
     result <- runNestedApprox(capprox)
     expect_lt(max(abs(qs_mcmc[,c('sigma_state','sigma_town')] - unlist(result$quantiles))), .008)  # .0065
 
-    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+    if(Sys.info()['sysname'] != "Windows" || runFailingWindowsTests) {  # Issue 71
         result$improveParamMarginals(c("sigma_state","sigma_town"), nMarginalGrid = 5)
         expect_lt(max(abs(qs_mcmc[,c('sigma_state','sigma_town')] - unlist(result$quantiles))), .007)  # .0057
     }
@@ -785,7 +787,7 @@ test_that("inhaler (Dirichlet) example", {
     result_orig <- runNestedApprox(capprox, originalScale = FALSE)  # Use originalScale=FALSE for comparison with INLA. 
 
     expect_lt(max(abs(qs_param - unlist(result_orig$quantiles))), .05)  # .040
-    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+    if(Sys.info()['sysname'] != "Windows" || runFailingWindowsTests) {  # Issue 71
         result_orig$improveParamMarginals(1:3, nMarginalGrid = 7)          
         expect_lt(max(abs(qs_param - unlist(result_orig$quantiles))), .04)  # .033
         ## INLA max diff is 0.026 on theta scale.
@@ -866,7 +868,7 @@ test_that("Wishart example", {
     capprox <- compileNimble(approx, project = m)
     result <- runNestedApprox(capprox, originalScale = FALSE)  
     expect_lt(max(abs(qs_mcmc[ , 1:7] - unlist(result$quantiles))), .1)  # .092
-    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+    if(Sys.info()['sysname'] != "Windows" || runFailingWindowsTests) {  # Issue 71
         result$improveParamMarginals(1:7, nMarginalGrid = 5) # Much better; fairly slow to compute with so many params and grid points.
         expect_lt(max(abs(qs_mcmc[ , 1:7] - unlist(result$quantiles))), .025) # .022
     }
@@ -885,7 +887,7 @@ test_that("Wishart example", {
     capprox <- compileNimble(approx, project = m)
     result <- runNestedApprox(capprox, originalScale = FALSE)  
     expect_lt(max(abs(qs_mcmc[ , 1:7] - unlist(result$quantiles))), .1)  # .092
-    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+    if(Sys.info()['sysname'] != "Windows" || runFailingWindowsTests) {  # Issue 71
         result$improveParamMarginals(1:7, nMarginalGrid = 5) # Much better; fairly slow to compute with so many params and grid points.
         expect_lt(max(abs(qs_mcmc[ , 1:7] - unlist(result$quantiles))), .025) # .022
     }
@@ -973,7 +975,7 @@ test_that("LKJ example", {
     result <- runNestedApprox(capprox, originalScale = FALSE) 
     # expect_lt(max(abs(qs_mcmc[,1:7] - unlist(result$quantiles))), ??)  # Some rather far off, so no test.
 
-    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+    if(Sys.info()['sysname'] != "Windows" || runFailingWindowsTests) {  # Issue 71
         result$improveParamMarginals(1:7, nMarginalGrid=5)  # time-consuming
         expect_lt(max(abs(qs_mcmc[,1:7] - unlist(result$quantiles))), .035)  # .028
     }
@@ -995,7 +997,7 @@ test_that("LKJ example", {
     result <- runNestedApprox(capprox, originalScale = FALSE) 
     ## expect_lt(max(abs(qs_mcmc[,1:7] - unlist(result$quantiles))), ??)   # Some rather far off, so no test. 
     
-    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+    if(Sys.info()['sysname'] != "Windows" || runFailingWindowsTests) {  # Issue 71
         result$improveParamMarginals(1:7, nMarginalGrid=5)  # time-consuming
         expect_lt(max(abs(qs_mcmc[,1:7] - unlist(result$quantiles))), .035)  # .028
     }
@@ -1148,7 +1150,7 @@ test_that("dmnorm case - revised nested RE example", {
     result <- runNestedApprox(capprox)
     expect_lt(max(abs(qs_mcmc[,c('sigma_state','sigma_town')] - unlist(result$quantiles))), .015)  # .0099
 
-    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+    if(Sys.info()['sysname'] != "Windows" || runFailingWindowsTests) {  # Issue 71
         result$improveParamMarginals(c("sigma_state","sigma_town"), nMarginalGrid = 5)
         expect_lt(max(abs(qs_mcmc[,c('sigma_state','sigma_town')] - unlist(result$quantiles))), .01) # .007 
     }
@@ -1171,7 +1173,7 @@ test_that("dmnorm case - revised nested RE example", {
     result <- runNestedApprox(capprox)
     expect_lt(max(abs(qs_mcmc[,c('sigma_state','sigma_town')] - unlist(result$quantiles))), .015)  # .0096
 
-    if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+    if(Sys.info()['sysname'] != "Windows" || runFailingWindowsTests) {  # Issue 71
         result$improveParamMarginals(c("sigma_state","sigma_town"), nMarginalGrid = 5)
         expect_lt(max(abs(qs_mcmc[,c('sigma_state','sigma_town')] - unlist(result$quantiles))), .01) # .006
     }
@@ -1293,7 +1295,7 @@ test_that("Salamander example - custom distribution and INLA comparison", {
   ## tau_re is hard (upper tail primarily):
   expect_lt(max(abs(qs_mcmc[,'tau_re'] - result$quantiles$tau_re)), .35)  # 0.290  # .342 INLA
 
-  if(Sys.info()['sysname'] != "Windows") {  # Issue 71
+  if(Sys.info()['sysname'] != "Windows" || runFailingWindowsTests) {  # Issue 71
       result$improveParamMarginals(c("tau_re", "logitp"), nMarginalGrid = 7, nQuad = 9)
       expect_lt(max(abs(qs_mcmc[,"tau_re"] - result$quantiles$tau_re)), .05)  # 0.045
       expect_lt(max(abs(qs_mcmc[,"logitp"] - result$quantiles$logitp)), .012)  # 0.003
@@ -1306,7 +1308,7 @@ test_that("Salamander example - custom distribution and INLA comparison", {
   ## Check param samples.
   smp <- result$sampleParams(n=10000)
   qs_sample <- apply(smp, 2, quantile, qpts)
-  if(Sys.info()['sysname'] != "Windows") {  # Issue 78
+  if(Sys.info()['sysname'] != "Windows" || runFailingWindowsTests) {  # Issue 78
       expect_lt(max(abs(qs_mcmc[,'tau_re'] - qs_sample[, "tau_re"])), .06)  # .045
       expect_lt(max(abs(qs_mcmc[,'logitp'] - qs_sample[, "logitp"])), .005) # .003
   }
@@ -1330,7 +1332,7 @@ test_that("Salamander example - custom distribution and INLA comparison", {
 
   qs_nest <- apply(latent_sample,2, quantile, qpts)  
   expect_lt(max(abs(qs_mcmc[,grep("^beta", colnames(qs_mcmc))] - qs_nest[,grep("^beta", colnames(qs_nest))])), 0.7)  # 0.67
-  if(Sys.info()['sysname'] != "Windows") {  # Issue 78  
+  if(Sys.info()['sysname'] != "Windows" || runFailingWindowsTests) {  # Issue 78  
       expect_lt(max(abs(qs_mcmc[,grep("^re", colnames(qs_mcmc))] - qs_nest[,grep("^re", colnames(qs_nest))])), 0.055)  # .048
   }
 })
