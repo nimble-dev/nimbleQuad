@@ -673,7 +673,7 @@ buildNestedApprox <- nimbleFunction(
             if (!skewedSDCached & skew) calcSkewedSD()
             ans <- 0
             ## Now fill in the grid values.
-            nimCat("Calculating inner AGHQ/Laplace approximation at ", nGrid, " parameter (outer) grid points (one dot per point): ")
+            nimCat("Calculating inner AGHQ/Laplace approximation at ", nGrid, " parameter (outer)\n  grid points (one dot per point): ")
             for (i in 1:nGrid) {
                 nimCat(".")
                 ## Operations at the mode:
@@ -783,7 +783,7 @@ buildNestedApprox <- nimbleFunction(
 
             ## For each value of paramTrans_i, we need to do AGHQ which means finding the
             ## mode of the other parameters, transforming and computing.
-            nimCat("  - calculating inner AGHQ/Laplace approximation at (", nPts, ") marginal points with ", nQuadGrid, " quadrature grid points (one dot per grid point): ")
+            nimCat("  - calculating inner AGHQ/Laplace approximation at (", nPts, ") marginal points\n    with ", nQuadGrid, " quadrature grid points (one dot per grid point): ")
             for (i in 1:nPts) {
                 res[i, 1] <- paramTrans1_nodes[i, 2] * stdDev + paramTransMode[pIndex]
                 paramTrans_j[pIndex] <- res[i, 1]
