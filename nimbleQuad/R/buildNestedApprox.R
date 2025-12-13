@@ -106,12 +106,12 @@
 #'   Laplace approximation to marginalize over all continuous latent nodes
 #'   (both random and fixed effects) in a model. 
 #'
-#' \code{buildNestedApprox} uses \code{setupMargNodes} (in a multi-step process)
+#' \code{buildNestedApprox} uses \code{\link[nimble]{setupMargNodes}} (in a multi-step process)
 #'   to try to give sensible defaults from
 #'   any combination of \code{paramNodes}, \code{latentNodes},
 #'   \code{calcNodes}, and \code{calcNodesOther} that are provided. 
 #'
-#' \code{setupMargNodes} also determines which integration dimensions are
+#' \code{\link[nimble]{setupMargNodes}} also determines which integration dimensions are
 #' conditionally independent, i.e., which can be done separately from each
 #' other. For example, when possible, 10 univariate random effects will be split
 #' into 10 univariate integration problems rather than one 10-dimensional

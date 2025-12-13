@@ -22,9 +22,7 @@ RoxygenNote: 7.3.2
 Collate:
     quadratureRules.R
     quadratureGrids.R
-    nodeUtils.R
     Laplace.R
     buildNestedApprox.R
     runNestedApprox.R
     summaryUtils.R
-    normTooling.R

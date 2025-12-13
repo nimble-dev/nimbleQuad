@@ -3293,7 +3293,7 @@ runAGHQ <- function(AGHQ, pStart,
 #' @param paramNodes a character vector of names of parameter nodes in the
 #'   model; defaults are provided by \code{\link[nimble]{setupMargNodes}}.
 #'   Alternatively, \code{paramNodes} can be a list in the format returned by
-#'   \code{setupMargNodes}, in which case \code{randomEffectsNodes},
+#'   \code{\link[nimble]{setupMargNodes}}, in which case \code{randomEffectsNodes},
 #'   \code{calcNodes}, and \code{calcNodesOther} are not needed (and will be
 #'   ignored).
 #' @param randomEffectsNodes a character vector of names of continuous
@@ -3394,15 +3394,15 @@ runAGHQ <- function(AGHQ, pStart,
 #'   match those here (except for a few arguments which are taken from control
 #'   list elements here).
 #'
-#' \code{setupMargNodes} tries to give sensible defaults from
+#' \code{\link[nimble]{setupMargNodes}} tries to give sensible defaults from
 #'   any combination of \code{paramNodes}, \code{randomEffectsNodes},
 #'   \code{calcNodes}, and \code{calcNodesOther} that are provided. For example,
 #'   if you provide only \code{randomEffectsNodes} (perhaps you want to
 #'   marginalize over only some of the random effects in your model),
-#'   \code{setupMargNodes} will try to determine appropriate choices for the
+#'   \code{\link[nimble]{setupMargNodes}} will try to determine appropriate choices for the
 #'   others.
 #'
-#' \code{setupMargNodes} also determines which integration dimensions are
+#' \code{\link[nimble]{setupMargNodes}} also determines which integration dimensions are
 #' conditionally independent, i.e., which can be done separately from each
 #' other. For example, when possible, 10 univariate random effects will be split
 #' into 10 univariate integration problems rather than one 10-dimensional
@@ -3420,16 +3420,16 @@ runAGHQ <- function(AGHQ, pStart,
 #'   you must provide a \code{randomEffectsNodes} argument to indicate which
 #'   they are.
 #'
-#' It can be helpful to call \code{setupMargNodes} directly to see exactly how
+#' It can be helpful to call \code{\link[nimble]{setupMargNodes}} directly to see exactly how
 #'   nodes will be arranged for Laplace approximation. For example, you may want
 #'   to verify the choice of \code{randomEffectsNodes} or get the order of
 #'   parameters it has established to use for making sense of the MLE and
 #'   results from the \code{summary} method. One can also call
-#'   \code{setupMargNodes}, customize the returned list, and then provide that
+#'   \code{\link[nimble]{setupMargNodes}}, customize the returned list, and then provide that
 #'   to \code{buildLaplace} as \code{paramNodes}. In that case,
-#'   \code{setupMargNodes} will not be called (again) by \code{buildLaplace}.
+#'   \code{\link[nimble]{setupMargNodes}} will not be called (again) by \code{buildLaplace}.
 #'
-#' If \code{setupMargNodes} is emitting an unnecessary warning, simply use
+#' If \code{\link[nimble]{setupMargNodes}} is emitting an unnecessary warning, simply use
 #'   \code{control=list(check=FALSE)}.
 #'
 #' @section Managing parameter transformations that may be used internally:
