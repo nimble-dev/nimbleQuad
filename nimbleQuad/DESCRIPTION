@@ -13,7 +13,7 @@ Authors@R: c(
     )
 Depends: R (>= 3.5.0), nimble (>= 1.4.0)
 Imports: methods, R6, pracma, polynom
-Suggests: testthat, mvQuad
+Suggests: testthat, mvQuad, faraway
 License: BSD_3_clause + file LICENSE | GPL (>= 2)
 Copyright: See COPYRIGHTS file.
 Encoding: UTF-8
