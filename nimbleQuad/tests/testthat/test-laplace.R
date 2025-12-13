@@ -1,7 +1,5 @@
 library(nimbleQuad) # to get nimbleQuad's names first
 # Tests of Laplace approximation
-source(system.file(file.path('tests', 'testthat', 'test_utils.R'), package = 'nimble'))
-source(system.file(file.path('tests', 'testthat', 'AD_test_utils.R'), package = 'nimble'))
 EDopt <- nimbleOptions("enableDerivs")
 BMDopt <- nimbleOptions("buildModelDerivs")
 nimbleOptions(enableDerivs = TRUE)
