@@ -306,19 +306,29 @@ test_that("3-d case, no RE variation", {
         save(qs_mcmc, file = 'mcmc-results2.Rda')
     } else load(system.file(file.path('tests', 'testthat', 'mcmc-results2.Rda'), package = 'nimbleQuad'))
 
-    approx <- buildNestedApprox(m, latentNodes = c('eta'), paramNodes = c('mu','sigma','phi'))
+    approx <- buildNestedApprox(m, latentNodes = c('eta'), paramNodes = c('mu','sigma','phi'), control = list(marginalGridRule = "AGHQSPARSE"))
     capprox <- compileNimble(approx, project = m)
     result <- runNestedApprox(capprox)  # Fairly different from MCMC for mu and sigma.
 
     if(Sys.info()['sysname'] != "Windows" || runFailingWindowsTests) {  # Issue 71
         result$improveParamMarginals(c('mu','sigma','phi'), nMarginalGrid = 7)
         expect_lt(max(abs(qs_mcmc[,c('mu','sigma','phi')] - unlist(result$quantiles))), .01)
+
+        result$improveParamMarginals(c('mu','sigma','phi'), nMarginalGrid = 7, nQuad = 5)
+        expect_lt(max(abs(qs_mcmc[,c('mu','sigma','phi')] - unlist(result$quantiles))), .01)        
     }
     
     latent_sample <- result$sampleLatents(10000)
     qs_nest <- apply(latent_sample, 2, quantile, qpts)
 
     expect_lt(max(abs(qs_mcmc [ , grep("eta", colnames(qs_mcmc))]- qs_nest)), .4)  # Tails can be rather far off. Using 3 inner grid points has little effect. 
+
+    result$setParamGrid(quadRule = "AGHQ", nQuad = 7, prune = 0.25)
+    latent_sample <- result$sampleLatents(10000)
+    qs_nest <- apply(latent_sample, 2, quantile, qpts)
+
+    expect_lt(max(abs(qs_mcmc [ , grep("eta", colnames(qs_mcmc))]- qs_nest)), .4)  # Pruned Grid max diff is 0.1 (254 points of potential 343)
+
 
     ## Tried to use INLA priors, but INLA results quite far off from MCMC and from our nested approx,
     ## and our nested approx quite far off from MCMC too (ESS > 300 for params/latents) - see nested-3dgamma.R.
