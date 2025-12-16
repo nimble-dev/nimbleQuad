@@ -9,6 +9,7 @@ bibentry(
     title = title,
     author = c(
         person("Paul", "van Dam-Bates"),
+        person("Perry", "de Valpine"),
         person("Wei", "Zhang"),
         person("Christopher", "Paciorek"),
         person("Daniel", "Turek")),
@@ -35,27 +36,4 @@ bibentry(
     doi = "10.1080/10618600.2016.1172487",
     textVersion = "de Valpine, P., D. Turek, C.J. Paciorek, C. Anderson-Bergman, D. Temple Lang, and R. Bodik. 2017. Programming with models: writing statistical algorithms for general model structures with NIMBLE. Journal of Computational and Graphical Statistics 26: 403-413. <DOI:10.1080/10618600.2016.1172487>."
 )
-
-
-## bibentry(
-##  bibtype = "manual",
-##  title = "{NIMBLE} User Manual",
-##  author = c(person("Perry", "de Valpine"),
-##             person("Christopher", "Paciorek"),
-##             person("Daniel", "Turek"),
-##             person("Nick", "Michaud"),
-##             person("Cliff", "Anderson-Bergman"),
-##             person("Fritz", "Obermeyer"),
-##             person("Claudia", "Wehrhahn Cortes"),
-##             person("Abel", "Rodr\u00ecguez"),
-##             person("Duncan", "Temple Lang"),
-##             person("Sally", "Paganin")),
-##  url = "https://r-nimble.org",
-##  year = year,
-##  version = meta$Version,
-##  note = noteManual,
-##  doi = "10.5281/zenodo.1211190",
-##  textVersion = NULL
-## )
-
 
