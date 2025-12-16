@@ -1,4 +1,3 @@
-library(nimbleQuad) # to get nimbleQuad's names first
 # Tests of Laplace approximation
 EDopt <- nimbleOptions("enableDerivs")
 BMDopt <- nimbleOptions("buildModelDerivs")
