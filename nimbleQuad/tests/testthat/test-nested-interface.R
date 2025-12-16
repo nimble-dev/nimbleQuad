@@ -3,7 +3,7 @@ BMDopt <- nimbleOptions("buildModelDerivs")
 nimbleOptions(enableDerivs = TRUE)
 nimbleOptions(buildModelDerivs = TRUE)
 
-if(!exists('runFailingWindowsTests')) unFailingWindowsTests <- FALSE
+if(!exists('runFailingWindowsTests')) runFailingWindowsTests <- FALSE
 
 
 temporarilyAssignInGlobalEnv <- function(value, replace = FALSE) {
