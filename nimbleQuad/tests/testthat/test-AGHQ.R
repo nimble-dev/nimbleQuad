@@ -5,7 +5,7 @@ nimbleOptions(enableDerivs = TRUE)
 nimbleOptions(buildModelDerivs = TRUE)
 nimbleOptions(allowDynamicIndexing = FALSE)
 
-if(!exists(runFailingWindowsTests)) unFailingWindowsTests <- FALSE
+if(!exists("runFailingWindowsTests")) runFailingWindowsTests <- FALSE
 
 test_that("AGH Quadrature Normal-Normal 1D works", {
   set.seed(123)

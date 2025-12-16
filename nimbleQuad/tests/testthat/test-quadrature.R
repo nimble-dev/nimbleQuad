@@ -1,6 +1,6 @@
 # Tests of Quadrature Rules and Grids for numerical integration:
 
-if(!exists(runFailingWindowsTests)) unFailingWindowsTests <- FALSE
+if(!exists("runFailingWindowsTests")) runFailingWindowsTests <- FALSE
 
 test_that("Check Basic Quad Rules work.", {
   ## Basic Virtual List Wrapper:
