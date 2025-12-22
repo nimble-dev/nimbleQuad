@@ -217,7 +217,7 @@ approxSummary <- R6Class("approxSummary",
 #'                  inits = inits, buildDerivs = TRUE)
 #' approx <- buildNestedApprox(model = model)
 #' 
-#' \dontrun{
+#' \donttest{
 #' comp_model <- compileNimble(model)
 #' comp_approx <- compileNimble(approx, project = model)
 #' result <- runNestedApprox(comp_approx)

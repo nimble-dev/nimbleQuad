@@ -3907,7 +3907,7 @@ runAGHQ <- function(AGHQ, pStart,
 #' # Build Laplace approximation
 #' pumpLaplace <- buildLaplace(pump)
 #'
-#' \dontrun{
+#' \donttest{
 #' # Compile the model
 #' Cpump <- compileNimble(pump)
 #' CpumpLaplace <- compileNimble(pumpLaplace, project = pump)
