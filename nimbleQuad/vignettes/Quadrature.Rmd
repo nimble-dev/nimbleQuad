@@ -1,10 +1,10 @@
 ---
-title: Using nimbleQuad
+title: Using nimbleQuad for maximum likelihood estimation and deterministic posterior approximation
 author: "Paul van Dam-Bates and Chris Paciorek"
 date: "`r Sys.Date()`"
 output: rmarkdown::html_vignette
 description: >
-  An overview of functioning in nimbleQuad for finding the MLE and posterior approximations.
+  An overview of functionality in nimbleQuad for finding the MLE and posterior approximations.
 vignette: >
   %\VignetteIndexEntry{Using nimbleQuad}
   %\VignetteEngine{knitr::rmarkdown}
@@ -25,10 +25,13 @@ knitr::opts_chunk$set(
 
 ## Introduction
 
-The `nimbleQuad` package is an alternative to Markvo chain Monte Carlo algorithms in NIMBLE. It has two main components:
 
-1. Adaptive Gauss-Hermite Quadrature (AGHQ) for marginalizing over latent nodes (e.g. random effects) to preform maximum likelihood estimation (`buildLaplace` if `nQuad = 1`) and `buldAGHQ` otherwise.
-2. Quadrature methods for posterior approximation using Laplace for the inner marginalization of the latent nodes, and general quadrature methods for outer marginalization  (`buildNestedApprox`).
+The `nimbleQuad` package provides quadrature-based inference methods that use Laplace and Adaptive Gauss-Hermite Quadrature (AGHQ) approximation. It has two main components:
+
+1. Laplace and AGHQ approximations for marginalizing over latent nodes (e.g., random effects) to perform approximate maximum likelihood estimation.
+2. Deterministic nested quadrature methods for posterior approximation using Laplace approximation for the inner marginalization of the latent nodes and general quadrature methods for outer marginalization. These methods borrow ideas from the popular INLA approach and the extended Gaussian latent model approach provided in the R `aghq` package.
+
+By providing these methods in NIMBLE, users can use the methods on models constructed using the NIMBLE model language (which extends the BUGS model language) as well as providing algorithms that users can customized and extend.
 
 In this document we will introduce some of the workflow and show the custom control available when using `buildNestedApprox` for posterior approximations.
 
@@ -36,7 +39,11 @@ In this document we will introduce some of the workflow and show the custom cont
 library(nimbleQuad)
 ```
 
-### What is nimble?
+```{r, echo=FALSE}
+load('salamanders-hmc-200k.Rda')
+```
+
+### What is NIMBLE?
 
 NIMBLE is a system for writing hierarchical statistical models and algorithms.  It is distributed as an R package [nimble](https://CRAN.R-project.org/package=nimble).  NIMBLE stands for "Numerical Inference for statistical Models using Bayesian and Likelihood Estimation".  NIMBLE includes:
 
@@ -83,22 +90,23 @@ The maximum likelihood estimator can be found in `glmmTMB`.
 ```{r, message = FALSE, warning = FALSE}
 library(glmmTMB)
 data(Salamanders)
-m1 <- glmmTMB(count ~ spp * mined + (1|site), zi=~1, family=poisson, data=Salamanders)
-#summary(m1)
+fit_tmb <- glmmTMB(count ~ spp * mined + (1|site), zi=~1, family=poisson, data=Salamanders)
 ```
 
 We can also match this model in `INLA` to get the approximate posterior as a "zeroinflatedpoisson1".
 
 ```{r, message = FALSE, warning = FALSE}
 library(INLA)
-fit.inla <- inla( count ~ spp * mined + f(site, model="iid"), 
-  quantiles = c(.025,.25,.5,.75,.975), family= "zeroinflatedpoisson1", data=Salamanders, control.inla = list(int.strategy = "ccd"))
-#summary(fit.inla)
+fit_inla <- inla( count ~ spp * mined + f(site, model="iid"), 
+  quantiles = c(.025,.25,.5,.75,.975), family= "zeroinflatedpoisson1", data=Salamanders,
+  control.inla = list(int.strategy = "ccd"))
 ```
 
 ## Building a GLMM in NIMBLE
 
-To write this model in NIMBLE we will first write a zero-inflated Poisson distribution that marginalizes over the indirectly observed discrete value $z$. When $y=0$, $z$ is a discrete latent variable. In order to perform our methods, all the latent variables in this model must be continuous. `nimbleQuad` relies on automatic differentiation (AD) to take the derivatives. To include AD in a `nimbleFunction` we must set `buildDerivs = 'run'`. A random number generator is also provided for convenience, although this is not strictly needed for this model to fit.
+To write this model in NIMBLE we will first write a zero-inflated Poisson distribution that marginalizes over the indirectly observed discrete value $z$. When $y=0$, $z$ is a discrete latent variable. In order to use the methods in `nimbleQuad`, all the latent variables in this model must be continuous.
+
+`nimbleQuad` relies on automatic differentiation (AD) to take derivatives. To include AD in a `nimbleFunction` we must set `buildDerivs = 'run'`. A random number generator is also provided for convenience, although this is not strictly needed for this model to fit.
 
 ```{r}
 dZIP <- nimbleFunction(
@@ -122,7 +130,7 @@ rZIP <- nimbleFunction(
 })
 ```
 
-We will use prior distributions to match the `INLA` model that was fit above. See `inla.priors.used(fit.inla)` for a description of the default priors. INLA places a logit-normal prior on $p$. For convenience, we will write our own logit-normal prior. In this case, we explicitly register the distribution to tell NIMBLE the range values for parameter transformation to use. This is not a necessary step if not trying to match INLA.
+We will use prior distributions to match the `INLA` model that was fit above. See `inla.priors.used(fit_inla)` for a description of the default priors. INLA places a logit-normal prior on $p$. For convenience, we will write our own logit-normal prior. In this case, we explicitly register the distribution to tell NIMBLE the range of possible values, needed for use in NIMBLE's parameter transformation system. This is not a necessary step if not trying to match INLA.
 
 ```{r}
 dlogitnormal = nimbleFunction(
@@ -188,31 +196,26 @@ We can find the maximum likelihood estimate or posterior mode by using `buildLap
 laplace <- buildLaplace(model = m)
 claplace <- compileNimble(laplace)
 
-## Can find MLE manually:
-mle <- claplace$findMLE()
-summ.mle <- claplace$summary(mle, randomEffectsStdError = TRUE)
-
-## Or use a wrapper:
-fit.nimble <- runLaplace(claplace)
+nim_fit <- runLaplace(claplace)
 
 ## Compare with glmmTMB:
-params.nim <- fit.nimble$summary$params
-fixef.nim <- params.nim[grep("beta", rownames(params.nim)),]
+nim_params <- nim_fit$summary$params
+nim_fixef <- nim_params[grep("beta", rownames(nim_params)),]
 
-plot(fixef.nim[, "estimate"], fixef(m1)$cond, 
+plot(nim_fixef[, "estimate"], fixef(fit_tmb)$cond, 
   xlab = "NIMBLE Estimate", ylab = "glmmTMB Estimate")
 abline(a = 0, b = 1, lty = 2)
 
-m1$fit$par["betazi"] - logit(params.nim["p",1])
-exp(-2*m1$fit$par["theta"]) - params.nim["tau_re",1]
+fit_tmb$fit$par["betazi"] - logit(nim_params["p",1])
+exp(-2*fit_tmb$fit$par["theta"]) - nim_params["tau_re",1]
 ```
 
-It can be helpful to check the Laplace approximation at the MLE by increasing the number of quadrature nodes using AGHQ. If the likelihood is very different when increasing the number of quadrature nodes then it indicates that Laplace was not a great approximation. In this particular case we have conditionally independent random effects so increasing the number of quadrature nodes will be relatively quick, but in other cases it can be very slow.
+It can be helpful to check the Laplace approximation at the MLE by increasing the number of quadrature nodes using AGHQ. If the likelihood is very different when increasing the number of quadrature nodes then it indicates that Laplace was not a great approximation. In this particular case we have conditionally independent random effects (and therefore a set of 1-dimensional AGHQ approximations) so increasing the number of quadrature nodes will be relatively quick, but in other cases it can be very slow.
 
 ```{r}
-claplace$calcLogLik(fit.nimble$summary$params[, 'estimate'], trans = FALSE)
+claplace$calcLogLik(nimble_fit$summary$params[, 'estimate'], trans = FALSE)
 claplace$updateSettings(nQuad = 5)
-claplace$calcLogLik(fit.nimble$summary$params[, 'estimate'], trans = FALSE)
+claplace$calcLogLik(nimble_fit$summary$params[, 'estimate'], trans = FALSE)
 ```
 
 
@@ -229,7 +232,7 @@ summ.map$params
 
 ## Posterior Approximation
 
-Posterior approximation is done by `buildNestedApprox`. Note that the setup is similar to `buildLaplace` except that we refer to the combination of random effects and fixed effects as `latentNodes` and the hyperparameters as `paramNodes`, which we will refer to more generally as the parameters. This reduces the dimension of the outer quadrature which reduces computation time. However, the fixed effects can also be made `paramNodes`. If nothing is put here NIMBLE will automatically detect these.
+Posterior approximation is done by `buildNestedApprox`. Note that the setup is similar to `buildLaplace` except that we refer to the combination of random effects and fixed effects as `latentNodes` and the hyperparameters as `paramNodes`, which we will refer to more generally as the parameters. This reduces the dimension of the outer quadrature which reduces computation time. However, in some cases one may want to include the fixed effects in the `paramNodes`, as the choice of where to include the fixed effects can affect statistical performance. If the user does ot specify `latentNodes` and `paramNodes`, NIMBLE will automatically determine them based on the graphical structure of the model, and the user can check that a reasonable determination has been made.
 
 ```{r}
 approx <- buildNestedApprox(model = m, 
@@ -248,26 +251,62 @@ The default posterior approximation methods using `runNestedApprox` are:
 
 For each posterior density calculation of the parameters, Laplace is used to marginalize the latent nodes, which requires an inner optimization. The largest computational task is computing the posterior density on the parameter quadrature grid. The default of CCD, central composite design, is based on what INLA uses and scales well to higher dimensions. Alternatively, an AGHQ grid can be used which will be computationally more expensive but potentially more accurate. The user can also provide their own. By default, we do not do compute the parameter grid when calling `runNestedApprox` unless requested. It is necessary for inference on the latent nodes and it is automatically before the first call to `sampleLatents`.
 
-Using the _integration free_ method is the fastest way to produce marginal posterior density estimates of the parameters. This is done by using an asymmetric multivariate normal distribution to approximate the posterior density of the parameters. Marginal distributions are easily computed from a fixed set of points, and then a spline is used to generate a density function. If more accuracy is required, quadrature can be used such as AGHQ to marginalize over the other parameters (similar to the R pacakge `aghq`). Here the user can choose between AGHQ, CCD, sparse AGHQ, or a user provided quadrature rule.
+Using the _integration free_ method is the fastest way to produce marginal posterior density estimates of the parameters. This is done by using an asymmetric multivariate normal distribution to approximate the posterior density of the parameters. Marginal distributions are easily computed from a fixed set of points, and then a spline is used to generate a density function. If more accuracy is required, quadrature can be used such as AGHQ to marginalize over the other parameters (similar to the R package `aghq`). Here the user can choose between AGHQ, CCD, sparse AGHQ, or a user provided quadrature rule.
 
 ```{r}
 result <- runNestedApprox(approx = capprox)
 result
 
-result$plotMarginal("tau_re")
-lines(fit.inla$marginals.hyperpar[[2]], col = 'red', lty = 2)
+hmc_tau_re <- density(samples_hmc[ , 'tau_re'])
+hmc_tau_p <- density(samples_hmc[ , 'p'])
 
+result$plotMarginal("tau_re")
+lines(inla.dmarginal(fit_inla$marginals.hyperpar[[2]]), col = 'red')
+lines(hmc_tau_re, col = 'green')
+
+hmc_tau_re <- density(samples_hmc[ , 'tau_re'])
 result$plotMarginal("p")
-lines(fit.inla$marginals.hyperpar[[1]], col = 'red', lty = 2)
+lines(inla.dmarginal(fit_inla$marginals.hyperpar[[1]]), col = 'red')
+lines(hmc_p, col = 'green')
+```
+
+### Estimation of latents
+
+```{r}
+hmc_beta1 <- density(samples_hmc[ , 'beta[1]'])
+hmc_beta2 <- density(samples_hmc[ , 'beta[2]'])
+hmc_re1 <- density(samples_hmc[ , 're[1]'])
 
 result$sampleLatents(10000)
 plot(density(result$samples[, "beta[1]"]), main = "", xlab = "beta[0]")
-lines(fit.inla$marginals.fixed[[1]], col = 'red', lty = 2)
+lines(fit_inla$marginals.fixed[[1]], col = 'red', lty = 2)
+lines(hmc_beta1, col = 'green')
+
+
+```
+
+
+
+### Improving the Parameter Marginals
+
+Although the _integration free_ method is fast and performs reasonably well, it may be that the user wishes to get a more exact marginal. This is done for each parameter of interest, marginalizing over the remaining parameters using an outer quadrature rule (AGHQ, CCD, AGHQSPARSE, USER). We choose the number of quadrature points for marginalization `nQuad` as well as the number of points along a grid to evaluate the marginal `nMarginalGrid`. Increasing either can improve performance but at the expense of additional computation and generally with diminishing improvement.
+
+
+```{r}
+result$improveParamMarginals(nodes = 'tau_re', 
+  nMarginalGrid = 9, nQuad = 3, quadRule = "AGHQ")
+
+param.smp <- result$sampleParams(10000)
+result$plotMarginal("tau_re")
+lines(density(param.smp[,2]), col = 'blue', lty = 2)
+lines(fit_inla$marginals.hyperpar[[2]], col = 'red', lty = 2)
 ```
 
 ### Customizing the Quadrature Grid:
 
-For the salamanders example, we have two parameters and default to using AGHQ as the parameter grid. The grid points are skewed based on the skew from the asymmetric multivariate normal approximation, and then scaled either using spectral decomposition (or Cholesky). The user may choose to not skew the points when computing the parameter grid. 
+For the salamanders example, we have two parameters for which `nimbleQuad` defaults to using AGHQ as the parameter grid.  The grid points are skewed based on the skew from the asymmetric multivariate normal approximation, and then scaled either using spectral decomposition (or Cholesky). The user may choose to not skew the points when computing the parameter grid.
+
+For more than two parameters, `nimbleQuad` defaults to using a CCD grid, also used by INLA.
 
 The user may also provide their own parameter grid. This must be written as a `nimbleFunction` with some specific components. A good choice for large dimension problems is the PCA-AGHQ rule (Howes et al. (2025) Fast approximate Bayesian inference of HIV indicators using PCA adaptive Gauss-Hermite quadrature). This rule uses AGHQ along the primary principal components of the spectral transformation and Laplace on the other dimensions. We can use the R package `mvQuad` to write our own simple version.
 
@@ -337,11 +376,11 @@ marg_aghq - marg_ccd
 marg_aghq - marg_user
 
 ## Visualize the grids
-plot(nodes_user, xlim = c(-1.3, -0.6), ylim = c(0, 3), xlab = "theta[1]", ylab = "theta[2]")
-points(nodes_aghq, pch = 4)
-points(nodes_aghqsparse, pch = 3)
-points(nodes_ccd, pch = 16)
-legend("topleft", horiz=TRUE, legend = c("PCA-AGHQ", "AGHQ", "AGHQ-Sparse",  "CCD"), pch = c(1, 4, 3, 16), cex = 0.9)
+plot(nodes_ccd, xlim = c(-1.3, -0.6), ylim = c(0, 3), xlab = "theta[1]", ylab = "theta[2]", pch = 4)
+points(nodes_aghq, pch = 1, cex = 1.2)
+points(nodes_aghqsparse, pch = 16, col = 'red')
+points(nodes_user, pch = 3, col = 'green')
+legend("topleft", horiz=TRUE, legend = c("CCD", "AGHQ", "AGHQ-Sparse", "PCA-AGHQ"), pch = c(4,1,16,3), col = c('black','black','green', 'red'),  cex = 0.9)
 ```
 
 An alternative to choosing a different grid is to use AGHQ and then prune a proportion of the grid, removing the points that contribute very little to the posterior density estimate. When running `buildNestedApprox`, we can control the number of quadrature points or the amount to prune the grid via `control = list(paramGridPrune = 0,  nQuadParam = 3)`.
@@ -361,22 +400,22 @@ nodes_aghq11_50 <- capprox$getParamGrid()
 marg_aghq11_50 <- capprox$calcMarginalLogLikQuad()
 marg_aghq11 - marg_aghq11_50
 
-plot(nodes_aghq11, pch = 4)
-points(nodes_aghq11_50, col = 'red', pch = 1)
+plot(nodes_aghq11, pch = 1, cex = 1.1)
+points(nodes_aghq11_50, col = 'red', pch = 16)
 ```
 
-### Improving the Parameter Marginals
+### Simulating from the posterior over parameters
 
-Although the _integration free_ method is fast and performs reasonably well, it may be that the user wishes to get a more exact marginal. This is done for each parameter of interest, marginalizing over the remaining parameters using an outer quadrature rule (AGHQ, CCD, AGHQSPARSE, USER). We choose the number of quadrature points for marginalization `nQuad` as well as the number of points along a grid to evaluate the marginal `nMarginalGrid`. 
-
-The user may also choose to simulate from the asymmetric multivariate normal approximation to make inference on the marginals of the parameters. This can be particularly useful when making inference on parameters with dimension changes (e.g. proportions with Dirichlet prior).
+The user may also choose to simulate from the asymmetric multivariate normal approximation to make inference on the marginals of the parameters. This can be particularly useful when making inference on parameters with dimension changes (e.g., proportions with a Dirichlet prior or elements of a covariance matrix, such as one with a Wishart or LKJ prior).
 
 ```{r}
-result$improveParamMarginals(nodes = 'tau_re', 
-  nMarginalGrid = 9, nQuad = 3, quadRule = "AGHQ")
-
-param.smp <- result$sampleParams(10000)
+samples_params <- result$sampleParams(10000)
 result$plotMarginal("tau_re")
-lines(density(param.smp[,2]), col = 'blue', lty = 2)
-lines(fit.inla$marginals.hyperpar[[2]], col = 'red', lty = 2)
+lines(density(samples_params[,2]), col = 'blue', lty = 2)
 ```
+
+### Model selection and the marginal likelihood
+
+With proper priors, once can calculate $p(y)=\int p(y|\theta)p(\theta)d\theta$, the marginal likelihood, which is useful for model selection. This is reported with the nested approximation results, and an improved estimate based on quadrature over the parameter grid (by default using AGHQ) can be obtained using the `calcMarginalLogLikImproved` method of the nested approximation object.
+
+However, much caution is warranted. The quantity is ill-defined when the prior is improper. Furthermore, even with proper priors, if the prior is diffuse, the integral will generally average over values of the parameters that give very poor fits to the data, which can produce misleading results for model selection. 
