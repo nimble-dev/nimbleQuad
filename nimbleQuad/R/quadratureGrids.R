@@ -545,7 +545,7 @@ INNER_CACHE_BASE <- nimbleFunctionVirtual(
 inner_cache_methods = nimbleFunction(
     contains = INNER_CACHE_BASE,
     setup = function(nre = 0, nGrid = 0, condIndepSets = NULL, nCondIndepSets = 1) {
-        verbose <- ifTRUE(nimble::getNimbleOption('verbose'))
+        verbose <- isTRUE(nimble::getNimbleOption('verbose'))
         innerMode <- matrix(0, nrow = 1, ncol = 1)
         innerNegHessChol <- array(0, c(1, 1, 1))
         wgtsDens <- c(1, -1)

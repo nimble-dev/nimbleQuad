@@ -118,7 +118,7 @@ quadRule_GH = nimbleFunction(
     contains = QUAD_RULE_BASE,
     name = "quadRule_GH",
     setup = function(type = "GHe") {
-      verbose <- ifTRUE(nimble::getNimbleOption('verbose'))
+      verbose <- isTRUE(nimble::getNimbleOption('verbose'))
       if(!type %in% c("GHN", "GHe")){
         stop("Error:  Only types GHe (standard Gauss Hermite rule) or GHN (weights include normal density) are allowed for quadRule_GH.")
       }

@@ -1870,7 +1870,7 @@ buildAGHQ <- nimbleFunction(
     check <- extractControlElement(control, 'check', TRUE)
     ADuseNormality <- extractControlElement(control, 'ADuseNormality', TRUE)
     innerOptimWarning <- extractControlElement(control, 'innerOptimWarning', FALSE)
-    verbose <- ifTRUE(nimble::getNimbleOption('verbose'))
+    verbose <- isTRUE(nimble::getNimbleOption('verbose'))
     
     if(!is.Rmodel(model))
         stop("`model` must be an R model, created by calling `nimbleModel`")

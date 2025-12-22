@@ -247,7 +247,7 @@ buildNestedApprox <- nimbleFunction(
     name = "nestedApprox",
     setup = function(model, paramNodes, latentNodes, calcNodes, calcNodesOther, control = list()) {
         innerOptimWarning <- extractControlElement(control, "innerOptimWarning", FALSE)
-        verbose <- ifTRUE(nimble::getNimbleOption('verbose'))
+        verbose <- isTRUE(nimble::getNimbleOption('verbose'))
 
         nQuadLatent <- extractControlElement(control, "nQuadLatent", 1)
         quadRuleMarginal <- extractControlElement(control, "marginalGridRule", "AGHQ")
