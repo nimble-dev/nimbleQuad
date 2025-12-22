@@ -247,6 +247,7 @@ buildNestedApprox <- nimbleFunction(
     name = "nestedApprox",
     setup = function(model, paramNodes, latentNodes, calcNodes, calcNodesOther, control = list()) {
         innerOptimWarning <- extractControlElement(control, "innerOptimWarning", FALSE)
+        verbose <- ifTRUE(nimble::getNimbleOption('verbose'))
 
         nQuadLatent <- extractControlElement(control, "nQuadLatent", 1)
         quadRuleMarginal <- extractControlElement(control, "marginalGridRule", "AGHQ")
@@ -497,7 +498,7 @@ buildNestedApprox <- nimbleFunction(
         findMode = function(pStart = double(1, default = Inf),
                                  hessian = logical(0, default = TRUE),
                             parscale = character(0, default = "transformed")) {
-            nimCat("Finding posterior mode for parameter(s).\n")
+            if(verbose) nimCat("Finding posterior mode for parameter(s).\n")
             optRes <- innerMethods$optimize(pStart = pStart, includePrior = TRUE,
                                             includeJacobian = TRUE,
                                             hessian = hessian, parscale = parscale)
@@ -506,7 +507,7 @@ buildNestedApprox <- nimbleFunction(
                 stop("Posterior mode could not be found. Consider adjusting the control parameters for the optimization via the `control` argument of `buildNestedApprox`.")
             if(any_nan(c(optRes$hessian)))
                 stop("While attempting to find posterior mode, invalid hessian calculated. Consider adjusting the control parameters for the optimization via the `control` argument of `buildNestedApprox`.")
-            if(optRes$convergence != 0)
+            if(optRes$convergence != 0 & verbose)
                 print("  [Warning] In optimization over parameter(s) to find the posterior mode as the\n",
                       "            starting point for setting up the parameter grid,\n",
                       "            `optim` has a non-zero convergence code: ", optRes$convergence, ".\n",
@@ -639,7 +640,7 @@ buildNestedApprox <- nimbleFunction(
                 skewedStdDev[i, 2] <<- sqrt(2/(2 * (logPostProbMode - logDens2Pos)))  ## numerator (-sqrt(2)) ^2
                 logSkewedWgt <<- logSkewedWgt + log(sum(skewedStdDev[i, ]/2))
                 if(any(skewedStdDev[i,] < 0.3) | any(skewedStdDev[i,] > 3.333))
-                    nimCat("  [Warning] Skewness in posterior of the (hyper)parameters in dimension ", i, " is large and a potential sign of an issue for these approximations.\n")
+                    if(verbose) nimCat("  [Warning] Skewness in posterior of the (hyper)parameters in dimension ", i, " is large and\na potential sign of an issue for these approximations.\n")
             }
             skewedSDCached <<- TRUE
         },
@@ -659,7 +660,7 @@ buildNestedApprox <- nimbleFunction(
         ## Calculate paramTrans on the quadrature grid points. AGHQ or CCD.
         ## Stores all values we need for simulation inference on the latent nodes.
         calcParamGrid = function(skew = logical(0, default = TRUE)) {
-            if(I_GRID == I_AGHQSPARSE)
+            if(I_GRID == I_AGHQSPARSE & verbose)
                 print("  [Note] Sparse grids cannot be used to simulate latent effects (the main reason to compute the posterior on the parameter grid).")
 
             buildParamGrid()
@@ -673,9 +674,9 @@ buildNestedApprox <- nimbleFunction(
             if (!skewedSDCached & skew) calcSkewedSD()
             ans <- 0
             ## Now fill in the grid values.
-            nimCat("Calculating inner AGHQ/Laplace approximation at ", nGrid, " parameter (outer)\n  grid points (one dot per point): ")
+            if(verbose) nimCat("Calculating inner AGHQ/Laplace approximation at ", nGrid, " parameter (outer)\n  grid points (one dot per point): ")
             for (i in 1:nGrid) {
-                nimCat(".")
+                if(verbose) nimCat(".")
                 ## Operations at the mode:
                 if (i == paramGrid$modeIndex()) {
                     wgt <- paramGrid$weights(idx = i)[1]
@@ -711,7 +712,7 @@ buildNestedApprox <- nimbleFunction(
                 }
                 ## *** Add a convergence check?
             }
-            nimCat("\n")
+            if(verbose) nimCat("\n")
             if (skew) adjLogWgt <- logSkewedWgt else adjLogWgt <- 0
 
             ## Marginal log posterior density, a normalizing constant for other
@@ -756,7 +757,7 @@ buildNestedApprox <- nimbleFunction(
                 return(res)
             }
 
-            if(nQuad %% 2 == 0)
+            if(nQuad %% 2 == 0 & verbose)
                 cat("  [Note] For computational efficiency, it is recommended to use an odd number of quadrature points\n         (via argument `nQuad`) for marginalizing over the parameter (outer) grid.\n")
 
             ## Grid for additional paramTrans.
@@ -783,7 +784,7 @@ buildNestedApprox <- nimbleFunction(
 
             ## For each value of paramTrans_i, we need to do AGHQ which means finding the
             ## mode of the other parameters, transforming and computing.
-            nimCat("  - calculating inner AGHQ/Laplace approximation at (", nPts, ") marginal points\n    with ", nQuadGrid, " quadrature grid points (one dot per grid point): ")
+            if(verbose) nimCat("  - calculating inner AGHQ/Laplace approximation at (", nPts, ") marginal points\n    with ", nQuadGrid, " quadrature grid points (one dot per grid point): ")
             for (i in 1:nPts) {
                 res[i, 1] <- paramTrans1_nodes[i, 2] * stdDev + paramTransMode[pIndex]
                 paramTrans_j[pIndex] <- res[i, 1]
@@ -814,9 +815,9 @@ buildNestedApprox <- nimbleFunction(
                 }
 
                 density_i <- 0
-                nimCat("(", i, ")")
+                if(verbose) nimCat("(", i, ")")
                 for (j in 1:nQuadGrid) {
-                    nimCat(".")
+                    if(verbose) nimCat(".")
                     if (j != paramMargGrid$modeIndex()) {
                         nodej <- paramMargGrid$nodes(idx = j)[1, ]
                         paramTrans_tmp <- z_to_paramTrans(z = nodej, postMode = paramTrans_iMode, A = Atransform_i,
@@ -830,7 +831,7 @@ buildNestedApprox <- nimbleFunction(
                 }
                 res[i, 2] <- log(density_i) + maxLogDensity_i - 0.5 * logDetNegHessParamTrans_i
             }
-            nimCat("\n")
+            if(verbose) nimCat("\n")
             ## Because paramTrans_i values are AGHQ, we can normalize to get the proper
             ## posterior density.  This lets us get the marginal posterior via spline
             ## without any more normalizing (but note that in `fitMarginalSpline`

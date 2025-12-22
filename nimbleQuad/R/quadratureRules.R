@@ -118,6 +118,7 @@ quadRule_GH = nimbleFunction(
     contains = QUAD_RULE_BASE,
     name = "quadRule_GH",
     setup = function(type = "GHe") {
+      verbose <- ifTRUE(nimble::getNimbleOption('verbose'))
       if(!type %in% c("GHN", "GHe")){
         stop("Error:  Only types GHe (standard Gauss Hermite rule) or GHN (weights include normal density) are allowed for quadRule_GH.")
       }
@@ -128,11 +129,11 @@ quadRule_GH = nimbleFunction(
             returnType(double(2))
 
             if (levels > 35) {
-                print("Warning:  More than 35 quadrature nodes per dimension is not supported. Setting levels to 35.")
+                if(verbose) print("Warning:  More than 35 quadrature nodes per dimension is not supported. Setting levels to 35.")
                 levels <- 35
             }
             if (levels == 0) {
-                print("Warning:  No default number of quadrature points given. Assuming levels = 3 per dimension.")
+                if(verbose) print("Warning:  No default number of quadrature points given. Assuming levels = 3 per dimension.")
                 levels <- 3
             }
             nodes <- quadGH(levels, type)

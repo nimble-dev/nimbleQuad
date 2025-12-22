@@ -1870,7 +1870,8 @@ buildAGHQ <- nimbleFunction(
     check <- extractControlElement(control, 'check', TRUE)
     ADuseNormality <- extractControlElement(control, 'ADuseNormality', TRUE)
     innerOptimWarning <- extractControlElement(control, 'innerOptimWarning', FALSE)
-
+    verbose <- ifTRUE(nimble::getNimbleOption('verbose'))
+    
     if(!is.Rmodel(model))
         stop("`model` must be an R model, created by calling `nimbleModel`")
 
@@ -2174,7 +2175,7 @@ buildAGHQ <- nimbleFunction(
         for(i in seq_along(AGHQuad_nfl)) {
           numre <- AGHQuad_nfl[[i]]$get_reTransLength()
           if(nQuad * log(numre) > threshold) {
-              print("updateSettings: choice of `nQuad` would yield >50000 nodes for ", numre, " integration dimensions in conditionally independent set ", i, ".")
+              if(verbose) print("updateSettings: choice of `nQuad` would yield >50000 nodes for ", numre, " integration dimensions in conditionally independent set ", i, ".")
               stop("too many integration nodes")
           }
         }
@@ -2290,13 +2291,13 @@ buildAGHQ <- nimbleFunction(
       if(trans) {
           if(length(p) != nparTrans) {
               ## We cannot have variables in a nimStop.
-              print("For `calcLogLik` (or `calcLaplace`) with `trans = TRUE`, `p` should be length ", nparTrans, " but was provided with length ", length(p), ".")
+              if(verbose) print("For `calcLogLik` (or `calcLaplace`) with `trans = TRUE`, `p` should be length ", nparTrans, " but was provided with length ", length(p), ".")
               stop("incorrect length for `p`")
           }
           p <- paramsTransform$inverseTransform(p)
       }
       if(length(p) != npar) {
-          print("For `calcLogLik` (or `calcLaplace`), `p` should be length ", npar, " but is length ", length(p), ".")
+          if(verbose) print("For `calcLogLik` (or `calcLaplace`), `p` should be length ", npar, " but is length ", length(p), ".")
           stop("incorrect length for `p`")
       }
       if(num_calcNodesOther > 0) ans <- otherLogLik(p)
@@ -2324,14 +2325,14 @@ buildAGHQ <- nimbleFunction(
       if(!one_time_fixes_done) one_time_fixes()
       if(trans) {
         if(length(p) != nparTrans) {
-            print("for `gr_logLik` (or `gr_Laplace`) with `trans = TRUE`, `p` should be length ", nparTrans, " but was provided with length ", length(p), ".")
+            if(verbose) print("for `gr_logLik` (or `gr_Laplace`) with `trans = TRUE`, `p` should be length ", nparTrans, " but was provided with length ", length(p), ".")
             stop("incorrect length for `p`")
         }
         pDerivs <- derivs_pInverseTransform(p, c(0, 1))
         p <- pDerivs$value
       }
       if(length(p) != npar) {
-          print("for `gr_logLik` (or `gr_Laplace`), `p` should be length ", npar, " but is length ", length(p), ".")
+          if(verbose) print("for `gr_logLik` (or `gr_Laplace`), `p` should be length ", npar, " but is length ", length(p), ".")
           stop("incorrect length for `p`")
       }
       if(num_calcNodesOther > 0) ans <- gr_otherLogLik(p) else ans <- numeric(length = npar)
@@ -2591,7 +2592,8 @@ buildAGHQ <- nimbleFunction(
       ## Catch for a model that hasn't been initiated...
       if(any(is.na(pStart))) pStart <- numeric(value = 0, length = npar)
       if(length(pStart) != npar) {
-        print("  [Warning] For maximization, `pStart` should be length ", npar, " but is length ", length(pStart), ".")
+        if(verbose)
+          print("  [Warning] For maximization, `pStart` should be length ", npar, " but is length ", length(pStart), ".")
         ans <- optimResultNimbleList$new()
         return(ans)
       # stop("Wrong length for pStart in findMLE.")
@@ -2632,7 +2634,7 @@ buildAGHQ <- nimbleFunction(
       }
       setLogDensType()  ## Reset it to default to posterior.
 
-      if(optRes$convergence != 0)
+      if(optRes$convergence != 0 & verbose)
           print("  [Warning] In maximizing the Laplace/AGHQ approximation,\n",
                 "            `optim` has a non-zero convergence code: ", optRes$convergence, ",\n",
                 "            with the message '", optRes$message, "'.\n",
@@ -2640,7 +2642,7 @@ buildAGHQ <- nimbleFunction(
                 "            list component of the `control` list argument of `buildLaplace` or `buildAGHQ`.")
 
       ## Print out warning about inner convergence.
-      if( checkInnerConvergence(FALSE) != 0 )
+      if( checkInnerConvergence(FALSE) != 0 & verbose)
           print("  [Warning] Inner optimization had a non-zero convergence code.\n",
                 "            Use the `checkInnerConvergence(TRUE)` method of the Laplace object to see details.")
 

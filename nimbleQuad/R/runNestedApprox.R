@@ -414,7 +414,7 @@ improveParamMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad, quad
     if(Rapprox$nParamTrans > 1) {
         nmarg <- length(nodes)
         if(nmarg > 1) word <- "densities" else word <- "density"
-        cat("Approximating", nmarg, "individual parameter marginal", word, "via AGHQ:\n")
+        messageIfVerbose("Approximating", nmarg, "individual parameter marginal", word, "via AGHQ:\n")
     }
     for (i in seq_along(nodes)) {
         ## Improve marginal and insert into raw and summary objects.

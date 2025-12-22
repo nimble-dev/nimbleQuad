@@ -545,6 +545,7 @@ INNER_CACHE_BASE <- nimbleFunctionVirtual(
 inner_cache_methods = nimbleFunction(
     contains = INNER_CACHE_BASE,
     setup = function(nre = 0, nGrid = 0, condIndepSets = NULL, nCondIndepSets = 1) {
+        verbose <- ifTRUE(nimble::getNimbleOption('verbose'))
         innerMode <- matrix(0, nrow = 1, ncol = 1)
         innerNegHessChol <- array(0, c(1, 1, 1))
         wgtsDens <- c(1, -1)
@@ -564,7 +565,8 @@ inner_cache_methods = nimbleFunction(
             nre <<- nLatents
             ## If the cond independent sets don't match up, don't use.
             if (nre != sum(condIndepSets[1:nCondIndepSets])) {
-                print("  Warning: Not able to simulate latent effects from conditionally independent sets.")
+                if(verbose)
+                  print("  Warning: Not able to simulate latent effects from conditionally independent sets.")
                 condIndepSets <<- numeric(value = nre, length = 1)
                 nCondIndepSets <<- 1
             }
