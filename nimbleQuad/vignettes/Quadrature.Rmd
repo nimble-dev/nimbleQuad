@@ -337,7 +337,6 @@ result$improveParamMarginals(nodes = c('tau_re', 'p'),
 ```
 
 Comparing to the quantiles from the integration-free approach, the differences are generally minor, but there is a noticeable difference in the right tail for `tau_re`.
-```
 
 ### Customizing the Quadrature Grid
 
