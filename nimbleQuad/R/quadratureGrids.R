@@ -185,7 +185,8 @@ quadGridCache <- nimbleFunction(
 #'    out <- mvQuad::createNIGrid(dim=d, type = "GHe", level=levels, ndConstruction = "sparse")
 #'    cbind(out$weights, out$nodes)
 #' }
-#' nimMVQuad <- nimbleRcall(function(levels = integer(), d = integer()){}, Rfun = "RmvQuad", returnType = double(2))
+#' nimMVQuad <- nimbleRcall(function(levels = integer(), d = integer()){},
+#'                          Rfun = "RmvQuad", returnType = double(2))
 #' myQuadRule <- nimbleFunction(
 #'      contains = QUAD_RULE_BASE,
 #'      name = "quadRule_USER",
@@ -200,7 +201,9 @@ quadGridCache <- nimbleFunction(
 #'      )
 #'  )
 #'
-#' quadGrid_user <- configureQuadGrid(d=2, levels=3, quadRule = myQuadRule, control = list(quadRules = c("AGHQ", "CCD", "AGHQSPARSE"), userConstruction = "MULTI"))
+#' quadGrid_user <- configureQuadGrid(d=2, levels=3, quadRule = myQuadRule,
+#'                    control = list(quadRules = c("AGHQ", "CCD", "AGHQSPARSE"),
+#'                              userConstruction = "MULTI"))
 #'
 #' @export
 configureQuadGrid <- nimbleFunction(
