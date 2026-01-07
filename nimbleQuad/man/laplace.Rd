@@ -36,7 +36,7 @@ The model must have automatic derivatives (AD) turned on, e.g. by using
 \item{paramNodes}{a character vector of names of parameter nodes in the
 model; defaults are provided by \code{\link[nimble]{setupMargNodes}}.
 Alternatively, \code{paramNodes} can be a list in the format returned by
-\code{setupMargNodes}, in which case \code{randomEffectsNodes},
+\code{\link[nimble]{setupMargNodes}}, in which case \code{randomEffectsNodes},
 \code{calcNodes}, and \code{calcNodesOther} are not needed (and will be
 ignored).}
 
@@ -153,15 +153,15 @@ In many (but not all) cases, one only needs to provide a NIMBLE model object
   match those here (except for a few arguments which are taken from control
   list elements here).
 
-\code{setupMargNodes} tries to give sensible defaults from
+\code{\link[nimble]{setupMargNodes}} tries to give sensible defaults from
   any combination of \code{paramNodes}, \code{randomEffectsNodes},
   \code{calcNodes}, and \code{calcNodesOther} that are provided. For example,
   if you provide only \code{randomEffectsNodes} (perhaps you want to
   marginalize over only some of the random effects in your model),
-  \code{setupMargNodes} will try to determine appropriate choices for the
+  \code{\link[nimble]{setupMargNodes}} will try to determine appropriate choices for the
   others.
 
-\code{setupMargNodes} also determines which integration dimensions are
+\code{\link[nimble]{setupMargNodes}} also determines which integration dimensions are
 conditionally independent, i.e., which can be done separately from each
 other. For example, when possible, 10 univariate random effects will be split
 into 10 univariate integration problems rather than one 10-dimensional
@@ -179,16 +179,16 @@ The defaults make general assumptions such as that
   you must provide a \code{randomEffectsNodes} argument to indicate which
   they are.
 
-It can be helpful to call \code{setupMargNodes} directly to see exactly how
+It can be helpful to call \code{\link[nimble]{setupMargNodes}} directly to see exactly how
   nodes will be arranged for Laplace approximation. For example, you may want
   to verify the choice of \code{randomEffectsNodes} or get the order of
   parameters it has established to use for making sense of the MLE and
   results from the \code{summary} method. One can also call
-  \code{setupMargNodes}, customize the returned list, and then provide that
+  \code{\link[nimble]{setupMargNodes}}, customize the returned list, and then provide that
   to \code{buildLaplace} as \code{paramNodes}. In that case,
-  \code{setupMargNodes} will not be called (again) by \code{buildLaplace}.
+  \code{\link[nimble]{setupMargNodes}} will not be called (again) by \code{buildLaplace}.
 
-If \code{setupMargNodes} is emitting an unnecessary warning, simply use
+If \code{\link[nimble]{setupMargNodes}} is emitting an unnecessary warning, simply use
   \code{control=list(check=FALSE)}.
 }
 
@@ -351,16 +351,6 @@ elements of the list. Most (but not all) of these can be updated later using the
         the Laplace log-likelihood using \code{nimOptim}. See 'Details' of
         \code{\link[nimble]{nimOptim}} for further information.
 
-  \item \code{computeMethod}. There are three approaches available for
-  internal details of how the approximations, and specifically derivatives
-  involved in their calculation, are handled. These are labeled simply 1, 2,
-  and 3, and the default is 2. The relative performance of the methods will
-  depend on the specific model. Users wanting to explore efficiency can try
-  switching from method 2 (default) to methods 1 or 3 and comparing
-  performance. The first Laplace approximation with each method will be
-  (much) slower than subsequent Laplace approximations. Further details are
-  not provided at this time.
-
  \item \code{quadTransform} (relevant only \code{nQuad>1}). For multivariate AGHQ,
  a grid must be constructed based on the Hessian at the inner mode. Options
  include "cholesky" (default) and "spectral" (i.e., eigenvectors and
@@ -444,6 +434,18 @@ The most relevant methods to a user are:
         parameters have constraints, and the safest next step is to use the
         \code{summary} method or \code{summaryLaplace} function.
 
+\item \code{findMAP(pStart, hessian)}. Find the maximum a posteriori 
+        estimates (posterior mode) of parameters using the approximated
+        marginal likelihood (and parameter priors).
+        See information above regarding \code{findMLE} for details.
+
+\item \code{optimize(pStart, includePrior, includeJacobian, hessian, parscale,
+        keepOneFixed)}. Optimize the approximated marginal likelihood with
+        flexibility to specify whether to include the parameter prior.
+        \code{findMLE} and \code{findMAP} are simple wrappers around this
+        method. Note that one can fit a regularized model that uses the prior
+        as a penalty but excludes the Jacobian of the transformation.
+
 \item \code{summary(MLEoutput, originalScale, randomEffectsStdError,
        jointCovariance)}. Summarize the maximum likelihood estimation
        results, given object \code{MLEoutput} that was returned by
@@ -515,8 +517,8 @@ approximation include:
   can be later changed. Options that can be changed include:
   \code{innerOptimMethod}, \code{innerOptimStart},
   \code{innerOptimStartValues}, \code{useInnerCache}, \code{nQuad},
-  \code{quadTransform}, \code{innerOptimControl}, \code{outerOptimControl}, and
-  \code{computeMethod}. For \code{innerOptimStart}, method "zero" cannot be
+  \code{quadTransform}, \code{innerOptimControl}, and \code{outerOptimControl}.
+  For \code{innerOptimStart}, method "zero" cannot be
   specified but can be achieved by choosing method "constant" with
   \code{innerOptimStartValues=0}. Only provided options will be modified. The
   exceptions are \code{innerOptimControl}, \code{outerOptimControl}, which
@@ -672,7 +674,7 @@ pump <- nimbleModel(code = pumpCode, name = "pump", constants = pumpConsts,
 # Build Laplace approximation
 pumpLaplace <- buildLaplace(pump)
 
-\dontrun{
+\donttest{
 # Compile the model
 Cpump <- compileNimble(pump)
 CpumpLaplace <- compileNimble(pumpLaplace, project = pump)

@@ -2,11 +2,18 @@
 % Please edit documentation in R/runNestedApprox.R
 \name{approxSummary}
 \alias{approxSummary}
-\title{Main user interface for NIMBLE's nested approximation}
+\title{Main class for nested approximation information}
 \description{
-This file provides the main user-facing functions and helpers for running nested approximations
-and summarizing results in the NIMBLE framework. It includes the main summary class, the main
-wrapper for running approximations, and utilities for improving marginals, sampling, and more.
+This class holds the result of \code{runNestedApprox} and provides
+methods for improving and extending inference using the nested approximation.
+}
+\details{
+See \code{\link{runNestedApprox}} for an overview of usage, including
+example usage of the methods. Each method has an accompanying wrapper
+function (with the same name)  that takes the \code{approxSummary}
+object as its first argument, with the remaining arguments the same
+as for the method. See the help information on the accompanying function
+for more detailed information, e.g., \code{\link{improveParamMarginals}}.
 }
 \section{Methods}{
 \subsection{Public methods}{

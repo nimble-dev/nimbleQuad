@@ -10,8 +10,8 @@ setParamGrid(summary, quadRule = "NULL", nQuad = -1, prune = -1)
 \item{summary}{an approxSummary object, returned by \code{runNestedApprox}.}
 
 \item{quadRule}{quadrature rule to use for the parameter grid. Can be any of
-\code{"CCD"}, \code{"AGHQ"}, \code{"AGHQSPARSE"} or \code{"USER"},
-  the latter for user-defined grids.}
+\code{"CCD"}, \code{"AGHQ"}, \code{"AGHQSPARSE"}, or \code{"USER"},
+the latter to use the user-defined rule provided to \code{buildNestedApprox}.}
 
 \item{nQuad}{number of quadrature points (not used for \code{"CCD"}.}
 
@@ -25,6 +25,7 @@ Allows the user to change the parameter grid used in the nested approximation.
 }
 \details{
 If the chosen quadrature rule is \code{"AGHQSPARSE"}, then \code{sampleLatents} will no longer work
-as it requires that all the quadrature weights are non-negative, which is no longer true for sparse AGHQ. To use a 
-\code{"USER"} supplied quadrature rule, then this will need to be defined prior to calling \code{buildNestedApprox}.
+as it requires that all the quadrature weights are non-negative, which is no longer true for sparse AGHQ.
+
+To use a user-defined quadrature rule, this needs to be passed to \code{buildNestedApprox}.
 }

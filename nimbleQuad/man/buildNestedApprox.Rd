@@ -131,12 +131,12 @@ In many (but not all) cases, one only needs to provide a NIMBLE model object
   Laplace approximation to marginalize over all continuous latent nodes
   (both random and fixed effects) in a model. 
 
-\code{buildNestedApprox} uses \code{setupMargNodes} (in a multi-step process)
+\code{buildNestedApprox} uses \code{\link[nimble]{setupMargNodes}} (in a multi-step process)
   to try to give sensible defaults from
   any combination of \code{paramNodes}, \code{latentNodes},
   \code{calcNodes}, and \code{calcNodesOther} that are provided. 
 
-\code{setupMargNodes} also determines which integration dimensions are
+\code{\link[nimble]{setupMargNodes}} also determines which integration dimensions are
 conditionally independent, i.e., which can be done separately from each
 other. For example, when possible, 10 univariate random effects will be split
 into 10 univariate integration problems rather than one 10-dimensional
@@ -172,11 +172,17 @@ Supported elements include:
     \item \code{nQuadInner}. Number of inner quadrature points in each dimension (for latent nodes). 
           Default is 1, corresponding to Laplace approximation. 
     \item \code{paramGridRule}. Quadrature rule for the parameter grid. Defaults to \code{"CCD"} for
-         d > 2 and to \code{"AGHQ"} otherwise. Can also be \code{"AGHQSPARSE"} or \code{"USER"},
-         the latter for user-defined grids.
+         d > 2 and to \code{"AGHQ"} otherwise. Can also be \code{"AGHQSPARSE"} or (for user-defined grids)
+         a user-defined nimbleFunction generator (created by calling `nimbleFunction`) with an appropriate
+         `buildGrid` method that has arguments \code{levels} and \code{d} and that returns a matrix.
+    \item \code{paramGridRule_userType}. If \code{paramGridRule} is a user-defined rule, this optional
+         element can be used to indicate that the provided rule constructs a univariate rule rather
+         than directly constructing a multivariate rule and that a multivariate rule should be constructed
+         from the univariate rule as either a product rule (by specifying "PRODUCT") or a sparse rule
+         (by specifying "SPARSE").
     \item \code{innerOptimWarning}. Whether to show inner optimization warnings. Default is \code{FALSE}.
-    \item \code{marginalGridRule}. Rule for marginal grid. Default is \code{"AGHQ"}, 
-             with \code{"AGHQSPARSE"} as the other current option.
+    \item \code{marginalGridRule}. Rule for the grid for parameter marginalization. Default is \code{"AGHQ"}.
+         Can also be \code{"AGHQSPARSE"}. At present, user-defined grids are not allowed.
     \item \code{marginalGridPrune}. Pruning parameter for marginal grid. Default is 0, corresponding to no pruning.
     \item \code{quadTransform}. Quadrature transformation method. Default is \code{"spectral"}, with
           \code{"cholesky"} as the other option.
