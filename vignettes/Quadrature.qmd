@@ -1,6 +1,7 @@
 ---
 title: Using nimbleQuad for maximum likelihood estimation and deterministic posterior approximation
 author: "Paul van Dam-Bates and Christopher Paciorek"
+bibliography: references.bib
 ---
 
 
@@ -10,7 +11,7 @@ author: "Paul van Dam-Bates and Christopher Paciorek"
 The `nimbleQuad` package provides quadrature-based inference methods that use Laplace and Adaptive Gauss-Hermite Quadrature (AGHQ) approximation. It has two main components:
 
 1. Laplace and AGHQ approximations for marginalizing over latent nodes (e.g., random effects) to perform approximate maximum likelihood estimation.
-2. Deterministic nested quadrature methods for posterior approximation using Laplace approximation for the inner marginalization of the latent nodes and general quadrature methods for outer marginalization of the parameter nodes. These methods borrow ideas from the popular INLA approach and from the extended Gaussian latent model approach provided in the R `aghq` package.
+2. Deterministic nested quadrature methods for posterior approximation using Laplace approximation for the inner marginalization of the latent nodes and general quadrature methods for outer marginalization of the parameter nodes. These methods borrow ideas from the popular INLA approach [@rue2009approximate] and from the extended Gaussian latent model approach provided in the R `aghq` package [@stringer2023fast].
 
 By providing these methods in the NIMBLE system, via `nimbleQuad`, users can use the methods on models constructed using the NIMBLE model language (which extends the BUGS model language) and  can also customize and extend the algorithms.
 
@@ -240,7 +241,7 @@ capprox <- compileNimble(approx, project = m)
 We then use `runNestedApprox` to run the basic approximation and apply various methods to the output object to carry out further inference. The steps include:
 
 1. Find posterior mode of the parameters using Laplace (or AGHQ) to marginalize over the latent nodes.
-2. Use an *integration-free* method analogous to that of INLA to quickly approximate the marginal posterior distribution of each parameter.
+2. Use an *integration-free* method analogous to that of INLA to quickly approximate the marginal posterior distribution of each parameter [@martins2013bayesian].
 3. Calculate the posterior density of the parameters across the parameter quadrature grid (the default grid uses the CCD (central composite design) approach when the number of parameters is greater than two). In addition, a quadrature-based marginal log likelihood is produced based on this computation.
 4. Simulate the joint posterior of the `latentNodes` from a mixture of multivariate normal distributions with mean, covariance, and weights obtained at each grid point in the parameter quadrature grid.
 
@@ -321,7 +322,7 @@ For more than two parameters, `nimbleQuad` defaults to using a CCD grid, also us
 
 The user may also provide their own parameter grid. This must be written as a `nimbleFunction` with some specific components.
 
-A good choice for large dimensional problems is the PCA-AGHQ rule (Howes et al. 2025. Fast approximate Bayesian inference of HIV indicators using PCA adaptive Gauss-Hermite quadrature). This rule uses AGHQ along the primary principal components of the spectral transformation and Laplace on the other dimensions. We can use the R package `mvQuad` to write our own simple version.
+A good choice for large dimensional problems is the PCA-AGHQ rule [@howes_pca]. This rule uses AGHQ along the primary principal components of the spectral transformation and Laplace on the other dimensions. We can use the R package `mvQuad` to write our own simple version.
 
 ```{r}
 RmvQuad <- function(levels, d) {
@@ -392,7 +393,7 @@ legend("topleft", horiz=TRUE, legend = c("CCD", "AGHQ", "AGHQ-Sparse", "PCA-AGHQ
 
 Note here that the AGHQ-Sparse grid has more points than the AGHQ (product-based) grid. This is because choosing `nQuad` in a sparse grid construction is not the number of quadrature points per dimension, but instead refers to the level of approximation. The PCA-AGHQ rule shows three points along the principal Eigen axis and a single point at the mode (Laplace for approximation) along the secondary Eigen axis. Due to very little rotation occurring in the spectral transformation this appears close to the x-axis and y-axis.
 
-An alternative to choosing a different grid is to use AGHQ and then prune a proportion of the grid, removing the points that contribute very little to the posterior density estimate. When running `buildNestedApprox`, we can control the number of quadrature points or the amount to prune the grid via the `paramGridPrune` element of the control list, which prunes that proportion of the original grid points.
+An alternative to choosing a different grid is to use AGHQ and then prune a proportion of the grid, removing the points that contribute very little to the posterior density estimate [@jackel2005note]. When running `buildNestedApprox`, we can control the number of quadrature points or the amount to prune the grid via the `paramGridPrune` element of the control list, which prunes that proportion of the original grid points.
 
 The user should generally balance the amount of compute time it takes to calculate the density at the parameter grid points with the amount of accuracy desired in estimation of the latent nodes. For a standard product construction of `nQuad`, with dimension `d`, we get $\mbox{nQuad}^d$ points on the quadrature grid. CCD does not scale as poorly, which is why it is the default for higher dimensions. Alternatively, PCA-AGHQ could be applied, or heavy pruning of an AGHQ grid.
 
