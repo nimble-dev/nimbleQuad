@@ -1,0 +1,31 @@
+---
+title: Using nimbleQuad for maximum likelihood estimation and deterministic posterior approximation
+author: "Paul van Dam-Bates and Christopher Paciorek"
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+description: >
+  An overview of functionality in nimbleQuad for finding the MLE and posterior approximations.
+format: 
+  html:
+    theme: none
+    minimal: true
+    embed-resources: true
+    css: custom.css
+vignette: >
+  %\VignetteIndexEntry{Custom HTML Vignette}
+  %\VignetteEngine{quarto::format}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE, eval=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 6,
+  fig.asp = 0.618,
+  out.width = "70%",
+  fig.align = "center",
+  # eval = TRUE ## uncomment this to build quickly without running code.
+)
+```
+

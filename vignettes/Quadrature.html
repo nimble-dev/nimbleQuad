@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.7.31">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Paul van Dam-Bates and Christopher Paciorek">
+
+<title>Using nimbleQuad for maximum likelihood estimation and deterministic posterior approximation</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+html { -webkit-text-size-adjust: 100%; }
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+  margin-bottom: 0em;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="Quadrature_files/libs/clipboard/clipboard.min.js"></script>
+<script src="Quadrature_files/libs/quarto-html/quarto.js" type="module"></script>
+<script src="Quadrature_files/libs/quarto-html/tabsets/tabsets.js" type="module"></script>
+<script src="Quadrature_files/libs/quarto-html/popper.min.js"></script>
+<script src="Quadrature_files/libs/quarto-html/tippy.umd.min.js"></script>
+<script src="Quadrature_files/libs/quarto-html/anchor.min.js"></script>
+<link href="Quadrature_files/libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="Quadrature_files/libs/quarto-html/quarto-syntax-highlighting-e1a5c8363afafaef2c763b6775fbf3ca.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="Quadrature_files/libs/bootstrap/bootstrap.min.js"></script>
+<link href="Quadrature_files/libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="Quadrature_files/libs/bootstrap/bootstrap-13d785b32ed802e4b42382b51291ab9b.min.css" rel="stylesheet" append-hash="true" id="quarto-bootstrap" data-mode="light">
+
+  <script src="https://cdnjs.cloudflare.com/polyfill/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+</head>
+
+<body class="fullcontent quarto-light">
+
+<div id="quarto-content" class="page-columns page-rows-contents page-layout-article">
+
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default">
+<div class="quarto-title">
+<h1 class="title">Using nimbleQuad for maximum likelihood estimation and deterministic posterior approximation</h1>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    <div>
+    <div class="quarto-title-meta-heading">Author</div>
+    <div class="quarto-title-meta-contents">
+             <p>Paul van Dam-Bates and Christopher Paciorek </p>
+          </div>
+  </div>
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<section id="introduction" class="level2">
+<h2 class="anchored" data-anchor-id="introduction">Introduction</h2>
+<p>The <code>nimbleQuad</code> package provides quadrature-based inference methods that use Laplace and Adaptive Gauss-Hermite Quadrature (AGHQ) approximation. It has two main components:</p>
+<ol type="1">
+<li>Laplace and AGHQ approximations for marginalizing over latent nodes (e.g., random effects) to perform approximate maximum likelihood estimation.</li>
+<li>Deterministic nested quadrature methods for posterior approximation using Laplace approximation for the inner marginalization of the latent nodes and general quadrature methods for outer marginalization of the parameter nodes. These methods borrow ideas from the popular INLA approach <span class="citation" data-cites="rue2009approximate">(<a href="#ref-rue2009approximate" role="doc-biblioref">Rue, Martino, and Chopin 2009</a>)</span> and from the extended Gaussian latent model approach provided in the R <code>aghq</code> package <span class="citation" data-cites="stringer2023fast">(<a href="#ref-stringer2023fast" role="doc-biblioref">Stringer, Brown, and Stafford 2023</a>)</span>.</li>
+</ol>
+<p>By providing these methods in the NIMBLE system, via <code>nimbleQuad</code>, users can use the methods on models constructed using the NIMBLE model language (which extends the BUGS model language) and can also customize and extend the algorithms.</p>
+<p>In this document we will introduce some of the workflow and show the flexibility available when using <code>buildNestedApprox</code> for posterior approximations.</p>
+<p>Additional details about nimbleQuad can be found <a href="https://r-nimble.org/manual/cha-laplace.html">in the NIMBLE User Manual</a>.</p>
+<section id="what-is-nimble" class="level3">
+<h3 class="anchored" data-anchor-id="what-is-nimble">What is NIMBLE?</h3>
+<p><a href="https://r-nimble.org">NIMBLE</a> is a system for writing hierarchical statistical models and algorithms. It is distributed as the R package, <a href="https://CRAN.R-project.org/package=nimble">nimble</a>. NIMBLE includes:</p>
+<ol type="1">
+<li><p>A dialect of the BUGS model language that is extensible. NIMBLE uses almost the same model code as WinBUGS, OpenBUGS, and JAGS. Being “extensible” means that it is possible to write new functions and distributions and use them in your models.</p></li>
+<li><p>An algorithm library including Markov chain Monte Carlo (MCMC) and other methods.</p></li>
+<li><p>A compiler that generates C++ for each model and algorithm, compiles the C++, and lets you use it from R. You don’t need to know anything about C++ to use nimble.</p></li>
+</ol>
+</section>
+<section id="illustrative-example" class="level3">
+<h3 class="anchored" data-anchor-id="illustrative-example">Illustrative Example</h3>
+<p>For this vignette we will use the salamander example from the R package <code>glmmTMB</code>. Example usage of this model can be seen by running <code>?glmmTMB</code>. The data are repeated counts, <span class="math inline">\(y\)</span>, of salamanders at multiple sites, which are zero-inflated. Some of the sites are mined, and some are not (<span class="math inline">\(x\)</span>). Based on <code>glmmTMB</code>, we can analyze these data as</p>
+<p><span class="math display">\[
+  y_i|z_i \sim \text{Poisson}(z_i\lambda_i)
+\]</span></p>
+<p><span class="math display">\[
+  z_i \sim \text{Bernoulli}(1-p_i)
+\]</span></p>
+<p><span class="math display">\[
+  \text{log}(\lambda_i) = \beta x_i + u_{site_i}
+\]</span></p>
+<p><span class="math display">\[
+\text{logit}(p_i) = \alpha_0 x_i
+\]</span></p>
+<p><span class="math display">\[
+u_{j} \sim \text{Normal}(0, \sigma^2)
+\]</span></p>
+<p>The maximum likelihood estimator can be found with <code>glmmTMB</code>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(glmmTMB)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">data</span>(Salamanders)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>fit_tmb <span class="ot">&lt;-</span> <span class="fu">glmmTMB</span>(count <span class="sc">~</span> spp <span class="sc">*</span> mined <span class="sc">+</span> (<span class="dv">1</span><span class="sc">|</span>site), <span class="at">zi=</span><span class="sc">~</span><span class="dv">1</span>, <span class="at">family=</span>poisson, <span class="at">data=</span>Salamanders)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>We can also fit this model in <code>INLA</code> to get the approximate posterior using the “zeroinflatedpoisson1” model family.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(INLA)</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>fit_inla <span class="ot">&lt;-</span> <span class="fu">inla</span>( count <span class="sc">~</span> spp <span class="sc">*</span> mined <span class="sc">+</span> <span class="fu">f</span>(site, <span class="at">model=</span><span class="st">"iid"</span>), </span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">quantiles =</span> <span class="fu">c</span>(.<span class="dv">025</span>,.<span class="dv">25</span>,.<span class="dv">5</span>,.<span class="dv">75</span>,.<span class="dv">975</span>), <span class="at">family=</span> <span class="st">"zeroinflatedpoisson1"</span>, <span class="at">data=</span>Salamanders,</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">control.inla =</span> <span class="fu">list</span>(<span class="at">int.strategy =</span> <span class="st">"ccd"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="building-a-glmm-in-nimble" class="level2">
+<h2 class="anchored" data-anchor-id="building-a-glmm-in-nimble">Building a GLMM in NIMBLE</h2>
+<p>To write this model in NIMBLE we will first write a zero-inflated Poisson distribution that marginalizes over the indirectly observed discrete value <span class="math inline">\(z\)</span>. When <span class="math inline">\(y=0\)</span>, <span class="math inline">\(z\)</span> is a discrete latent variable. In order to use the methods in <code>nimbleQuad</code>, all the latent variables in this model must be continuous.</p>
+<p><code>nimbleQuad</code> relies on automatic differentiation (AD) to take derivatives. To include AD in a <code>nimbleFunction</code> we must set <code>buildDerivs = 'run'</code>.</p>
+<p>A nimbleFunction, <code>rZIP</code>, to simulate from the distribution is also provided for convenience, although this is not strictly needed for this model to fit.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(nimbleQuad)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>dZIP <span class="ot">&lt;-</span> <span class="fu">nimbleFunction</span>(</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a> <span class="at">run =</span> <span class="cf">function</span>(<span class="at">x =</span> <span class="fu">double</span>(), <span class="at">lambda =</span> <span class="fu">double</span>(),</span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>                <span class="at">zeroProb =</span> <span class="fu">double</span>(), <span class="at">log =</span> <span class="fu">logical</span>(<span class="dv">0</span>, <span class="at">default =</span> <span class="dv">0</span>)) {</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>   <span class="fu">returnType</span>(<span class="fu">double</span>())</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>   <span class="do">## For use with AD, we cannot use an `if` statement to handle the mixture.</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>   prob <span class="ot">&lt;-</span> zeroProb <span class="sc">*</span> <span class="fu">dbinom</span>(x, <span class="at">size =</span> <span class="dv">1</span>, <span class="at">prob =</span> <span class="dv">0</span>) <span class="sc">+</span> (<span class="dv">1</span> <span class="sc">-</span> zeroProb) <span class="sc">*</span> <span class="fu">dpois</span>(x, lambda)</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>   <span class="cf">if</span> (log) <span class="fu">return</span>(<span class="fu">log</span>(prob))</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>     <span class="fu">return</span>(prob)</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>   },</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>   <span class="at">buildDerivs =</span> <span class="st">'run'</span>   <span class="co"># Needed when used with AD-based algorithms.</span></span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>rZIP <span class="ot">&lt;-</span> <span class="fu">nimbleFunction</span>(</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a> <span class="at">run =</span> <span class="cf">function</span>(<span class="at">n =</span> <span class="fu">integer</span>(), <span class="at">lambda =</span> <span class="fu">double</span>(), <span class="at">zeroProb =</span> <span class="fu">double</span>()) {</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>   <span class="fu">returnType</span>(<span class="fu">double</span>())</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>   isStructuralZero <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(<span class="dv">1</span>, <span class="at">prob =</span> zeroProb, <span class="at">size =</span> <span class="dv">1</span>)</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>   <span class="cf">if</span> (isStructuralZero) <span class="fu">return</span>(<span class="dv">0</span>)</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>   <span class="fu">return</span>(<span class="fu">rpois</span>(<span class="dv">1</span>, lambda))</span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>We will use prior distributions to match the default priors in the <code>INLA</code> model that was fit above to allow direct comparison of results. See <code>inla.priors.used(fit_inla)</code> for a description of the default priors. INLA places a logit-normal prior on <span class="math inline">\(p\)</span>. For convenience, we will write our own logit-normal prior. In this case, we explicitly register the distribution to tell NIMBLE the range of possible values, needed for use in NIMBLE’s parameter transformation system.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>dlogitnormal <span class="ot">=</span> <span class="fu">nimbleFunction</span>(</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">run =</span> <span class="cf">function</span>(<span class="at">x =</span> <span class="fu">double</span>(), <span class="at">mean =</span> <span class="fu">double</span>(), <span class="at">sd =</span> <span class="fu">double</span>(), </span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>      <span class="at">log =</span> <span class="fu">logical</span>(<span class="dv">0</span>, <span class="at">default =</span> <span class="dv">0</span>)){</span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    ans <span class="ot">&lt;-</span> <span class="fu">dnorm</span>(<span class="fu">logit</span>(x), <span class="at">mean =</span> mean, <span class="at">sd =</span> sd, <span class="at">log =</span> <span class="cn">TRUE</span>) <span class="sc">-</span> <span class="fu">log</span>(x) <span class="sc">-</span> <span class="fu">log</span>(<span class="dv">1</span><span class="sc">-</span>x)</span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="fu">returnType</span>(<span class="fu">double</span>())</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="cf">if</span>(log) <span class="fu">return</span>(ans)</span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="cf">else</span> <span class="fu">return</span>(<span class="fu">exp</span>(ans))</span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  },</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">buildDerivs =</span> <span class="st">'run'</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a><span class="fu">registerDistributions</span>(<span class="fu">list</span>(</span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>  <span class="at">dlogitnormal =</span> <span class="fu">list</span>(<span class="at">BUGSdist =</span> <span class="st">"dlogitnormal(mean, sd)"</span>, <span class="at">range =</span> <span class="fu">c</span>(<span class="dv">0</span>,<span class="dv">1</span>))</span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>  [Warning] Random generation function for dlogitnormal is not available. NIMBLE is generating a placeholder function, rlogitnormal, that will invoke an error if an algorithm needs to simulate from this distribution. Some algorithms (such as random-walk Metropolis MCMC sampling) will work without the ability to simulate from the distribution.  If simulation is needed, provide a nimbleFunction (with no setup code) to do it.</code></pre>
+</div>
+</div>
+<p>If not trying to use the same model as INLA, one might choose different priors, and one would not necessarily need to define the logit-normal distribution.</p>
+<p>Following INLA, we use a completely flat prior on the intercept <code>dflat</code>, a gamma prior on precision <code>tau_re</code> and a logit-normal on <code>p</code>. We can now write the model code, and then provide constants and data to build the model.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>code <span class="ot">&lt;-</span> <span class="fu">nimbleCode</span>({</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  beta[<span class="dv">1</span>] <span class="sc">~</span> <span class="fu">dflat</span>()</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>( i <span class="cf">in</span> <span class="dv">2</span><span class="sc">:</span>np ) </span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    beta[i] <span class="sc">~</span> <span class="fu">dnorm</span>(<span class="dv">0</span>, <span class="at">tau =</span> <span class="fl">0.001</span>) </span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  tau_re <span class="sc">~</span> <span class="fu">dgamma</span>(<span class="at">shape =</span> <span class="dv">1</span>, <span class="at">rate =</span> <span class="fl">5e-5</span>)</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>  p <span class="sc">~</span> <span class="fu">dlogitnormal</span>(<span class="at">mean =</span> <span class="sc">-</span><span class="dv">1</span>, <span class="at">sd =</span> <span class="dv">1</span><span class="sc">/</span><span class="fu">sqrt</span>(<span class="fl">0.2</span>))</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>(i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>nsites) </span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>    re[i] <span class="sc">~</span> <span class="fu">dnorm</span>(<span class="dv">0</span>, <span class="at">tau =</span> tau_re)</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-11"><a href="#cb7-11" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span>( i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>nobs ){</span>
+<span id="cb7-12"><a href="#cb7-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">log</span>(lam[i]) <span class="ot">&lt;-</span> <span class="fu">sum</span>(beta[<span class="dv">1</span><span class="sc">:</span>np]<span class="sc">*</span>X[i,<span class="dv">1</span><span class="sc">:</span>np]) <span class="sc">+</span> re[site[i]]</span>
+<span id="cb7-13"><a href="#cb7-13" aria-hidden="true" tabindex="-1"></a>    count[i] <span class="sc">~</span> <span class="fu">dZIP</span>(<span class="at">lambda =</span> lam[i], <span class="at">zeroProb =</span> p)</span>
+<span id="cb7-14"><a href="#cb7-14" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb7-15"><a href="#cb7-15" aria-hidden="true" tabindex="-1"></a>})</span>
+<span id="cb7-16"><a href="#cb7-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-17"><a href="#cb7-17" aria-hidden="true" tabindex="-1"></a>nimconst <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb7-18"><a href="#cb7-18" aria-hidden="true" tabindex="-1"></a>nimconst<span class="sc">$</span>X <span class="ot">&lt;-</span> <span class="fu">as.matrix</span>(<span class="fu">model.matrix</span>( <span class="sc">~</span> spp <span class="sc">*</span> mined, <span class="at">data =</span> Salamanders ))</span>
+<span id="cb7-19"><a href="#cb7-19" aria-hidden="true" tabindex="-1"></a>nimconst<span class="sc">$</span>np <span class="ot">&lt;-</span> <span class="fu">ncol</span>(nimconst<span class="sc">$</span>X)</span>
+<span id="cb7-20"><a href="#cb7-20" aria-hidden="true" tabindex="-1"></a>nimconst<span class="sc">$</span>nobs <span class="ot">&lt;-</span> <span class="fu">nrow</span>(nimconst<span class="sc">$</span>X)</span>
+<span id="cb7-21"><a href="#cb7-21" aria-hidden="true" tabindex="-1"></a>nimconst<span class="sc">$</span>site <span class="ot">&lt;-</span> <span class="fu">as.numeric</span>(<span class="fu">factor</span>(Salamanders<span class="sc">$</span>site))</span>
+<span id="cb7-22"><a href="#cb7-22" aria-hidden="true" tabindex="-1"></a>nimconst<span class="sc">$</span>nsites <span class="ot">&lt;-</span> <span class="fu">max</span>(nimconst<span class="sc">$</span>site)</span>
+<span id="cb7-23"><a href="#cb7-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-24"><a href="#cb7-24" aria-hidden="true" tabindex="-1"></a>nimdata <span class="ot">&lt;-</span> <span class="fu">list</span>()</span>
+<span id="cb7-25"><a href="#cb7-25" aria-hidden="true" tabindex="-1"></a>nimdata<span class="sc">$</span>count <span class="ot">&lt;-</span> Salamanders<span class="sc">$</span>count</span>
+<span id="cb7-26"><a href="#cb7-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-27"><a href="#cb7-27" aria-hidden="true" tabindex="-1"></a>inits <span class="ot">&lt;-</span> <span class="fu">list</span>(<span class="at">p =</span> .<span class="dv">29</span>,</span>
+<span id="cb7-28"><a href="#cb7-28" aria-hidden="true" tabindex="-1"></a>  <span class="at">tau_re =</span> <span class="dv">3</span>,</span>
+<span id="cb7-29"><a href="#cb7-29" aria-hidden="true" tabindex="-1"></a>  <span class="at">re =</span> <span class="fu">rnorm</span>(nimconst<span class="sc">$</span>nsites,<span class="dv">0</span>,<span class="fl">0.1</span>),</span>
+<span id="cb7-30"><a href="#cb7-30" aria-hidden="true" tabindex="-1"></a>  <span class="at">beta =</span> <span class="fu">rnorm</span>(nimconst<span class="sc">$</span>np))</span>
+<span id="cb7-31"><a href="#cb7-31" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-32"><a href="#cb7-32" aria-hidden="true" tabindex="-1"></a>m <span class="ot">&lt;-</span> <span class="fu">nimbleModel</span>(code, <span class="at">data =</span> nimdata, <span class="at">constants =</span> nimconst, <span class="at">inits =</span> inits, <span class="at">buildDerivs =</span> <span class="cn">TRUE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Defining model</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>  [Note] Registering 'dZIP' as a distribution based on its use in BUGS code. If you make changes to the nimbleFunctions for the distribution, you must call 'deregisterDistributions' before using the distribution in BUGS code for those changes to take effect.</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Building model</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Setting data and initial values</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Running calculate on model
+  [Note] Any error reports that follow may simply reflect missing values in model variables.</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Checking model sizes and dimensions</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>cm <span class="ot">&lt;-</span> <span class="fu">compileNimble</span>(m)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Compiling
+  [Note] This may take a minute.
+  [Note] Use 'showCompilerOutput = TRUE' to see C++ compilation details.</code></pre>
+</div>
+</div>
+<p>Note that since nimbleQuad methods use NIMBLE’s automatic differentiation (AD) system, we set <code>buildDerivs = TRUE</code> when building the nimble model.</p>
+</section>
+<section id="using-the-laplace-approximation" class="level2">
+<h2 class="anchored" data-anchor-id="using-the-laplace-approximation">Using the Laplace Approximation</h2>
+<p>We can find the maximum likelihood estimate by using <code>buildLaplace</code> (or <code>buildAGHQ</code> if we want more quadrature nodes for marginalizing over the random effects, as discussed below).</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>laplace <span class="ot">&lt;-</span> <span class="fu">buildLaplace</span>(<span class="at">model =</span> m)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Building 23 individual Laplace approximations (one dot for each): .......................</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>claplace <span class="ot">&lt;-</span> <span class="fu">compileNimble</span>(laplace)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Compiling
+  [Note] This may take a minute.
+  [Note] Use 'showCompilerOutput = TRUE' to see C++ compilation details.</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>nimble_fit <span class="ot">&lt;-</span> <span class="fu">runLaplace</span>(claplace)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>NIMBLE reports that it is able to use 23 separate (one-dimensional) Laplace approximations (because the random effects, plus their data dependencies, are conditionally independent).</p>
+<p>Let’s compare the results with <code>glmmTMB</code>. The results are very similar.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>nimble_params <span class="ot">&lt;-</span> nimble_fit<span class="sc">$</span>summary<span class="sc">$</span>params</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>nimble_fixef <span class="ot">&lt;-</span> nimble_params[<span class="fu">grep</span>(<span class="st">"beta"</span>, <span class="fu">rownames</span>(nimble_params)),]</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(nimble_fixef[, <span class="st">"estimate"</span>], <span class="fu">fixef</span>(fit_tmb)<span class="sc">$</span>cond, </span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">xlab =</span> <span class="st">"NIMBLE Estimate"</span>, <span class="at">ylab =</span> <span class="st">"glmmTMB Estimate"</span>)</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a><span class="fu">abline</span>(<span class="at">a =</span> <span class="dv">0</span>, <span class="at">b =</span> <span class="dv">1</span>, <span class="at">lty =</span> <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Quadrature_files/figure-html/unnamed-chunk-9-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="co"># logit(p):</span></span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a>fit_tmb<span class="sc">$</span>fit<span class="sc">$</span>par[<span class="st">"betazi"</span>]     <span class="co"># TMB</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>   betazi 
+-0.933805 </code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="fu">logit</span>(nimble_params[<span class="st">"p"</span>,<span class="dv">1</span>])   <span class="co"># NIMBLE</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] -0.9338251</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="co"># tau_re</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="fu">exp</span>(<span class="sc">-</span><span class="dv">2</span><span class="sc">*</span>fit_tmb<span class="sc">$</span>fit<span class="sc">$</span>par[<span class="st">"theta"</span>])  <span class="co"># TMB</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>   theta 
+3.646564 </code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>nimble_params[<span class="st">"tau_re"</span>,<span class="dv">1</span>]         <span class="co"># NIMBLE</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] 3.648097</code></pre>
+</div>
+</div>
+<p>It can be helpful to check the Laplace approximation at the MLE by increasing the number of quadrature nodes using AGHQ. If the likelihood is very different when increasing the number of quadrature nodes, that indicates that Laplace was not a good approximation to the marginal likelihood. In this particular case, since we have have conditionally independent random effects (and therefore a set of 1-dimensional AGHQ approximations), increasing the number of quadrature nodes will be relatively quick, but in other cases it can be very slow.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a>claplace<span class="sc">$</span><span class="fu">calcLogLik</span>(nimble_fit<span class="sc">$</span>summary<span class="sc">$</span>params[, <span class="st">'estimate'</span>], <span class="at">trans =</span> <span class="cn">FALSE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] -881.9147</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>claplace<span class="sc">$</span><span class="fu">updateSettings</span>(<span class="at">nQuad =</span> <span class="dv">5</span>)</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a>claplace<span class="sc">$</span><span class="fu">calcLogLik</span>(nimble_fit<span class="sc">$</span>summary<span class="sc">$</span>params[, <span class="st">'estimate'</span>], <span class="at">trans =</span> <span class="cn">FALSE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] -881.8752</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>claplace<span class="sc">$</span><span class="fu">updateSettings</span>(<span class="at">nQuad =</span> <span class="dv">11</span>)</span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>claplace<span class="sc">$</span><span class="fu">calcLogLik</span>(nimble_fit<span class="sc">$</span>summary<span class="sc">$</span>params[, <span class="st">'estimate'</span>], <span class="at">trans =</span> <span class="cn">FALSE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>[1] -881.8749</code></pre>
+</div>
+</div>
+<section id="finding-the-posterior-mode" class="level3">
+<h3 class="anchored" data-anchor-id="finding-the-posterior-mode">Finding the Posterior Mode</h3>
+<p>Similar to <code>rstan</code>, we can find the posterior mode (MAP), using <code>findMAP</code>. Having found the posterior mode, we can approximate the posterior distribution using the Hessian, similar to the MLE. In INLA, this is referred to as empirical Bayes (EB).</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>claplace<span class="sc">$</span><span class="fu">updateSettings</span>(<span class="at">nQuad =</span> <span class="dv">1</span>)  <span class="co"># Reset to use of Laplace.</span></span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a>mode <span class="ot">&lt;-</span> claplace<span class="sc">$</span><span class="fu">findMAP</span>()</span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a>summary_mode <span class="ot">&lt;-</span> <span class="fu">summaryLaplace</span>(claplace, mode)</span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>summary_mode<span class="sc">$</span>params</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>           estimate   stdError
+beta[1]  -2.9480593 0.73037698
+beta[2]   0.9057569 0.84578328
+beta[3]   2.3137081 0.75535597
+beta[4]   0.6821166 0.87486699
+beta[5]   1.6941718 0.77843578
+beta[6]   2.5049842 0.74244105
+beta[7]   2.5285631 0.74354887
+beta[8]   3.9088307 0.74894207
+beta[9]  -2.2879169 0.88553791
+beta[10] -2.1261196 0.76825335
+beta[11] -1.2050890 0.90116109
+beta[12] -1.0299955 0.78868138
+beta[13] -1.9337187 0.75298920
+beta[14] -2.5626526 0.75945010
+tau_re    4.5731703 2.18471379
+p         0.2833263 0.03245053</code></pre>
+</div>
+</div>
+<p>One can also “manually” use the <code>optimize</code> method of a built AGHQ or Laplace object to either penalize the likelihood or find the posterior mode. To simply penalize the likelihood using the prior distributions on parameters, one sets <code>includePrior = TRUE</code>. If the posterior mode is of interest, then one must also include the Jacobian transformation by setting <code>includeJacobian = TRUE</code> (this is what <code>findMAP</code> does).</p>
+</section>
+</section>
+<section id="posterior-approximation" class="level2">
+<h2 class="anchored" data-anchor-id="posterior-approximation">Posterior Approximation</h2>
+<p>Posterior approximation is done by <code>buildNestedApprox</code> (to build the approximation) and <code>runNestedApprox</code> (to calculate the approximation). Note that the setup for <code>buildNestedApprox</code>is similar to <code>buildLaplace</code> except that we refer to the combination of random effects and fixed effects as <code>latentNodes</code> and the hyperparameters as <code>paramNodes</code>, which we will refer to more generally as the “parameters”. Including fixed effects with the random effects reduces the dimension of the outer quadrature, which reduces computation time. However, in some cases one may want to include the fixed effects in the <code>paramNodes</code>, as the choice of where to include the fixed effects can affect statistical performance. If the user does not specify <code>latentNodes</code> and <code>paramNodes</code>, NIMBLE will automatically determine them based on the graphical structure of the model, and the user can check that a reasonable determination has been made.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>approx <span class="ot">&lt;-</span> <span class="fu">buildNestedApprox</span>(<span class="at">model =</span> m, </span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>                            <span class="at">paramNodes =</span> <span class="fu">c</span>(<span class="st">'p'</span>, <span class="st">'tau_re'</span>), </span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>                            <span class="at">latentNodes =</span> <span class="fu">c</span>(<span class="st">'beta'</span>, <span class="st">'re'</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Building nested posterior approximation for the following node sets:
+  - parameter nodes: p, tau_re
+  - latent nodes: beta (14 elements), re (23 elements)
+  with AGHQ grid for the parameters and Laplace approximation for the latent nodes.</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Building Laplace approximation.</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>capprox <span class="ot">&lt;-</span> <span class="fu">compileNimble</span>(approx, <span class="at">project =</span> m)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Compiling
+  [Note] This may take a minute.
+  [Note] Use 'showCompilerOutput = TRUE' to see C++ compilation details.</code></pre>
+</div>
+</div>
+<p>We then use <code>runNestedApprox</code> to run the basic approximation and apply various methods to the output object to carry out further inference. The steps include:</p>
+<ol type="1">
+<li>Find posterior mode of the parameters using Laplace (or AGHQ) to marginalize over the latent nodes.</li>
+<li>Use an <em>integration-free</em> method analogous to that of INLA to quickly approximate the marginal posterior distribution of each parameter <span class="citation" data-cites="martins2013bayesian">(<a href="#ref-martins2013bayesian" role="doc-biblioref">Martins et al. 2013</a>)</span>.</li>
+<li>Calculate the posterior density of the parameters across the parameter quadrature grid (the default grid uses the CCD (central composite design) approach when the number of parameters is greater than two). In addition, a quadrature-based marginal log likelihood is produced based on this computation.</li>
+<li>Sample from the joint posterior of the <code>latentNodes</code> using a mixture of multivariate normal distributions with mean, covariance, and weights obtained at each grid point in the parameter quadrature grid.</li>
+</ol>
+<p>Using the integration-free method is the fastest way to produce marginal posterior density estimates of the parameters. Following the methodology of INLA, this is done by using an asymmetric multivariate normal distribution to approximate the posterior density of the parameters.</p>
+<p>If more accuracy is required, quadrature can be used such as AGHQ to marginalize over the other parameters (similar to the R package <code>aghq</code>). Here the user can choose between AGHQ, CCD, sparse AGHQ, or a user-provided quadrature rule, as discussed further below). Marginal density values are computed at a fixed set of points and then a spline is used for computations with the univariate density.</p>
+<p>For inference on the latent nodes, at each point in the parameter grid, Laplace is used to marginalize the latent nodes to calculate the posterior density for the point, which requires an inner optimization. This can be computationally expensive (particularly with a large number of latent nodes), scaling with the number of grid points. CCD is the default (as is done in INLA) because it scales well to higher dimensions. Alternatively, an AGHQ grid can be used. This will be computationally more expensive because there are more grid points but potentially more accurate. The user can also provide their own grid. By default, we do not do compute the parameter grid when calling <code>runNestedApprox</code> unless requested, because the integration-free estimates do not require it. However, it is necessary for inference on the latent nodes and is done automatically when the latent nodes are sampled (via <code>sampleLatents</code>).</p>
+<p>Here is the initial (integration-free) inference for the parameters. We compare results to samples from a long HMC (MCMC) run.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb43"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb43-1"><a href="#cb43-1" aria-hidden="true" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">runNestedApprox</span>(<span class="at">approx =</span> capprox)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Finding posterior mode for parameter(s).</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a>result</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Model (hyper)parameters: 
+            mean         sd      2.5%      25%       50%       75%     97.5%
+p      0.2829532 0.03213736 0.2223162 0.260750 0.2822413 0.3042659 0.3480408
+tau_re 4.2832293 2.21981565 1.4690113 2.737785 3.7993333 5.2801515 9.9047111
+
+Marginal log-likelihood (asymmetric Gaussian approximation): -957.392(*)
+  (*) Invalid for improper priors and may not be useful for non-informative priors.</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb47"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb47-1"><a href="#cb47-1" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">2</span>))</span>
+<span id="cb47-2"><a href="#cb47-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb47-3"><a href="#cb47-3" aria-hidden="true" tabindex="-1"></a>result<span class="sc">$</span><span class="fu">plotMarginal</span>(<span class="st">"tau_re"</span>, <span class="at">xlim =</span> <span class="fu">c</span>(<span class="dv">0</span>,<span class="dv">17</span>), <span class="at">lwd=</span><span class="dv">2</span>)</span>
+<span id="cb47-4"><a href="#cb47-4" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(hmc_tau_re<span class="sc">$</span>x, <span class="fu">inla.dmarginal</span>(hmc_tau_re<span class="sc">$</span>x, fit_inla<span class="sc">$</span>marginals.hyperpar[[<span class="dv">2</span>]]), <span class="at">col =</span> <span class="st">'red'</span>)</span>
+<span id="cb47-5"><a href="#cb47-5" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(hmc_tau_re, <span class="at">col =</span> <span class="st">'green'</span>)</span>
+<span id="cb47-6"><a href="#cb47-6" aria-hidden="true" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">"topright"</span>, <span class="at">legend =</span> <span class="fu">c</span>(<span class="st">"NIMBLE</span><span class="sc">\n</span><span class="st">nested approx"</span>, <span class="st">"INLA"</span>, <span class="st">"HMC"</span>),</span>
+<span id="cb47-7"><a href="#cb47-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">col =</span> <span class="fu">c</span>(<span class="st">'black'</span>,<span class="st">'red'</span>,<span class="st">'green'</span>), <span class="at">lty =</span> <span class="fu">rep</span>(<span class="dv">1</span>,<span class="dv">3</span>), <span class="at">cex =</span> <span class="fl">0.75</span>, <span class="at">bty =</span> <span class="st">'n'</span>)</span>
+<span id="cb47-8"><a href="#cb47-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb47-9"><a href="#cb47-9" aria-hidden="true" tabindex="-1"></a>result<span class="sc">$</span><span class="fu">plotMarginal</span>(<span class="st">"p"</span>, <span class="at">lwd=</span><span class="dv">2</span>)</span>
+<span id="cb47-10"><a href="#cb47-10" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(hmc_p<span class="sc">$</span>x, <span class="fu">inla.dmarginal</span>(hmc_p<span class="sc">$</span>x, fit_inla<span class="sc">$</span>marginals.hyperpar[[<span class="dv">1</span>]]), <span class="at">col =</span> <span class="st">'red'</span>)</span>
+<span id="cb47-11"><a href="#cb47-11" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(hmc_p, <span class="at">col =</span> <span class="st">'green'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Quadrature_files/figure-html/unnamed-chunk-13-1.png" class="img-fluid figure-img" width="768"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>The nested approximation and INLA results match MCMC well, though for some reason the densities plotted by INLA don’t quite integrate to one and therefore lies above the other two lines.</p>
+<p>Here is the sampling-based inference for the latent nodes. The density estimates match HMC reasonably well, but not quite as well as INLA for the fixed effects.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb48"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb48-1"><a href="#cb48-1" aria-hidden="true" tabindex="-1"></a><span class="co"># remove these lines later</span></span>
+<span id="cb48-2"><a href="#cb48-2" aria-hidden="true" tabindex="-1"></a><span class="co"># hmc_beta1 &lt;- density(samples_hmc[ , 'beta[1]'])</span></span>
+<span id="cb48-3"><a href="#cb48-3" aria-hidden="true" tabindex="-1"></a><span class="co"># hmc_beta2 &lt;- density(samples_hmc[ , 'beta[2]'])</span></span>
+<span id="cb48-4"><a href="#cb48-4" aria-hidden="true" tabindex="-1"></a><span class="co"># hmc_re1 &lt;- density(samples_hmc[ , 're[1]'])</span></span>
+<span id="cb48-5"><a href="#cb48-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb48-6"><a href="#cb48-6" aria-hidden="true" tabindex="-1"></a>result<span class="sc">$</span><span class="fu">sampleLatents</span>(<span class="dv">10000</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Calculating inner AGHQ/Laplace approximation at 9 parameter (outer)
+  grid points (one dot per point): .........</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb50"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb50-1"><a href="#cb50-1" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">3</span>))</span>
+<span id="cb50-2"><a href="#cb50-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">density</span>(result<span class="sc">$</span>samples[, <span class="st">"beta[1]"</span>]), <span class="at">main =</span> <span class="st">""</span>, <span class="at">xlab =</span> <span class="st">"beta[1]"</span>)</span>
+<span id="cb50-3"><a href="#cb50-3" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(hmc_beta1<span class="sc">$</span>x, <span class="fu">inla.dmarginal</span>(hmc_beta1<span class="sc">$</span>x, fit_inla<span class="sc">$</span>marginals.fixed[[<span class="dv">1</span>]]), <span class="at">col =</span> <span class="st">'red'</span>)</span>
+<span id="cb50-4"><a href="#cb50-4" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(hmc_beta1, <span class="at">col =</span> <span class="st">'green'</span>)</span>
+<span id="cb50-5"><a href="#cb50-5" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">density</span>(result<span class="sc">$</span>samples[, <span class="st">"beta[2]"</span>]), <span class="at">main =</span> <span class="st">""</span>, <span class="at">xlab =</span> <span class="st">"beta[2]"</span>)</span>
+<span id="cb50-6"><a href="#cb50-6" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(hmc_beta2<span class="sc">$</span>x, <span class="fu">inla.dmarginal</span>(hmc_beta2<span class="sc">$</span>x, fit_inla<span class="sc">$</span>marginals.fixed[[<span class="dv">2</span>]]), <span class="at">col =</span> <span class="st">'red'</span>)</span>
+<span id="cb50-7"><a href="#cb50-7" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(hmc_beta2, <span class="at">col =</span> <span class="st">'green'</span>)</span>
+<span id="cb50-8"><a href="#cb50-8" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(<span class="fu">density</span>(result<span class="sc">$</span>samples[, <span class="st">"re[1]"</span>]), <span class="at">main =</span> <span class="st">""</span>, <span class="at">xlab =</span> <span class="st">"re[1]"</span>)</span>
+<span id="cb50-9"><a href="#cb50-9" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(hmc_re1<span class="sc">$</span>x, <span class="fu">inla.dmarginal</span>(hmc_re1<span class="sc">$</span>x, fit_inla<span class="sc">$</span>marginals.random[[<span class="dv">1</span>]][[<span class="dv">1</span>]]), <span class="at">col =</span> <span class="st">'red'</span>)</span>
+<span id="cb50-10"><a href="#cb50-10" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(hmc_re1, <span class="at">col =</span> <span class="st">'green'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Quadrature_files/figure-html/unnamed-chunk-14-1.png" class="img-fluid figure-img" width="768"></p>
+</figure>
+</div>
+</div>
+</div>
+<section id="improving-the-parameter-marginals" class="level3">
+<h3 class="anchored" data-anchor-id="improving-the-parameter-marginals">Improving the Parameter Marginals</h3>
+<p>Although the integration-free method is fast and performs reasonably well, it may be that the user wishes to get a more exact marginal. This is done individually for each parameter of interest, marginalizing over the remaining parameters using an outer quadrature rule (AGHQ, CCD, AGHQSPARSE, USER), with AGHQ as the default. We choose the number of quadrature points for marginalization (<code>nQuad</code>) as well as the number of points along a grid to evaluate the marginal (<code>nMarginalGrid</code>). Increasing either can improve performance but at the expense of additional computation and generally with diminishing improvement.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb51"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a>result  <span class="co"># Original (integration-free) parameter estimates</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Model (hyper)parameters: 
+            mean         sd      2.5%      25%       50%       75%     97.5%
+p      0.2829532 0.03213736 0.2223162 0.260750 0.2822413 0.3042659 0.3480408
+tau_re 4.2832293 2.21981565 1.4690113 2.737785 3.7993333 5.2801515 9.9047111
+
+Marginal log-likelihood (asymmetric Gaussian approximation): -957.392(*)
+Marginal log-likelihood (grid-based): -957.3845(*)
+  (*) Invalid for improper priors and may not be useful for non-informative priors.</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb53"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb53-1"><a href="#cb53-1" aria-hidden="true" tabindex="-1"></a>result<span class="sc">$</span><span class="fu">improveParamMarginals</span>(<span class="at">nodes =</span> <span class="fu">c</span>(<span class="st">'tau_re'</span>, <span class="st">'p'</span>),</span>
+<span id="cb53-2"><a href="#cb53-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">nMarginalGrid =</span> <span class="dv">9</span>, <span class="at">nQuad =</span> <span class="dv">3</span>, <span class="at">quadRule =</span> <span class="st">"AGHQ"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Approximating 2 individual parameter marginal densities via AGHQ:</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>  - calculating inner AGHQ/Laplace approximation at (9) marginal points
+    with 3 quadrature grid points (one dot per grid point): (1)...(2)...(3)...(4)...(5)...(6)...(7)...(8)...(9)...
+  - calculating inner AGHQ/Laplace approximation at (9) marginal points
+    with 3 quadrature grid points (one dot per grid point): (1)...(2)...(3)...(4)...(5)...(6)...(7)...(8)...(9)...</code></pre>
+</div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Model (hyper)parameters: 
+            mean         sd     2.5%       25%       50%       75%     97.5%
+p      0.2829161 0.03233042 0.220414 0.2608876 0.2826332 0.3046184  0.347118
+tau_re 4.3240215 2.34440783 1.450420 2.7365618 3.8040399 5.3028558 10.249151
+
+Marginal log-likelihood (asymmetric Gaussian approximation): -957.392(*)
+Marginal log-likelihood (grid-based): -957.3845(*)
+  (*) Invalid for improper priors and may not be useful for non-informative priors.</code></pre>
+</div>
+</div>
+<p>Comparing to the quantiles from the integration-free approach, the differences are generally minor, but there is a noticeable difference in the right tail for <code>tau_re</code>.</p>
+</section>
+<section id="customizing-the-quadrature-grid" class="level3">
+<h3 class="anchored" data-anchor-id="customizing-the-quadrature-grid">Customizing the Quadrature Grid</h3>
+<p>For the salamanders example, we have two parameters, for which <code>nimbleQuad</code> defaults to using AGHQ as the parameter grid. The grid points are skewed based on the skew from the asymmetric multivariate normal approximation, and then scaled using spectral decomposition (or Cholesky decomposition).</p>
+<p>For more than two parameters, <code>nimbleQuad</code> defaults to using a CCD grid, also used by INLA.</p>
+<p>The user may also provide their own parameter grid. This must be written as a <code>nimbleFunction</code> with some specific components.</p>
+<p>A good choice for large dimensional problems is the PCA-AGHQ rule <span class="citation" data-cites="howes_pca">(<a href="#ref-howes_pca" role="doc-biblioref">Howes et al. 2026</a>)</span>. This rule uses AGHQ along the primary principal components of the spectral transformation and Laplace on the other dimensions. We can use the R package <code>mvQuad</code> to write our own simple version.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb57"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb57-1"><a href="#cb57-1" aria-hidden="true" tabindex="-1"></a>RmvQuad <span class="ot">&lt;-</span> <span class="cf">function</span>(levels, d) {</span>
+<span id="cb57-2"><a href="#cb57-2" aria-hidden="true" tabindex="-1"></a>  out <span class="ot">&lt;-</span> mvQuad<span class="sc">::</span><span class="fu">createNIGrid</span>(<span class="at">dim=</span>d, <span class="at">type =</span> <span class="st">"GHe"</span>, <span class="at">level=</span>levels)</span>
+<span id="cb57-3"><a href="#cb57-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cbind</span>(out<span class="sc">$</span>weights, out<span class="sc">$</span>nodes)</span>
+<span id="cb57-4"><a href="#cb57-4" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb57-5"><a href="#cb57-5" aria-hidden="true" tabindex="-1"></a>nimMVQuad <span class="ot">&lt;-</span> <span class="fu">nimbleRcall</span>(<span class="cf">function</span>(<span class="at">levels =</span> <span class="fu">double</span>(<span class="dv">1</span>), <span class="at">d =</span> <span class="fu">double</span>()){}, <span class="at">Rfun =</span> <span class="st">"RmvQuad"</span>, <span class="at">returnType =</span> <span class="fu">double</span>(<span class="dv">2</span>))</span>
+<span id="cb57-6"><a href="#cb57-6" aria-hidden="true" tabindex="-1"></a>PCA_AGHQ <span class="ot">&lt;-</span> <span class="fu">nimbleFunction</span>(</span>
+<span id="cb57-7"><a href="#cb57-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">contains =</span> QUAD_RULE_BASE,</span>
+<span id="cb57-8"><a href="#cb57-8" aria-hidden="true" tabindex="-1"></a>    <span class="at">name =</span> <span class="st">"quadRule_USER"</span>,</span>
+<span id="cb57-9"><a href="#cb57-9" aria-hidden="true" tabindex="-1"></a>    <span class="at">setup =</span> <span class="cf">function</span>() {},</span>
+<span id="cb57-10"><a href="#cb57-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">run =</span> <span class="cf">function</span>() {},</span>
+<span id="cb57-11"><a href="#cb57-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">methods =</span> <span class="fu">list</span>(</span>
+<span id="cb57-12"><a href="#cb57-12" aria-hidden="true" tabindex="-1"></a>        <span class="at">buildGrid =</span> <span class="cf">function</span>(<span class="at">levels =</span> <span class="fu">integer</span>(<span class="dv">0</span>, <span class="at">default =</span> <span class="dv">0</span>), <span class="at">d =</span> <span class="fu">integer</span>(<span class="dv">0</span>, <span class="at">default =</span> <span class="dv">1</span>)) {</span>
+<span id="cb57-13"><a href="#cb57-13" aria-hidden="true" tabindex="-1"></a>            levs <span class="ot">&lt;-</span> <span class="fu">c</span>(levels,<span class="dv">1</span>)</span>
+<span id="cb57-14"><a href="#cb57-14" aria-hidden="true" tabindex="-1"></a>            output <span class="ot">&lt;-</span> <span class="fu">nimMVQuad</span>(<span class="at">levels =</span> levs, <span class="at">d =</span> d)</span>
+<span id="cb57-15"><a href="#cb57-15" aria-hidden="true" tabindex="-1"></a>            <span class="fu">returnType</span>(<span class="fu">double</span>(<span class="dv">2</span>))</span>
+<span id="cb57-16"><a href="#cb57-16" aria-hidden="true" tabindex="-1"></a>            <span class="fu">return</span>(output)</span>
+<span id="cb57-17"><a href="#cb57-17" aria-hidden="true" tabindex="-1"></a>        }</span>
+<span id="cb57-18"><a href="#cb57-18" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb57-19"><a href="#cb57-19" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>We pass the user quadrature rule nimbleFunction as the control list element <code>paramGridRule</code>. By default a user-supplied quadrature rule should construct a multivariate grid (i.e., when specifying <code>paramGridRule_userType = "MULTI"</code>, which is the default value). Alternatively the user function can be defined such that it returns a single dimension grid and then a multi-dimensional grid can be constructed by nimbleQuad, by specifying <code>"PRODUCT"</code> or <code>"SPARSE"</code>. Below we explicitly define the transformation method <code>quadTransform = "spectral"</code>, although this is the default.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb58"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb58-1"><a href="#cb58-1" aria-hidden="true" tabindex="-1"></a>approx <span class="ot">&lt;-</span> <span class="fu">buildNestedApprox</span>(<span class="at">model =</span> m, </span>
+<span id="cb58-2"><a href="#cb58-2" aria-hidden="true" tabindex="-1"></a>                            <span class="at">paramNodes =</span> <span class="fu">c</span>(<span class="st">'p'</span>, <span class="st">'tau_re'</span>), </span>
+<span id="cb58-3"><a href="#cb58-3" aria-hidden="true" tabindex="-1"></a>                            <span class="at">latentNodes =</span> <span class="fu">c</span>(<span class="st">'beta'</span>, <span class="st">'re'</span>), </span>
+<span id="cb58-4"><a href="#cb58-4" aria-hidden="true" tabindex="-1"></a>                            <span class="at">control =</span> <span class="fu">list</span>(<span class="at">paramGridRule =</span> PCA_AGHQ, </span>
+<span id="cb58-5"><a href="#cb58-5" aria-hidden="true" tabindex="-1"></a>                              <span class="at">paramGridRule_userType =</span> <span class="st">"MULTI"</span>,</span>
+<span id="cb58-6"><a href="#cb58-6" aria-hidden="true" tabindex="-1"></a>                              <span class="at">quadTransform =</span> <span class="st">"spectral"</span>)</span>
+<span id="cb58-7"><a href="#cb58-7" aria-hidden="true" tabindex="-1"></a>                            )</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Building nested posterior approximation for the following node sets:
+  - parameter nodes: p, tau_re
+  - latent nodes: beta (14 elements), re (23 elements)
+  with quadRule_USER grid for the parameters and Laplace approximation for the latent nodes.</code></pre>
+</div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Building Laplace approximation.</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb61"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb61-1"><a href="#cb61-1" aria-hidden="true" tabindex="-1"></a>capprox <span class="ot">&lt;-</span> <span class="fu">compileNimble</span>(approx, <span class="at">project =</span> m, <span class="at">resetFunctions =</span> <span class="cn">TRUE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stderr">
+<pre><code>Compiling
+  [Note] This may take a minute.
+  [Note] Use 'showCompilerOutput = TRUE' to see C++ compilation details.</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb63"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb63-1"><a href="#cb63-1" aria-hidden="true" tabindex="-1"></a>result <span class="ot">&lt;-</span> <span class="fu">runNestedApprox</span>(<span class="at">approx =</span> capprox)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Finding posterior mode for parameter(s).</code></pre>
+</div>
+</div>
+<p>We can look at the different quadrature grids by accessing the <code>capprox</code> object itself. Note that although <code>"AGHQSPARSE"</code> is available, it cannot be used to sample the latent nodes as the quadrature weights can be negative. For demonstration, we will compute the posterior density for each grid <code>calcParamGrid</code> to compare the different grids.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb65"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb65-1"><a href="#cb65-1" aria-hidden="true" tabindex="-1"></a>capprox<span class="sc">$</span><span class="fu">buildParamGrid</span>(<span class="at">quadRule =</span> <span class="st">"USER"</span>)</span>
+<span id="cb65-2"><a href="#cb65-2" aria-hidden="true" tabindex="-1"></a>nodes_user <span class="ot">&lt;-</span> capprox<span class="sc">$</span><span class="fu">getParamGrid</span>()</span>
+<span id="cb65-3"><a href="#cb65-3" aria-hidden="true" tabindex="-1"></a>capprox<span class="sc">$</span><span class="fu">calcParamGrid</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Calculating inner AGHQ/Laplace approximation at 3 parameter (outer)
+  grid points (one dot per point): ...</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb67"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb67-1"><a href="#cb67-1" aria-hidden="true" tabindex="-1"></a>capprox<span class="sc">$</span><span class="fu">buildParamGrid</span>(<span class="at">quadRule =</span> <span class="st">"CCD"</span>)</span>
+<span id="cb67-2"><a href="#cb67-2" aria-hidden="true" tabindex="-1"></a>nodes_ccd <span class="ot">&lt;-</span> capprox<span class="sc">$</span><span class="fu">getParamGrid</span>()</span>
+<span id="cb67-3"><a href="#cb67-3" aria-hidden="true" tabindex="-1"></a>capprox<span class="sc">$</span><span class="fu">calcParamGrid</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Calculating inner AGHQ/Laplace approximation at 9 parameter (outer)
+  grid points (one dot per point): .........</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb69"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb69-1"><a href="#cb69-1" aria-hidden="true" tabindex="-1"></a>capprox<span class="sc">$</span><span class="fu">buildParamGrid</span>(<span class="at">quadRule =</span> <span class="st">"AGHQ"</span>)</span>
+<span id="cb69-2"><a href="#cb69-2" aria-hidden="true" tabindex="-1"></a>nodes_aghq <span class="ot">&lt;-</span> capprox<span class="sc">$</span><span class="fu">getParamGrid</span>()</span>
+<span id="cb69-3"><a href="#cb69-3" aria-hidden="true" tabindex="-1"></a>capprox<span class="sc">$</span><span class="fu">calcParamGrid</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>Calculating inner AGHQ/Laplace approximation at 9 parameter (outer)
+  grid points (one dot per point): .........</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb71"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb71-1"><a href="#cb71-1" aria-hidden="true" tabindex="-1"></a>capprox<span class="sc">$</span><span class="fu">buildParamGrid</span>(<span class="at">quadRule =</span> <span class="st">"AGHQSPARSE"</span>)</span>
+<span id="cb71-2"><a href="#cb71-2" aria-hidden="true" tabindex="-1"></a>nodes_aghqsparse <span class="ot">&lt;-</span> capprox<span class="sc">$</span><span class="fu">getParamGrid</span>()</span>
+<span id="cb71-3"><a href="#cb71-3" aria-hidden="true" tabindex="-1"></a>capprox<span class="sc">$</span><span class="fu">calcParamGrid</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output cell-output-stdout">
+<pre><code>  [Note] Sparse grids cannot be used to simulate latent effects (the main reason to compute the posterior on the parameter grid).
+Calculating inner AGHQ/Laplace approximation at 13 parameter (outer)
+  grid points (one dot per point): .............</code></pre>
+</div>
+<div class="sourceCode cell-code" id="cb73"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb73-1"><a href="#cb73-1" aria-hidden="true" tabindex="-1"></a><span class="do">## Visualize the grids.</span></span>
+<span id="cb73-2"><a href="#cb73-2" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(nodes_ccd, <span class="at">xlim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">2</span>,<span class="dv">0</span>), <span class="at">ylim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="fl">1.3</span>, <span class="dv">4</span>), <span class="co"># xlim = c(-1.3, -0.6), ylim = c(0.4, 2.4),</span></span>
+<span id="cb73-3"><a href="#cb73-3" aria-hidden="true" tabindex="-1"></a>   <span class="at">xlab =</span> <span class="st">"theta[1]"</span>, <span class="at">ylab =</span> <span class="st">"theta[2]"</span>, <span class="at">pch =</span> <span class="dv">4</span>)</span>
+<span id="cb73-4"><a href="#cb73-4" aria-hidden="true" tabindex="-1"></a><span class="fu">points</span>(nodes_aghq, <span class="at">pch =</span> <span class="dv">1</span>, <span class="at">cex =</span> <span class="fl">1.2</span>)</span>
+<span id="cb73-5"><a href="#cb73-5" aria-hidden="true" tabindex="-1"></a><span class="fu">points</span>(nodes_aghqsparse, <span class="at">pch =</span> <span class="dv">16</span>, <span class="at">col =</span> <span class="st">'red'</span>)</span>
+<span id="cb73-6"><a href="#cb73-6" aria-hidden="true" tabindex="-1"></a><span class="fu">points</span>(nodes_user, <span class="at">pch =</span> <span class="dv">3</span>, <span class="at">col =</span> <span class="st">'yellow'</span>)</span>
+<span id="cb73-7"><a href="#cb73-7" aria-hidden="true" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">"topleft"</span>, <span class="at">horiz=</span><span class="cn">FALSE</span>, <span class="at">bty =</span> <span class="st">'n'</span>,</span>
+<span id="cb73-8"><a href="#cb73-8" aria-hidden="true" tabindex="-1"></a>   <span class="at">legend =</span> <span class="fu">c</span>(<span class="st">"CCD"</span>, <span class="st">"AGHQ"</span>, <span class="st">"AGHQ-Sparse"</span>, <span class="st">"PCA-AGHQ"</span>),</span>
+<span id="cb73-9"><a href="#cb73-9" aria-hidden="true" tabindex="-1"></a>   <span class="at">pch =</span> <span class="fu">c</span>(<span class="dv">4</span>,<span class="dv">1</span>,<span class="dv">16</span>,<span class="dv">3</span>), <span class="at">col =</span> <span class="fu">c</span>(<span class="st">'black'</span>,<span class="st">'black'</span>,<span class="st">'red'</span>,<span class="st">'yellow'</span>),  <span class="at">cex =</span> <span class="fl">0.9</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Quadrature_files/figure-html/unnamed-chunk-18-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+<p>Note here that the AGHQ-Sparse grid has more points than the AGHQ (product-based) grid. This is because choosing <code>nQuad</code> in a sparse grid construction is not the number of quadrature points per dimension, but instead refers to the level of approximation. The PCA-AGHQ rule shows three points along the principal Eigen axis and a single point at the mode (Laplace for approximation) along the secondary Eigen axis. Due to very little rotation occurring in the spectral transformation this appears close to the x-axis and y-axis.</p>
+<p>An alternative to choosing a different grid is to use AGHQ and then prune a proportion of the grid, removing the points that contribute very little to the posterior density estimate <span class="citation" data-cites="jackel2005note">(<a href="#ref-jackel2005note" role="doc-biblioref">Jäckel 2005</a>)</span>. When running <code>buildNestedApprox</code>, we can control the number of quadrature points or the amount to prune the grid via the <code>paramGridPrune</code> element of the control list, which prunes that proportion of the original grid points.</p>
+<p>The user should generally balance the amount of compute time it takes to calculate the density at the parameter grid points with the amount of accuracy desired in estimation of the latent nodes. For a standard product construction of <code>nQuad</code>, with dimension <code>d</code>, we get <span class="math inline">\(\mbox{nQuad}^d\)</span> points on the quadrature grid. CCD does not scale as poorly, which is why it is the default for higher dimensions. Alternatively, PCA-AGHQ could be applied, or heavy pruning of an AGHQ grid.</p>
+<p>Here let’s see the effect of increasing the density of the AGHQ grid and of pruning it.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb74"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb74-1"><a href="#cb74-1" aria-hidden="true" tabindex="-1"></a><span class="do">## Increase the  number of AGHQ grid points.</span></span>
+<span id="cb74-2"><a href="#cb74-2" aria-hidden="true" tabindex="-1"></a>capprox<span class="sc">$</span><span class="fu">buildParamGrid</span>(<span class="at">quadRule =</span> <span class="st">"AGHQ"</span>, <span class="at">nQuadUpdate =</span> <span class="dv">7</span>)</span>
+<span id="cb74-3"><a href="#cb74-3" aria-hidden="true" tabindex="-1"></a>nodes_aghq7 <span class="ot">&lt;-</span> capprox<span class="sc">$</span><span class="fu">getParamGrid</span>()</span>
+<span id="cb74-4"><a href="#cb74-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb74-5"><a href="#cb74-5" aria-hidden="true" tabindex="-1"></a><span class="do">## Prune Grid</span></span>
+<span id="cb74-6"><a href="#cb74-6" aria-hidden="true" tabindex="-1"></a>capprox<span class="sc">$</span><span class="fu">buildParamGrid</span>(<span class="at">quadRule =</span> <span class="st">"AGHQ"</span>, <span class="at">nQuadUpdate =</span> <span class="dv">7</span>, <span class="at">prune =</span> <span class="fl">0.40</span>)</span>
+<span id="cb74-7"><a href="#cb74-7" aria-hidden="true" tabindex="-1"></a>nodes_aghq7_pruned <span class="ot">&lt;-</span> capprox<span class="sc">$</span><span class="fu">getParamGrid</span>()</span>
+<span id="cb74-8"><a href="#cb74-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb74-9"><a href="#cb74-9" aria-hidden="true" tabindex="-1"></a><span class="fu">plot</span>(nodes_aghq7, <span class="at">xlab =</span> <span class="st">"theta[1]"</span>, <span class="at">ylab =</span> <span class="st">"theta[2]"</span>, <span class="at">pch =</span> <span class="dv">1</span>, <span class="at">cex =</span> <span class="fl">1.1</span>,</span>
+<span id="cb74-10"><a href="#cb74-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">xlim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="dv">2</span>,<span class="dv">0</span>), <span class="at">ylim =</span> <span class="fu">c</span>(<span class="sc">-</span><span class="fl">1.3</span>, <span class="dv">4</span>))</span>
+<span id="cb74-11"><a href="#cb74-11" aria-hidden="true" tabindex="-1"></a><span class="fu">points</span>(nodes_aghq7_pruned, <span class="at">col =</span> <span class="st">'blue'</span>, <span class="at">pch =</span> <span class="dv">16</span>)</span>
+<span id="cb74-12"><a href="#cb74-12" aria-hidden="true" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">'topleft'</span>, <span class="at">legend =</span> <span class="fu">c</span>(<span class="st">"AGHQ, nQuad = 7"</span>, <span class="st">"pruned"</span>), <span class="at">pch =</span> <span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">16</span>), <span class="at">col =</span> <span class="fu">c</span>(<span class="st">'black'</span>,<span class="st">'blue'</span>), <span class="at">bty =</span> <span class="st">'n'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Quadrature_files/figure-html/unnamed-chunk-19-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="sampling-from-the-posterior-over-parameters" class="level3">
+<h3 class="anchored" data-anchor-id="sampling-from-the-posterior-over-parameters">Sampling from the posterior over parameters</h3>
+<p>The user may also choose to sample from the asymmetric multivariate normal approximation to make inference about the parameters. This can be particularly useful when making inference on parameters with dimension changes (e.g., proportions with a Dirichlet prior or elements of a covariance matrix, such as one with a Wishart or LKJ prior) or generally making inference about functionals of multiple parameters.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb75"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb75-1"><a href="#cb75-1" aria-hidden="true" tabindex="-1"></a>samples_params <span class="ot">&lt;-</span> result<span class="sc">$</span><span class="fu">sampleParams</span>(<span class="dv">10000</span>)</span>
+<span id="cb75-2"><a href="#cb75-2" aria-hidden="true" tabindex="-1"></a>result<span class="sc">$</span><span class="fu">plotMarginal</span>(<span class="st">"tau_re"</span>, <span class="at">xlim =</span> <span class="fu">c</span>(<span class="dv">0</span>,<span class="dv">17</span>), <span class="at">lwd=</span><span class="dv">2</span>)</span>
+<span id="cb75-3"><a href="#cb75-3" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(<span class="fu">density</span>(samples_params[,<span class="dv">2</span>]), <span class="at">col =</span> <span class="st">'black'</span>, <span class="at">lty =</span> <span class="dv">2</span>)</span>
+<span id="cb75-4"><a href="#cb75-4" aria-hidden="true" tabindex="-1"></a><span class="fu">lines</span>(hmc_tau_re, <span class="at">col =</span> <span class="st">'green'</span>)</span>
+<span id="cb75-5"><a href="#cb75-5" aria-hidden="true" tabindex="-1"></a><span class="fu">legend</span>(<span class="st">"topright"</span>, <span class="at">legend =</span> <span class="fu">c</span>(<span class="st">"nested approx"</span>, <span class="st">"nested approx, samples"</span>, <span class="st">"HMC"</span>),</span>
+<span id="cb75-6"><a href="#cb75-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">col =</span> <span class="fu">c</span>(<span class="st">'black'</span>,<span class="st">'black'</span>,<span class="st">'green'</span>), <span class="at">lty =</span> <span class="fu">c</span>(<span class="dv">1</span>,<span class="dv">2</span>,<span class="dv">1</span>), <span class="at">bty =</span> <span class="st">'n'</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<div class="cell-output-display">
+<div>
+<figure class="figure">
+<p><img src="Quadrature_files/figure-html/unnamed-chunk-20-1.png" class="img-fluid figure-img" width="672"></p>
+</figure>
+</div>
+</div>
+</div>
+</section>
+<section id="model-selection-and-the-marginal-likelihood" class="level3">
+<h3 class="anchored" data-anchor-id="model-selection-and-the-marginal-likelihood">Model selection and the marginal likelihood</h3>
+<p>With proper priors, one can calculate <span class="math inline">\(p(y)=\int p(y|\theta)p(\theta)d\theta\)</span>, the marginal likelihood, which is useful for model selection. This is reported with the nested approximation results, initially using an asymmetric multivariate normal approximation to the joint posterior of the parameters. An an improved estimate based on quadrature over the parameter grid (by default using AGHQ) can be obtained using the <code>calcMarginalLogLikImproved</code> method of the nested approximation object.</p>
+<p>However, much caution is warranted. The quantity is ill-defined when the prior is improper. Furthermore, even with proper priors, if the prior is diffuse, the integral will generally average over values of the parameters that give very poor fits to the data, which can produce misleading results for model selection.</p>
+
+</section>
+</section>
+
+<div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography" id="quarto-bibliography"><h2 class="anchored quarto-appendix-heading">References</h2><div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list">
+<div id="ref-howes_pca" class="csl-entry" role="listitem">
+Howes, Adam, Alex Stringer, Seth R. Flaxman, and Jeffrey W. Imai–Eaton. 2026. <span>“Fast Approximate Bayesian Inference of HIV Indicators Using PCA Adaptive Gauss-Hermite Quadrature.”</span> <em>Journal of Theoretical Biology</em> 618: 112290. https://doi.org/<a href="https://doi.org/10.1016/j.jtbi.2025.112290">https://doi.org/10.1016/j.jtbi.2025.112290</a>.
+</div>
+<div id="ref-jackel2005note" class="csl-entry" role="listitem">
+Jäckel, Peter. 2005. <span>“A Note on Multivariate Gauss-Hermite Quadrature.”</span> <em>London: ABN-Amro. Re</em>.
+</div>
+<div id="ref-martins2013bayesian" class="csl-entry" role="listitem">
+Martins, Thiago G, Daniel Simpson, Finn Lindgren, and Håvard Rue. 2013. <span>“Bayesian Computing with INLA: New Features.”</span> <em>Computational Statistics &amp; Data Analysis</em> 67: 68–83.
+</div>
+<div id="ref-rue2009approximate" class="csl-entry" role="listitem">
+Rue, Håvard, Sara Martino, and Nicolas Chopin. 2009. <span>“Approximate Bayesian Inference for Latent Gaussian Models by Using Integrated Nested Laplace Approximations.”</span> <em>Journal of the Royal Statistical Society Series B: Statistical Methodology</em> 71 (2): 319–92.
+</div>
+<div id="ref-stringer2023fast" class="csl-entry" role="listitem">
+Stringer, Alex, Patrick Brown, and Jamie Stafford. 2023. <span>“Fast, Scalable Approximations to Posterior Distributions in Extended Latent Gaussian Models.”</span> <em>Journal of Computational and Graphical Statistics</em> 32 (1): 84–98.
+</div>
+</div></section></div></main>
+<!-- /main column -->
+<script id="quarto-html-after-body" type="application/javascript">
+  window.document.addEventListener("DOMContentLoaded", function (event) {
+    const icon = "";
+    const anchorJS = new window.AnchorJS();
+    anchorJS.options = {
+      placement: 'right',
+      icon: icon
+    };
+    anchorJS.add('.anchored');
+    const isCodeAnnotation = (el) => {
+      for (const clz of el.classList) {
+        if (clz.startsWith('code-annotation-')) {                     
+          return true;
+        }
+      }
+      return false;
+    }
+    const onCopySuccess = function(e) {
+      // button target
+      const button = e.trigger;
+      // don't keep focus
+      button.blur();
+      // flash "checked"
+      button.classList.add('code-copy-button-checked');
+      var currentTitle = button.getAttribute("title");
+      button.setAttribute("title", "Copied!");
+      let tooltip;
+      if (window.bootstrap) {
+        button.setAttribute("data-bs-toggle", "tooltip");
+        button.setAttribute("data-bs-placement", "left");
+        button.setAttribute("data-bs-title", "Copied!");
+        tooltip = new bootstrap.Tooltip(button, 
+          { trigger: "manual", 
+            customClass: "code-copy-button-tooltip",
+            offset: [0, -8]});
+        tooltip.show();    
+      }
+      setTimeout(function() {
+        if (tooltip) {
+          tooltip.hide();
+          button.removeAttribute("data-bs-title");
+          button.removeAttribute("data-bs-toggle");
+          button.removeAttribute("data-bs-placement");
+        }
+        button.setAttribute("title", currentTitle);
+        button.classList.remove('code-copy-button-checked');
+      }, 1000);
+      // clear code selection
+      e.clearSelection();
+    }
+    const getTextToCopy = function(trigger) {
+        const codeEl = trigger.previousElementSibling.cloneNode(true);
+        for (const childEl of codeEl.children) {
+          if (isCodeAnnotation(childEl)) {
+            childEl.remove();
+          }
+        }
+        return codeEl.innerText;
+    }
+    const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+      text: getTextToCopy
+    });
+    clipboard.on('success', onCopySuccess);
+    if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+      const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+        text: getTextToCopy,
+        container: window.document.getElementById('quarto-embedded-source-code-modal')
+      });
+      clipboardModal.on('success', onCopySuccess);
+    }
+      var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+      var mailtoRegex = new RegExp(/^mailto:/);
+        var filterRegex = new RegExp('/' + window.location.host + '/');
+      var isInternal = (href) => {
+          return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+      }
+      // Inspect non-navigation links and adorn them if external
+     var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+      for (var i=0; i<links.length; i++) {
+        const link = links[i];
+        if (!isInternal(link.href)) {
+          // undo the damage that might have been done by quarto-nav.js in the case of
+          // links that we want to consider external
+          if (link.dataset.originalHref !== undefined) {
+            link.href = link.dataset.originalHref;
+          }
+        }
+      }
+    function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+      const config = {
+        allowHTML: true,
+        maxWidth: 500,
+        delay: 100,
+        arrow: false,
+        appendTo: function(el) {
+            return el.parentElement;
+        },
+        interactive: true,
+        interactiveBorder: 10,
+        theme: 'quarto',
+        placement: 'bottom-start',
+      };
+      if (contentFn) {
+        config.content = contentFn;
+      }
+      if (onTriggerFn) {
+        config.onTrigger = onTriggerFn;
+      }
+      if (onUntriggerFn) {
+        config.onUntrigger = onUntriggerFn;
+      }
+      window.tippy(el, config); 
+    }
+    const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+    for (var i=0; i<noterefs.length; i++) {
+      const ref = noterefs[i];
+      tippyHover(ref, function() {
+        // use id or data attribute instead here
+        let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+        try { href = new URL(href).hash; } catch {}
+        const id = href.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note) {
+          return note.innerHTML;
+        } else {
+          return "";
+        }
+      });
+    }
+    const xrefs = window.document.querySelectorAll('a.quarto-xref');
+    const processXRef = (id, note) => {
+      // Strip column container classes
+      const stripColumnClz = (el) => {
+        el.classList.remove("page-full", "page-columns");
+        if (el.children) {
+          for (const child of el.children) {
+            stripColumnClz(child);
+          }
+        }
+      }
+      stripColumnClz(note)
+      if (id === null || id.startsWith('sec-')) {
+        // Special case sections, only their first couple elements
+        const container = document.createElement("div");
+        if (note.children && note.children.length > 2) {
+          container.appendChild(note.children[0].cloneNode(true));
+          for (let i = 1; i < note.children.length; i++) {
+            const child = note.children[i];
+            if (child.tagName === "P" && child.innerText === "") {
+              continue;
+            } else {
+              container.appendChild(child.cloneNode(true));
+              break;
+            }
+          }
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(container);
+          }
+          return container.innerHTML
+        } else {
+          if (window.Quarto?.typesetMath) {
+            window.Quarto.typesetMath(note);
+          }
+          return note.innerHTML;
+        }
+      } else {
+        // Remove any anchor links if they are present
+        const anchorLink = note.querySelector('a.anchorjs-link');
+        if (anchorLink) {
+          anchorLink.remove();
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        if (note.classList.contains("callout")) {
+          return note.outerHTML;
+        } else {
+          return note.innerHTML;
+        }
+      }
+    }
+    for (var i=0; i<xrefs.length; i++) {
+      const xref = xrefs[i];
+      tippyHover(xref, undefined, function(instance) {
+        instance.disable();
+        let url = xref.getAttribute('href');
+        let hash = undefined; 
+        if (url.startsWith('#')) {
+          hash = url;
+        } else {
+          try { hash = new URL(url).hash; } catch {}
+        }
+        if (hash) {
+          const id = hash.replace(/^#\/?/, "");
+          const note = window.document.getElementById(id);
+          if (note !== null) {
+            try {
+              const html = processXRef(id, note.cloneNode(true));
+              instance.setContent(html);
+            } finally {
+              instance.enable();
+              instance.show();
+            }
+          } else {
+            // See if we can fetch this
+            fetch(url.split('#')[0])
+            .then(res => res.text())
+            .then(html => {
+              const parser = new DOMParser();
+              const htmlDoc = parser.parseFromString(html, "text/html");
+              const note = htmlDoc.getElementById(id);
+              if (note !== null) {
+                const html = processXRef(id, note);
+                instance.setContent(html);
+              } 
+            }).finally(() => {
+              instance.enable();
+              instance.show();
+            });
+          }
+        } else {
+          // See if we can fetch a full url (with no hash to target)
+          // This is a special case and we should probably do some content thinning / targeting
+          fetch(url)
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.querySelector('main.content');
+            if (note !== null) {
+              // This should only happen for chapter cross references
+              // (since there is no id in the URL)
+              // remove the first header
+              if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+                note.children[0].remove();
+              }
+              const html = processXRef(null, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      }, function(instance) {
+      });
+    }
+        let selectedAnnoteEl;
+        const selectorForAnnotation = ( cell, annotation) => {
+          let cellAttr = 'data-code-cell="' + cell + '"';
+          let lineAttr = 'data-code-annotation="' +  annotation + '"';
+          const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+          return selector;
+        }
+        const selectCodeLines = (annoteEl) => {
+          const doc = window.document;
+          const targetCell = annoteEl.getAttribute("data-target-cell");
+          const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+          const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+          const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+          const lineIds = lines.map((line) => {
+            return targetCell + "-" + line;
+          })
+          let top = null;
+          let height = null;
+          let parent = null;
+          if (lineIds.length > 0) {
+              //compute the position of the single el (top and bottom and make a div)
+              const el = window.document.getElementById(lineIds[0]);
+              top = el.offsetTop;
+              height = el.offsetHeight;
+              parent = el.parentElement.parentElement;
+            if (lineIds.length > 1) {
+              const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+              const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+              height = bottom - top;
+            }
+            if (top !== null && height !== null && parent !== null) {
+              // cook up a div (if necessary) and position it 
+              let div = window.document.getElementById("code-annotation-line-highlight");
+              if (div === null) {
+                div = window.document.createElement("div");
+                div.setAttribute("id", "code-annotation-line-highlight");
+                div.style.position = 'absolute';
+                parent.appendChild(div);
+              }
+              div.style.top = top - 2 + "px";
+              div.style.height = height + 4 + "px";
+              div.style.left = 0;
+              let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+              if (gutterDiv === null) {
+                gutterDiv = window.document.createElement("div");
+                gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+                gutterDiv.style.position = 'absolute';
+                const codeCell = window.document.getElementById(targetCell);
+                const gutter = codeCell.querySelector('.code-annotation-gutter');
+                gutter.appendChild(gutterDiv);
+              }
+              gutterDiv.style.top = top - 2 + "px";
+              gutterDiv.style.height = height + 4 + "px";
+            }
+            selectedAnnoteEl = annoteEl;
+          }
+        };
+        const unselectCodeLines = () => {
+          const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+          elementsIds.forEach((elId) => {
+            const div = window.document.getElementById(elId);
+            if (div) {
+              div.remove();
+            }
+          });
+          selectedAnnoteEl = undefined;
+        };
+          // Handle positioning of the toggle
+      window.addEventListener(
+        "resize",
+        throttle(() => {
+          elRect = undefined;
+          if (selectedAnnoteEl) {
+            selectCodeLines(selectedAnnoteEl);
+          }
+        }, 10)
+      );
+      function throttle(fn, ms) {
+      let throttle = false;
+      let timer;
+        return (...args) => {
+          if(!throttle) { // first call gets through
+              fn.apply(this, args);
+              throttle = true;
+          } else { // all the others get throttled
+              if(timer) clearTimeout(timer); // cancel #2
+              timer = setTimeout(() => {
+                fn.apply(this, args);
+                timer = throttle = false;
+              }, ms);
+          }
+        };
+      }
+        // Attach click handler to the DT
+        const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+        for (const annoteDlNode of annoteDls) {
+          annoteDlNode.addEventListener('click', (event) => {
+            const clickedEl = event.target;
+            if (clickedEl !== selectedAnnoteEl) {
+              unselectCodeLines();
+              const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+              if (activeEl) {
+                activeEl.classList.remove('code-annotation-active');
+              }
+              selectCodeLines(clickedEl);
+              clickedEl.classList.add('code-annotation-active');
+            } else {
+              // Unselect the line
+              unselectCodeLines();
+              clickedEl.classList.remove('code-annotation-active');
+            }
+          });
+        }
+    const findCites = (el) => {
+      const parentEl = el.parentElement;
+      if (parentEl) {
+        const cites = parentEl.dataset.cites;
+        if (cites) {
+          return {
+            el,
+            cites: cites.split(' ')
+          };
+        } else {
+          return findCites(el.parentElement)
+        }
+      } else {
+        return undefined;
+      }
+    };
+    var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+    for (var i=0; i<bibliorefs.length; i++) {
+      const ref = bibliorefs[i];
+      const citeInfo = findCites(ref);
+      if (citeInfo) {
+        tippyHover(citeInfo.el, function() {
+          var popup = window.document.createElement('div');
+          citeInfo.cites.forEach(function(cite) {
+            var citeDiv = window.document.createElement('div');
+            citeDiv.classList.add('hanging-indent');
+            citeDiv.classList.add('csl-entry');
+            var biblioDiv = window.document.getElementById('ref-' + cite);
+            if (biblioDiv) {
+              citeDiv.innerHTML = biblioDiv.innerHTML;
+            }
+            popup.appendChild(citeDiv);
+          });
+          return popup.innerHTML;
+        });
+      }
+    }
+  });
+  </script>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
