@@ -25,7 +25,7 @@ Additional details about nimbleQuad can be found [in the NIMBLE User Manual](htt
 
 ### What is NIMBLE?
 
-[NIMBLE](https://r-nimble.org](https://r-nimble.org) is a system for writing hierarchical statistical models and algorithms.  It is distributed as an R package [nimble](https://CRAN.R-project.org/package=nimble). NIMBLE includes:
+[NIMBLE](https://r-nimble.org) is a system for writing hierarchical statistical models and algorithms.  It is distributed as the R package, [nimble](https://CRAN.R-project.org/package=nimble). NIMBLE includes:
 
 1. A dialect of the BUGS model language that is extensible.  NIMBLE uses almost the same model code as WinBUGS, OpenBUGS, and JAGS.  Being "extensible" means that it is possible to write new functions and distributions and use them in your models.
 
@@ -243,13 +243,13 @@ We then use `runNestedApprox` to run the basic approximation and apply various m
 1. Find posterior mode of the parameters using Laplace (or AGHQ) to marginalize over the latent nodes.
 2. Use an *integration-free* method analogous to that of INLA to quickly approximate the marginal posterior distribution of each parameter [@martins2013bayesian].
 3. Calculate the posterior density of the parameters across the parameter quadrature grid (the default grid uses the CCD (central composite design) approach when the number of parameters is greater than two). In addition, a quadrature-based marginal log likelihood is produced based on this computation.
-4. Simulate the joint posterior of the `latentNodes` from a mixture of multivariate normal distributions with mean, covariance, and weights obtained at each grid point in the parameter quadrature grid.
+4. Sample from the joint posterior of the `latentNodes` using a mixture of multivariate normal distributions with mean, covariance, and weights obtained at each grid point in the parameter quadrature grid.
 
 Using the integration-free method is the fastest way to produce marginal posterior density estimates of the parameters. Following the methodology of INLA, this is done by using an asymmetric multivariate normal distribution to approximate the posterior density of the parameters.
 
 If more accuracy is required, quadrature can be used such as AGHQ to marginalize over the other parameters (similar to the R package `aghq`). Here the user can choose between AGHQ, CCD, sparse AGHQ, or a user-provided quadrature rule, as discussed further below). Marginal density values are computed at a fixed set of points and then a spline is used for computations with the univariate density.
 
-For inference on the latent nodes, at each point in the parameter grid, Laplace is used to marginalize the latent nodes to calculate the posterior density for the point, which requires an inner optimization. This can be computationally expensive (particularly with a large number of latent nodes), scaling with the number of grid points. CCD is the default (as is done in INLA) because it scales well to higher dimensions. Alternatively, an AGHQ grid can be used. This will be computationally more expensive because there are more grid points but potentially more accurate. The user can also provide their own grid. By default, we do not do compute the parameter grid when calling `runNestedApprox` unless requested, because the integration-free estimates do not require it. However, it is necessary for inference on the latent nodes and is done automatically when the latent nodes are simulated (via `simulateLatents`).
+For inference on the latent nodes, at each point in the parameter grid, Laplace is used to marginalize the latent nodes to calculate the posterior density for the point, which requires an inner optimization. This can be computationally expensive (particularly with a large number of latent nodes), scaling with the number of grid points. CCD is the default (as is done in INLA) because it scales well to higher dimensions. Alternatively, an AGHQ grid can be used. This will be computationally more expensive because there are more grid points but potentially more accurate. The user can also provide their own grid. By default, we do not do compute the parameter grid when calling `runNestedApprox` unless requested, because the integration-free estimates do not require it. However, it is necessary for inference on the latent nodes and is done automatically when the latent nodes are sampled (via `sampleLatents`).
 
 
 Here is the initial (integration-free) inference for the parameters. We compare results to samples from a long HMC (MCMC) run.
@@ -266,14 +266,14 @@ result$plotMarginal("tau_re", xlim = c(0,17), lwd=2)
 lines(hmc_tau_re$x, inla.dmarginal(hmc_tau_re$x, fit_inla$marginals.hyperpar[[2]]), col = 'red')
 lines(hmc_tau_re, col = 'green')
 legend("topright", legend = c("NIMBLE\nnested approx", "INLA", "HMC"),
-  col = c('black','red','green'), lty = rep(1,3), cex = 0.75)
+  col = c('black','red','green'), lty = rep(1,3), cex = 0.75, bty = 'n')
 
 result$plotMarginal("p", lwd=2)
 lines(hmc_p$x, inla.dmarginal(hmc_p$x, fit_inla$marginals.hyperpar[[1]]), col = 'red')
 lines(hmc_p, col = 'green')
 ```
 
-The nested approximation and INLA results match MCMC well, though for some reason the densities plotted by INLA doesn't quite integrate to one and therefore lies above the other two lines.
+The nested approximation and INLA results match MCMC well, though for some reason the densities plotted by INLA don't quite integrate to one and therefore lies above the other two lines.
 
 Here is the sampling-based inference for the latent nodes. The density estimates match HMC reasonably well, but not quite as well as INLA for the fixed effects.
 
@@ -362,7 +362,7 @@ capprox <- compileNimble(approx, project = m, resetFunctions = TRUE)
 result <- runNestedApprox(approx = capprox)
 ```
 
-We can look at the different quadrature grids by accessing the `capprox` object itself. Note that although `"AGHQSPARSE"` is available, it cannot be used to simulate the latent nodes as the quadrature weights can be  negative. For demonstration, we will compute the posterior density for each grid `calcParamGrid` to compare the different grids.
+We can look at the different quadrature grids by accessing the `capprox` object itself. Note that although `"AGHQSPARSE"` is available, it cannot be used to sample the latent nodes as the quadrature weights can be  negative. For demonstration, we will compute the posterior density for each grid `calcParamGrid` to compare the different grids.
 
 ```{r}
 capprox$buildParamGrid(quadRule = "USER")
@@ -387,7 +387,8 @@ plot(nodes_ccd, xlim = c(-2,0), ylim = c(-1.3, 4), # xlim = c(-1.3, -0.6), ylim 
 points(nodes_aghq, pch = 1, cex = 1.2)
 points(nodes_aghqsparse, pch = 16, col = 'red')
 points(nodes_user, pch = 3, col = 'yellow')
-legend("topleft", horiz=TRUE, legend = c("CCD", "AGHQ", "AGHQ-Sparse", "PCA-AGHQ"),
+legend("topleft", horiz=FALSE, bty = 'n',
+   legend = c("CCD", "AGHQ", "AGHQ-Sparse", "PCA-AGHQ"),
    pch = c(4,1,16,3), col = c('black','black','red','yellow'),  cex = 0.9)
 ```
 
@@ -402,15 +403,16 @@ Here let's see the effect of increasing the density of the AGHQ grid and of prun
 ```{r}
 ## Increase the  number of AGHQ grid points.
 capprox$buildParamGrid(quadRule = "AGHQ", nQuadUpdate = 7)
-nodes_aghq11 <- capprox$getParamGrid()
+nodes_aghq7 <- capprox$getParamGrid()
 
 ## Prune Grid
 capprox$buildParamGrid(quadRule = "AGHQ", nQuadUpdate = 7, prune = 0.40)
-nodes_aghq11_50 <- capprox$getParamGrid()
+nodes_aghq7_pruned <- capprox$getParamGrid()
 
-plot(nodes_aghq11, xlab = "theta[1]", ylab = "theta[2]", pch = 1, cex = 1.1,
+plot(nodes_aghq7, xlab = "theta[1]", ylab = "theta[2]", pch = 1, cex = 1.1,
   xlim = c(-2,0), ylim = c(-1.3, 4))
-points(nodes_aghq11_50, col = 'red', pch = 16)
+points(nodes_aghq7_pruned, col = 'blue', pch = 16)
+legend('topleft', legend = c("AGHQ, nQuad = 7", "pruned"), pch = c(1,16), col = c('black','blue'), bty = 'n')
 ```
 
 ### Sampling from the posterior over parameters
@@ -423,7 +425,7 @@ result$plotMarginal("tau_re", xlim = c(0,17), lwd=2)
 lines(density(samples_params[,2]), col = 'black', lty = 2)
 lines(hmc_tau_re, col = 'green')
 legend("topright", legend = c("nested approx", "nested approx, samples", "HMC"),
-  col = c('black','black','green'), lty = c(1,2,1))
+  col = c('black','black','green'), lty = c(1,2,1), bty = 'n')
 ```
 
 ### Model selection and the marginal likelihood
