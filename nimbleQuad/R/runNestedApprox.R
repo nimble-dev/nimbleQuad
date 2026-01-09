@@ -127,8 +127,8 @@ approxSummary <- R6Class("approxSummary",
         emarginal = function(node, functional, ...) {
             emarginal(self, node, functional, ...)
         },
-        plotMarginal = function(node, log = FALSE, add = FALSE, ...){
-            plotMarginal(self, node, log, add = add, ...)
+        plotMarginal = function(node, log = FALSE, xlim = NULL, ngrid = 200, add = FALSE, ...){
+            plotMarginal(self, node, log, xlim, ngrid, add, ...)
         },
         approx = NULL,
         quantiles = NULL,
@@ -414,7 +414,7 @@ improveParamMarginals <- function(summary, nodes, nMarginalGrid = 5, nQuad, quad
     if(Rapprox$nParamTrans > 1) {
         nmarg <- length(nodes)
         if(nmarg > 1) word <- "densities" else word <- "density"
-        messageIfVerbose("Approximating", nmarg, "individual parameter marginal", word, "via AGHQ:\n")
+        messageIfVerbose("Approximating ", nmarg, " individual parameter marginal ", word, " via AGHQ:")
     }
     for (i in seq_along(nodes)) {
         ## Improve marginal and insert into raw and summary objects.
@@ -722,13 +722,16 @@ emarginal <- function(summary, node, functional, ...) {
 #' @param node parameter node of interest. Specified as character (when using original scale) 
 #' or integer (when using transformed scale), where the scale was specified in \code{runNestedApprox}.
 #' @param log logical; if \code{TRUE}, plot log-density. Default is \code{FALSE}.
+#' @param xlim (optional) range of x values to use. Default is the .001 and .999 quantiles.
+#' @param ngrid number of grid points at which to plot. Default is 200.
 #' @param add logical; if \code{TRUE}, add to existing plot. Default is \code{FALSE}.
 #' @param ... Additional arguments passed to plotting function.
 #'
 #' @return None. Produces a plot.
-plotMarginal <- function(summary, node, log = FALSE, add = FALSE, ...){
-    minmax <- summary$qmarginal(node, c(.001, 0.999))
-    x <- seq(minmax[1], minmax[2], length = 200)
+plotMarginal <- function(summary, node, log = FALSE, xlim = NULL, ngrid = 200, add = FALSE, ...){
+    if(is.null(xlim))
+        xlim <- summary$qmarginal(node, c(.001, .999))
+    x <- seq(xlim[1], xlim[2], length = ngrid)
     y <- summary$dmarginal(node, x, log)
     if(log) 
       ylab <- "Log Posterior Density"

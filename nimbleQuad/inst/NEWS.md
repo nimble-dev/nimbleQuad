@@ -1,4 +1,4 @@
-#              CHANGES IN VERSION 1.4.0 (December 2025)
+#              CHANGES IN VERSION 1.4.0 (January 2026)
 
 These change notes reflect changes in functionality relative to the 
 implementation of Laplace/AGHQ approximation in the `nimble` package, 

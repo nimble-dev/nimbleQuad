@@ -166,7 +166,14 @@ for more detailed information, e.g., \code{\link{improveParamMarginals}}.
 \if{latex}{\out{\hypertarget{method-approxSummary-plotMarginal}{}}}
 \subsection{Method \code{plotMarginal()}}{
 \subsection{Usage}{
-\if{html}{\out{<div class="r">}}\preformatted{approxSummary$plotMarginal(node, log = FALSE, add = FALSE, ...)}\if{html}{\out{</div>}}
+\if{html}{\out{<div class="r">}}\preformatted{approxSummary$plotMarginal(
+  node,
+  log = FALSE,
+  xlim = NULL,
+  ngrid = 200,
+  add = FALSE,
+  ...
+)}\if{html}{\out{</div>}}
 }
 
 }

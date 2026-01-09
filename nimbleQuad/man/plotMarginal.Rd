@@ -4,7 +4,15 @@
 \alias{plotMarginal}
 \title{Plot the marginal posterior for a parameter}
 \usage{
-plotMarginal(summary, node, log = FALSE, add = FALSE, ...)
+plotMarginal(
+  summary,
+  node,
+  log = FALSE,
+  xlim = NULL,
+  ngrid = 200,
+  add = FALSE,
+  ...
+)
 }
 \arguments{
 \item{summary}{an approxSummary object, returned by \code{runNestedApprox}.}
@@ -13,6 +21,10 @@ plotMarginal(summary, node, log = FALSE, add = FALSE, ...)
 or integer (when using transformed scale), where the scale was specified in \code{runNestedApprox}.}
 
 \item{log}{logical; if \code{TRUE}, plot log-density. Default is \code{FALSE}.}
+
+\item{xlim}{(optional) range of x values to use. Default is the .001 and .999 quantiles.}
+
+\item{ngrid}{number of grid points at which to plot. Default is 200.}
 
 \item{add}{logical; if \code{TRUE}, add to existing plot. Default is \code{FALSE}.}
 
