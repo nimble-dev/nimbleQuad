@@ -358,7 +358,7 @@ u_{j} \sim \text{Normal}(0, \sigma^2)
 </div>
 <div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="fu">logit</span>(nimble_params[<span class="st">"p"</span>,<span class="dv">1</span>])   <span class="co"># NIMBLE</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[1] -0.9338251</code></pre>
+<pre><code>[1] -0.9338527</code></pre>
 </div>
 <div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="co"># tau_re</span></span>
 <span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a><span class="fu">exp</span>(<span class="sc">-</span><span class="dv">2</span><span class="sc">*</span>fit_tmb<span class="sc">$</span>fit<span class="sc">$</span>par[<span class="st">"theta"</span>])  <span class="co"># TMB</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
@@ -368,7 +368,7 @@ u_{j} \sim \text{Normal}(0, \sigma^2)
 </div>
 <div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>nimble_params[<span class="st">"tau_re"</span>,<span class="dv">1</span>]         <span class="co"># NIMBLE</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[1] 3.648097</code></pre>
+<pre><code>[1] 3.646083</code></pre>
 </div>
 </div>
 <p>It can be helpful to check the Laplace approximation at the MLE by increasing the number of quadrature nodes using AGHQ. If the likelihood is very different when increasing the number of quadrature nodes, that indicates that Laplace was not a good approximation to the marginal likelihood. In this particular case, since we have have conditionally independent random effects (and therefore a set of 1-dimensional AGHQ approximations), increasing the number of quadrature nodes will be relatively quick, but in other cases it can be very slow.</p>
@@ -385,7 +385,7 @@ u_{j} \sim \text{Normal}(0, \sigma^2)
 <div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>claplace<span class="sc">$</span><span class="fu">updateSettings</span>(<span class="at">nQuad =</span> <span class="dv">11</span>)</span>
 <span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>claplace<span class="sc">$</span><span class="fu">calcLogLik</span>(nimble_fit<span class="sc">$</span>summary<span class="sc">$</span>params[, <span class="st">'estimate'</span>], <span class="at">trans =</span> <span class="cn">FALSE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>[1] -881.8749</code></pre>
+<pre><code>[1] -881.8748</code></pre>
 </div>
 </div>
 <section id="finding-the-posterior-mode" class="level3">
@@ -398,22 +398,22 @@ u_{j} \sim \text{Normal}(0, \sigma^2)
 <span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a>summary_mode<span class="sc">$</span>params</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>           estimate   stdError
-beta[1]  -2.9480593 0.73037698
-beta[2]   0.9057569 0.84578328
-beta[3]   2.3137081 0.75535597
-beta[4]   0.6821166 0.87486699
-beta[5]   1.6941718 0.77843578
-beta[6]   2.5049842 0.74244105
-beta[7]   2.5285631 0.74354887
-beta[8]   3.9088307 0.74894207
-beta[9]  -2.2879169 0.88553791
-beta[10] -2.1261196 0.76825335
-beta[11] -1.2050890 0.90116109
-beta[12] -1.0299955 0.78868138
-beta[13] -1.9337187 0.75298920
-beta[14] -2.5626526 0.75945010
-tau_re    4.5731703 2.18471379
-p         0.2833263 0.03245053</code></pre>
+beta[1]  -2.9479288 0.73031304
+beta[2]   0.9054848 0.84572045
+beta[3]   2.3135706 0.75528120
+beta[4]   0.6815960 0.87484058
+beta[5]   1.6938112 0.77837017
+beta[6]   2.5046664 0.74236547
+beta[7]   2.5283724 0.74347235
+beta[8]   3.9086414 0.74890318
+beta[9]  -2.2874463 0.88547589
+beta[10] -2.1257575 0.76817992
+beta[11] -1.2047056 0.90113506
+beta[12] -1.0296436 0.78861657
+beta[13] -1.9333930 0.75291515
+beta[14] -2.5623275 0.75937369
+tau_re    4.5695310 2.18287788
+p         0.2833335 0.03244996</code></pre>
 </div>
 </div>
 <p>One can also “manually” use the <code>optimize</code> method of a built AGHQ or Laplace object to either penalize the likelihood or find the posterior mode. To simply penalize the likelihood using the prior distributions on parameters, one sets <code>includePrior = TRUE</code>. If the posterior mode is of interest, then one must also include the Jacobian transformation by setting <code>includeJacobian = TRUE</code> (this is what <code>findMAP</code> does).</p>
@@ -461,9 +461,9 @@ p         0.2833263 0.03245053</code></pre>
 <div class="sourceCode cell-code" id="cb45"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb45-1"><a href="#cb45-1" aria-hidden="true" tabindex="-1"></a>result</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Model (hyper)parameters: 
-            mean         sd      2.5%      25%       50%       75%     97.5%
-p      0.2829532 0.03213736 0.2223162 0.260750 0.2822413 0.3042659 0.3480408
-tau_re 4.2832293 2.21981565 1.4690113 2.737785 3.7993333 5.2801515 9.9047111
+            mean         sd      2.5%       25%       50%       75%     97.5%
+p      0.2829532 0.03213736 0.2223162 0.2607501 0.2822413 0.3042659 0.3480407
+tau_re 4.2832290 2.21981483 1.4690108 2.7377846 3.7993335 5.2801514 9.9047077
 
 Marginal log-likelihood (asymmetric Gaussian approximation): -957.392(*)
   (*) Invalid for improper priors and may not be useful for non-informative priors.</code></pre>
@@ -525,9 +525,9 @@ Marginal log-likelihood (asymmetric Gaussian approximation): -957.392(*)
 <div class="sourceCode cell-code" id="cb51"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb51-1"><a href="#cb51-1" aria-hidden="true" tabindex="-1"></a>result  <span class="co"># Original (integration-free) parameter estimates</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Model (hyper)parameters: 
-            mean         sd      2.5%      25%       50%       75%     97.5%
-p      0.2829532 0.03213736 0.2223162 0.260750 0.2822413 0.3042659 0.3480408
-tau_re 4.2832293 2.21981565 1.4690113 2.737785 3.7993333 5.2801515 9.9047111
+            mean         sd      2.5%       25%       50%       75%     97.5%
+p      0.2829532 0.03213736 0.2223162 0.2607501 0.2822413 0.3042659 0.3480407
+tau_re 4.2832290 2.21981483 1.4690108 2.7377846 3.7993335 5.2801514 9.9047077
 
 Marginal log-likelihood (asymmetric Gaussian approximation): -957.392(*)
 Marginal log-likelihood (grid-based): -957.3845(*)
@@ -548,7 +548,7 @@ Marginal log-likelihood (grid-based): -957.3845(*)
 <pre><code>Model (hyper)parameters: 
             mean         sd     2.5%       25%       50%       75%     97.5%
 p      0.2829161 0.03233042 0.220414 0.2608876 0.2826332 0.3046184  0.347118
-tau_re 4.3240215 2.34440783 1.450420 2.7365618 3.8040399 5.3028558 10.249151
+tau_re 4.3240215 2.34440784 1.450420 2.7365618 3.8040399 5.3028558 10.249151
 
 Marginal log-likelihood (asymmetric Gaussian approximation): -957.392(*)
 Marginal log-likelihood (grid-based): -957.3845(*)
@@ -716,7 +716,7 @@ Calculating inner AGHQ/Laplace approximation at 13 parameter (outer)
 
 <div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography" id="quarto-bibliography"><h2 class="anchored quarto-appendix-heading">References</h2><div id="refs" class="references csl-bib-body hanging-indent" data-entry-spacing="0" role="list">
 <div id="ref-howes_pca" class="csl-entry" role="listitem">
-Howes, Adam, Alex Stringer, Seth R. Flaxman, and Jeffrey W. Imai–Eaton. 2026. <span>“Fast Approximate Bayesian Inference of HIV Indicators Using PCA Adaptive Gauss-Hermite Quadrature.”</span> <em>Journal of Theoretical Biology</em> 618: 112290. https://doi.org/<a href="https://doi.org/10.1016/j.jtbi.2025.112290">https://doi.org/10.1016/j.jtbi.2025.112290</a>.
+Howes, Adam, Alex Stringer, Seth R. Flaxman, and Jeffrey W. Imai–Eaton. 2026. <span>“Fast Approximate Bayesian Inference of HIV Indicators Using PCA Adaptive Gauss-Hermite Quadrature.”</span> <em>Journal of Theoretical Biology</em> 618: 112290. <a href="https://doi.org/10.1016/j.jtbi.2025.112290">https://doi.org/10.1016/j.jtbi.2025.112290</a>.
 </div>
 <div id="ref-jackel2005note" class="csl-entry" role="listitem">
 Jäckel, Peter. 2005. <span>“A Note on Multivariate Gauss-Hermite Quadrature.”</span> <em>London: ABN-Amro. Re</em>.
