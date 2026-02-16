@@ -736,6 +736,7 @@ buildOneAGHQuad1D <- nimbleFunction(
       quadGrid$buildGrid(method = quadRule_, nQuad = nQuad_)
       nQ <- quadGrid$gridSize()
       SD <- 1/sqrt(saved_inner_negHess[1,1])
+      if(quadTransform_ == "center") SD <- 1  ## Do not scale nodes.
       nodes <<- quadGrid$nodes(0)
       wgts <<- quadGrid$weights(0)
       logDensity_quad <<- numeric(value = 0, length = nQ)
@@ -747,13 +748,11 @@ buildOneAGHQuad1D <- nimbleFunction(
       }
       for(i in 1:nQ) {
         if(i != modeIndex) {
-          if(quadTransform_ != "identity")
-            nodes[i,] <<- saved_inner_argmax + SD*nodes[i,]
+          nodes[i,] <<- saved_inner_argmax + SD*nodes[i,]
           logDensity_quad[i] <<- logLik_RE(reTransform = nodes[i,])
           ans <- ans + exp(logDensity_quad[i] - saved_inner_max_value)*wgts[i]
         }else{
-          if(quadTransform_ != "identity")
-            nodes[i,] <<- saved_inner_argmax
+          nodes[i,] <<- saved_inner_argmax
           logDensity_quad[i] <<- saved_inner_max_value
           ans <- ans + wgts[i]
         }
@@ -795,11 +794,17 @@ buildOneAGHQuad1D <- nimbleFunction(
       }else{
         ## Gradient of AGHQ Approx.
         ## dre_hat/dp = d^2ll/drep / d^2ll/dre^2
-        gr_rehatwrtp <<- hesslogLikwrtpre/negHessian
-        ## dsigma_hat/dp (needed at real scale)
-        sigma_hat <- 1/sqrt(negHessian)
-        gr_sigmahatwrtp <<- -0.5*grlogdetNegHesswrtp*sigma_hat
-        gr_sigmahatwrtre <<- -0.5*grlogdetNegHesswrtre*sigma_hat
+        gr_rehatwrtp <<- hesslogLikwrtpre/negHessian        
+        if(quadTransform_ == "center"){
+          ## If not scaling then the gr wrt to sigma = 0.
+          gr_sigmahatwrtp <<- nimNumeric(value = 0, length = p_indices)
+          gr_sigmahatwrtre <<- 0
+        }else{
+          ## dsigma_hat/dp (needed at real scale)
+          sigma_hat <- 1/sqrt(negHessian)
+          gr_sigmahatwrtp <<- -0.5*grlogdetNegHesswrtp*sigma_hat
+          gr_sigmahatwrtre <<- -0.5*grlogdetNegHesswrtre*sigma_hat          
+        }
         ## Sum gradient of each node.
         grp_AGHQuad_sum <- gr_AGHQuad_nodes(p = p, method = 2)
         AGHQuad_saved_gr <<- grp_AGHQuad_sum - 0.5 * (grlogdetNegHesswrtp + grlogdetNegHesswrtre * gr_rehatwrtp)
@@ -816,7 +821,7 @@ buildOneAGHQuad1D <- nimbleFunction(
       if(any(p != quadrature_previous_p)){
         calcLogLik_AGHQuad(p)
       }
-
+      
       ## Method 2 implies double taping.
       modeIndex <- quadGrid$modeIndex()
       nQ <- quadGrid$gridSize()
@@ -856,26 +861,20 @@ buildOneAGHQuad1D <- nimbleFunction(
       logDensity_quad <<- numeric(value = 0, length = nQ)
       for(i in 1:nQ) logDensity_quad[i] <- logLik_RE(reTransform = nodes[i,])
       maxLogDens <- max(logDensity_quad)
-      res <- log(sum(exp(logDensity_quad - maxLogDens))) + maxLogDens
+      res <- log(sum(wgts*exp(logDensity_quad - maxLogDens))) + maxLogDens
       quadrature_previous_p <<- p ## Cache this to make sure you have it for later
       return(res)
       returnType(double())
     },
     ## No adaptive step leads to a simple gradient:
     gr_logLik_identity = function(p = double(1)){
-
-      if(any(p != current_P_for_inner)) {
-        set_P(p)
+      ## Need quadrature sum:
+      if(any(p != quadrature_previous_p)){
+        margLogLik_saved_value <<- calcLogLik_identity(p)
       }
-      ## Make grid:
-      quadGrid$buildGrid(method = quadRule_, nQuad = nQuad_)
-      nQ <- quadGrid$gridSize()
-      SD <- 1/sqrt(saved_inner_negHess[1,1])
-      nodes <<- quadGrid$nodes(0)
-      wgts <<- quadGrid$weights(0)
-      gr_wrt_p <- 0
-      for(i in 1:nQ) gr_wrt_p <- gr_wrt_p + gr_P_RE_b(p, nodes[i,])
-      return(gr_wrt_p)
+      gr_wgted_wrt_p <- numeric(value = 0, length = dim(p)[1])
+      for(i in 1:nQ) gr_wgted_wrt_p <- gr_wgted_wrt_p + gr_P_RE_b(p, nodes[i,])*exp(logDensity_quad[i])*wgts[i]
+      return(gr_wgted_wrt_p/exp(margLogLik_saved_value))
       returnType(double(1))
     },
     get_inner_mode = function(atOuterMode = integer(0, default = 0)){
