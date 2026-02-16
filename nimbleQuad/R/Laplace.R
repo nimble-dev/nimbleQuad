@@ -700,6 +700,12 @@ buildOneAGHQuad1D <- nimbleFunction(
     ## Laplace approximation (version "2" for historical reasons)
     calcLogLik2 = function(p = double(1)){
       if(!one_time_fixes_done) one_time_fixes()
+      
+      ## Simplest version of quadrature:
+      if(quadTransform_ == "identity"){
+        margLogLik_saved_value <<- calcLogLik_identity(p)
+        return(margLogLik_saved_value)
+      }
       if(any(p != saved_inner_max_p) | !cache_inner_max) {
         update_max_logLik_RE(p)
       }
@@ -761,6 +767,13 @@ buildOneAGHQuad1D <- nimbleFunction(
     ## Gradient of the Laplace approximation (version 2) w.r.t. parameters
     gr_logLik2 = function(p = double(1)){
       if(!one_time_fixes_done) one_time_fixes()
+      
+      ## Simplest version of quadrature:
+      if(quadTransform_ == "identity"){
+        AGHQuad_saved_gr <<- gr_logLik_identity(p)
+        return(AGHQuad_saved_gr)
+      }
+      
       if(any(p != saved_inner_max_p) | !cache_inner_max) {
         update_max_logLik_RE(p)
       }
@@ -827,6 +840,42 @@ buildOneAGHQuad1D <- nimbleFunction(
         }
       }
       return(gr_wgted_wrt_p / sum(wgts_lik[1:nQ]))
+      returnType(double(1))
+    },
+    ## Avoid all the inner optimization:
+    calcLogLik_identity = function(p = double(1)){
+      if(any(p != current_P_for_inner)) {
+        set_P(p)
+      }
+      ## Make grid:
+      quadGrid$buildGrid(method = quadRule_, nQuad = nQuad_)
+      nQ <- quadGrid$gridSize()
+      SD <- 1/sqrt(saved_inner_negHess[1,1])
+      nodes <<- quadGrid$nodes(0)
+      wgts <<- quadGrid$weights(0)
+      logDensity_quad <<- numeric(value = 0, length = nQ)
+      for(i in 1:nQ) logDensity_quad[i] <- logLik_RE(reTransform = nodes[i,])
+      maxLogDens <- max(logDensity_quad)
+      res <- log(sum(exp(logDensity_quad - maxLogDens))) + maxLogDens
+      quadrature_previous_p <<- p ## Cache this to make sure you have it for later
+      return(res)
+      returnType(double())
+    },
+    ## No adaptive step leads to a simple gradient:
+    gr_logLik_identity = function(p = double(1)){
+
+      if(any(p != current_P_for_inner)) {
+        set_P(p)
+      }
+      ## Make grid:
+      quadGrid$buildGrid(method = quadRule_, nQuad = nQuad_)
+      nQ <- quadGrid$gridSize()
+      SD <- 1/sqrt(saved_inner_negHess[1,1])
+      nodes <<- quadGrid$nodes(0)
+      wgts <<- quadGrid$weights(0)
+      gr_wrt_p <- 0
+      for(i in 1:nQ) gr_wrt_p <- gr_wrt_p + gr_P_RE_b(p, nodes[i,])
+      return(gr_wrt_p)
       returnType(double(1))
     },
     get_inner_mode = function(atOuterMode = integer(0, default = 0)){
