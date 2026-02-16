@@ -797,8 +797,8 @@ buildOneAGHQuad1D <- nimbleFunction(
         gr_rehatwrtp <<- hesslogLikwrtpre/negHessian        
         if(quadTransform_ == "center"){
           ## If not scaling then the gr wrt to sigma = 0.
-          gr_sigmahatwrtp <<- nimNumeric(value = 0, length = p_indices)
-          gr_sigmahatwrtre <<- 0
+          gr_sigmahatwrtp <<- grlogdetNegHesswrtp*0
+          gr_sigmahatwrtre <<- grlogdetNegHesswrtre*0
         }else{
           ## dsigma_hat/dp (needed at real scale)
           sigma_hat <- 1/sqrt(negHessian)
@@ -2233,7 +2233,8 @@ buildAGHQ <- nimbleFunction(
       ##     stop("updateSettings: `computeMethod` must be 1, 2, or 3")
       ## }
       if(quadTransform != "NULL") {
-        if(quadTransform != "spectral" & quadTransform != "cholesky")
+        if(quadTransform == "centre") quadTransform <- "center" ## British spelling okay.
+        if(!any(quadTransform == c("spectral", "cholesky", "identity", "center")))
           stop("`quadTransform` must be either cholesky or spectral.")
       }
       # actions
