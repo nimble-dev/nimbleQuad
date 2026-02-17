@@ -758,7 +758,8 @@ buildOneAGHQuad1D <- nimbleFunction(
         }
       }
       ## Given all the saved values, weights and log density, do quadrature sum.
-      res <- log(ans) + saved_inner_max_value - 0.5 * saved_inner_logdetNegHess
+      res <- log(ans) + saved_inner_max_value
+      if(quadTransform_ != "center") res <- res - 0.5 * saved_inner_logdetNegHess
       quadrature_previous_p <<- p ## Cache this to make sure you have it for
       return(res)
       returnType(double())
@@ -807,7 +808,10 @@ buildOneAGHQuad1D <- nimbleFunction(
         }
         ## Sum gradient of each node.
         grp_AGHQuad_sum <- gr_AGHQuad_nodes(p = p, method = 2)
-        AGHQuad_saved_gr <<- grp_AGHQuad_sum - 0.5 * (grlogdetNegHesswrtp + grlogdetNegHesswrtre * gr_rehatwrtp)
+        if(quadTransform_ == "center") 
+          AGHQuad_saved_gr <<- grp_AGHQuad_sum
+        else
+          AGHQuad_saved_gr <<- grp_AGHQuad_sum - 0.5 * (grlogdetNegHesswrtp + grlogdetNegHesswrtre * gr_rehatwrtp)
       }
       # N.B. An extra negation is built into gr_logdet because this is gradient of hessian, but the uptri_Omega_invNegHess is from the negative Hessian.
 
@@ -859,7 +863,7 @@ buildOneAGHQuad1D <- nimbleFunction(
       nodes <<- quadGrid$nodes(0)
       wgts <<- quadGrid$weights(0)
       logDensity_quad <<- numeric(value = 0, length = nQ)
-      for(i in 1:nQ) logDensity_quad[i] <- logLik_RE(reTransform = nodes[i,])
+      for(i in 1:nQ) logDensity_quad[i] <<- logLik_RE(reTransform = nodes[i,])
       maxLogDens <- max(logDensity_quad)
       res <- log(sum(wgts*exp(logDensity_quad - maxLogDens))) + maxLogDens
       quadrature_previous_p <<- p ## Cache this to make sure you have it for later
@@ -872,8 +876,12 @@ buildOneAGHQuad1D <- nimbleFunction(
       if(any(p != quadrature_previous_p)){
         margLogLik_saved_value <<- calcLogLik_identity(p)
       }
+      nQ <- quadGrid$gridSize()
       gr_wgted_wrt_p <- numeric(value = 0, length = dim(p)[1])
-      for(i in 1:nQ) gr_wgted_wrt_p <- gr_wgted_wrt_p + gr_P_RE_b(p, nodes[i,])*exp(logDensity_quad[i])*wgts[i]
+      for(i in 1:nQ) {
+        gr_jointlogLikwrtp <- gr_P_RE_b(p, nodes[i,])[p_indices]      
+        gr_wgted_wrt_p <- gr_wgted_wrt_p + gr_jointlogLikwrtp*exp(logDensity_quad[i])*wgts[i]
+      }
       return(gr_wgted_wrt_p/exp(margLogLik_saved_value))
       returnType(double(1))
     },
@@ -2233,8 +2241,7 @@ buildAGHQ <- nimbleFunction(
       ##     stop("updateSettings: `computeMethod` must be 1, 2, or 3")
       ## }
       if(quadTransform != "NULL") {
-        if(quadTransform == "centre") quadTransform <- "center" ## British spelling okay.
-        if(!any(quadTransform == c("spectral", "cholesky", "identity", "center")))
+        if(quadTransform != "spectral" & quadTransform != "cholesky" & quadTransform != "identity" & quadTransform != "center")
           stop("`quadTransform` must be either cholesky or spectral.")
       }
       # actions
