@@ -1725,6 +1725,12 @@ buildOneAGHQuad <- nimbleFunction(
     ## Laplace approximation (version "2" for historical reasons)
     calcLogLik2 = function(p = double(1)){
       if(!one_time_fixes_done) one_time_fixes()
+      
+      if(quadTransform_ == "identity"){
+        margLogLik_saved_value <<- calcLogLik_identity(p)
+        return(margLogLik_saved_value)        
+      }
+      
       if(any(p != saved_inner_max_p) | !cache_inner_max) {
         update_max_logLik_RE(p)
       }
@@ -1751,10 +1757,14 @@ buildOneAGHQuad <- nimbleFunction(
           theta[i] <- saved_inner_argmax[i] + sum(eigenvec[i,] * z/sqrt(eigenval))
         }
       } else{
-        if(method == "identity")
+        if(method == "identity"){
           theta <- z
-        else ## Cholesky
-          theta <- saved_inner_argmax + backsolve(saved_inner_negHess_chol, z)
+        }else{ ## Cholesky
+          if(method == "center")
+            theta <- saved_inner_argmax + z
+          else 
+            theta <- saved_inner_argmax + backsolve(saved_inner_negHess_chol, z)        
+        }
       }
       returnType(double(1))
       return(theta)
@@ -1800,9 +1810,50 @@ buildOneAGHQuad <- nimbleFunction(
       return(res)
       returnType(double())
     },
+    ## Avoid all the inner optimization:
+    calcLogLik_identity = function(p = double(1)){
+      if(any(p != current_P_for_inner)) {
+        set_P(p)
+      }
+      ## Make grid:
+      quadGrid$buildGrid(method = quadRule_, nQuad = nQuad_)
+      modeIndex <- quadGrid$modeIndex()
+
+      nQ <- quadGrid$gridSize()
+      nodes <<- quadGrid$nodes(0)  ## On standard scale but will be transformed.
+      wgts <<- quadGrid$weights(0)
+      logDensity_quad <<- numeric(value = 0, length = nQ)
+      for(i in 1:nQ) logDensity_quad[i] <<- logLik_RE(reTransform = nodes[i,])
+      maxLogDens <- max(logDensity_quad)
+      res <- log(sum(wgts*exp(logDensity_quad - maxLogDens))) + maxLogDens
+      quadrature_previous_p <<- p ## Cache this to make sure you have it for later
+      return(res)
+      returnType(double())
+    },
+    ## No adaptive step leads to a simple gradient. Can just tape it. ***Ask CJP or PdV about it.
+    gr_logLik_identity = function(p = double(1)){
+      ## Need quadrature sum:
+      if(any(p != quadrature_previous_p)){
+        margLogLik_saved_value <<- calcLogLik_identity(p)
+      }
+      nQ <- quadGrid$gridSize()
+      gr_wgted_wrt_p <- numeric(value = 0, length = dim(p)[1])
+      for(i in 1:nQ) {
+        gr_LL <- gr_P_RE_b(p, reTransform)[p_indices]
+        gr_wgted_wrt_p <- gr_wgted_wrt_p + gr_LL*exp(logDensity_quad[i])*wgts[i]
+      }
+      return(gr_wgted_wrt_p/exp(margLogLik_saved_value))
+      returnType(double(1))
+    },    
     ## Gradient of the Laplace approximation w.r.t. parameters
     gr_logLik2 = function(p = double(1)){
       if(!one_time_fixes_done) one_time_fixes()
+      
+      if(quadTransform_ == "identity"){
+        res <- gr_logLik_identity(p)
+        return(res)
+      }
+      
       if(any(p != saved_inner_max_p) | !cache_inner_max) {
         update_max_logLik_RE(p)
       }
